@@ -1,0 +1,14 @@
+https://github.com/josephlarralde/ArduinoEventEmitter
+EEPROM
+Wire
+Ethernet
+https://github.com/me-no-dev/ESPAsyncWebServer.git
+https://github.com/JChristensen/Timer
+https://github.com/me-no-dev/AsyncTCP.git
+WiFi
+https://github.com/hideakitai/ArtNet
+Arduino_JSON
+SPI
+FS
+https://github.com/adafruit/Adafruit_BusIO
+https://github.com/marian-craciunescu/ESP32Ping

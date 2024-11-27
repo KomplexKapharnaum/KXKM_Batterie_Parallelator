@@ -1,0 +1,460 @@
+10-31 18:11:18 com_github_bouni_kicad-jlcpcb-tools.store 210:Part J3 does not exist in the database and will be created from the board.
+10-31 18:11:18 com_github_bouni_kicad-jlcpcb-tools.store 246:Part J12 is already in the database but value, footprint, bom or pos values changed in the board file, part will be updated, lcsc overwritten/cleared.
+10-31 18:11:18 com_github_bouni_kicad-jlcpcb-tools.store 246:Part J11 is already in the database but value, footprint, bom or pos values changed in the board file, part will be updated, lcsc overwritten/cleared.
+10-31 18:11:18 com_github_bouni_kicad-jlcpcb-tools.store 239:Part R43 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+10-31 18:11:18 com_github_bouni_kicad-jlcpcb-tools.store 239:Part R45 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+10-31 18:11:18 com_github_bouni_kicad-jlcpcb-tools.store 239:Part R44 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+10-31 18:11:18 com_github_bouni_kicad-jlcpcb-tools.store 239:Part R42 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+10-31 18:11:18 com_github_bouni_kicad-jlcpcb-tools.store 239:Part U5 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+10-31 18:11:18 com_github_bouni_kicad-jlcpcb-tools.store 246:Part D5 is already in the database but value, footprint, bom or pos values changed in the board file, part will be updated, lcsc overwritten/cleared.
+10-31 18:11:18 com_github_bouni_kicad-jlcpcb-tools.store 210:Part L1 does not exist in the database and will be created from the board.
+10-31 18:11:18 com_github_bouni_kicad-jlcpcb-tools.store 239:Part J1 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+10-31 18:11:18 com_github_bouni_kicad-jlcpcb-tools.store 239:Part Q7 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+10-31 18:11:18 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C16 does not exist in the database and will be created from the board.
+10-31 18:11:18 com_github_bouni_kicad-jlcpcb-tools.store 246:Part R15 is already in the database but value, footprint, bom or pos values changed in the board file, part will be updated, lcsc overwritten/cleared.
+10-31 18:11:18 com_github_bouni_kicad-jlcpcb-tools.store 239:Part J2 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+10-31 18:11:18 com_github_bouni_kicad-jlcpcb-tools.store 239:Part U8 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+10-31 18:11:18 com_github_bouni_kicad-jlcpcb-tools.store 239:Part U4 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+10-31 18:11:18 com_github_bouni_kicad-jlcpcb-tools.store 246:Part R40 is already in the database but value, footprint, bom or pos values changed in the board file, part will be updated, lcsc overwritten/cleared.
+10-31 18:11:18 com_github_bouni_kicad-jlcpcb-tools.store 246:Part R22 is already in the database but value, footprint, bom or pos values changed in the board file, part will be updated, lcsc overwritten/cleared.
+10-31 18:11:18 com_github_bouni_kicad-jlcpcb-tools.store 246:Part U10 is already in the database but value, footprint, bom or pos values changed in the board file, part will be updated, lcsc overwritten/cleared.
+10-31 18:11:18 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C15 does not exist in the database and will be created from the board.
+10-31 18:11:18 com_github_bouni_kicad-jlcpcb-tools.store 239:Part Q6 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+10-31 18:11:18 com_github_bouni_kicad-jlcpcb-tools.store 239:Part TR1 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+10-31 18:11:18 com_github_bouni_kicad-jlcpcb-tools.store 239:Part Q8 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+10-31 18:11:18 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C20 does not exist in the database and will be created from the board.
+10-31 18:11:18 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C19 does not exist in the database and will be created from the board.
+10-31 18:11:18 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C21 does not exist in the database and will be created from the board.
+10-31 18:11:18 com_github_bouni_kicad-jlcpcb-tools.store 246:Part R41 is already in the database but value, footprint, bom or pos values changed in the board file, part will be updated, lcsc overwritten/cleared.
+10-31 18:11:18 com_github_bouni_kicad-jlcpcb-tools.store 246:Part D9 is already in the database but value, footprint, bom or pos values changed in the board file, part will be updated, lcsc overwritten/cleared.
+10-31 18:11:18 com_github_bouni_kicad-jlcpcb-tools.store 239:Part Q5 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+10-31 18:11:18 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C18 does not exist in the database and will be created from the board.
+11-02 19:36:11 com_github_bouni_kicad-jlcpcb-tools.store 239:Part R43 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:36:11 com_github_bouni_kicad-jlcpcb-tools.store 239:Part R45 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:36:11 com_github_bouni_kicad-jlcpcb-tools.store 239:Part R44 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:36:11 com_github_bouni_kicad-jlcpcb-tools.store 239:Part R42 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:36:11 com_github_bouni_kicad-jlcpcb-tools.store 239:Part U5 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:36:11 com_github_bouni_kicad-jlcpcb-tools.store 239:Part D5 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:36:11 com_github_bouni_kicad-jlcpcb-tools.store 239:Part J1 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:36:11 com_github_bouni_kicad-jlcpcb-tools.store 239:Part Q7 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:36:11 com_github_bouni_kicad-jlcpcb-tools.store 239:Part C16 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:36:11 com_github_bouni_kicad-jlcpcb-tools.store 239:Part J2 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:36:11 com_github_bouni_kicad-jlcpcb-tools.store 239:Part U8 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:36:11 com_github_bouni_kicad-jlcpcb-tools.store 239:Part U4 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:36:11 com_github_bouni_kicad-jlcpcb-tools.store 239:Part R22 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:36:11 com_github_bouni_kicad-jlcpcb-tools.store 239:Part U10 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:36:11 com_github_bouni_kicad-jlcpcb-tools.store 239:Part C15 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:36:11 com_github_bouni_kicad-jlcpcb-tools.store 239:Part Q6 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:36:11 com_github_bouni_kicad-jlcpcb-tools.store 239:Part TR1 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:36:11 com_github_bouni_kicad-jlcpcb-tools.store 239:Part Q8 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:36:11 com_github_bouni_kicad-jlcpcb-tools.store 239:Part C19 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:36:11 com_github_bouni_kicad-jlcpcb-tools.store 239:Part D9 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:36:11 com_github_bouni_kicad-jlcpcb-tools.store 239:Part Q5 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:36:11 com_github_bouni_kicad-jlcpcb-tools.store 239:Part C18 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:38:15 com_github_bouni_kicad-jlcpcb-tools.store 239:Part R43 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:38:15 com_github_bouni_kicad-jlcpcb-tools.store 239:Part R45 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:38:15 com_github_bouni_kicad-jlcpcb-tools.store 239:Part R44 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:38:15 com_github_bouni_kicad-jlcpcb-tools.store 239:Part R42 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:38:15 com_github_bouni_kicad-jlcpcb-tools.store 239:Part U5 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:38:15 com_github_bouni_kicad-jlcpcb-tools.store 239:Part D5 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:38:15 com_github_bouni_kicad-jlcpcb-tools.store 239:Part J1 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:38:15 com_github_bouni_kicad-jlcpcb-tools.store 239:Part Q7 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:38:15 com_github_bouni_kicad-jlcpcb-tools.store 239:Part C16 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:38:15 com_github_bouni_kicad-jlcpcb-tools.store 239:Part J2 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:38:15 com_github_bouni_kicad-jlcpcb-tools.store 239:Part U8 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:38:15 com_github_bouni_kicad-jlcpcb-tools.store 239:Part U4 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:38:15 com_github_bouni_kicad-jlcpcb-tools.store 239:Part R22 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:38:15 com_github_bouni_kicad-jlcpcb-tools.store 239:Part U10 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:38:15 com_github_bouni_kicad-jlcpcb-tools.store 239:Part C15 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:38:15 com_github_bouni_kicad-jlcpcb-tools.store 239:Part Q6 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:38:15 com_github_bouni_kicad-jlcpcb-tools.store 239:Part TR1 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:38:15 com_github_bouni_kicad-jlcpcb-tools.store 239:Part Q8 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:38:15 com_github_bouni_kicad-jlcpcb-tools.store 239:Part C19 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:38:15 com_github_bouni_kicad-jlcpcb-tools.store 239:Part D9 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:38:15 com_github_bouni_kicad-jlcpcb-tools.store 239:Part Q5 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 19:38:15 com_github_bouni_kicad-jlcpcb-tools.store 239:Part C18 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 210:Part H14 does not exist in the database and will be created from the board.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 210:Part H13 does not exist in the database and will be created from the board.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 210:Part H10 does not exist in the database and will be created from the board.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 210:Part H9 does not exist in the database and will be created from the board.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 239:Part R43 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 239:Part U5 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 246:Part JP19 is already in the database but value, footprint, bom or pos values changed in the board file, part will be updated, lcsc overwritten/cleared.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 239:Part D5 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 246:Part JP18 is already in the database but value, footprint, bom or pos values changed in the board file, part will be updated, lcsc overwritten/cleared.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 210:Part H11 does not exist in the database and will be created from the board.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 246:Part JP20 is already in the database but value, footprint, bom or pos values changed in the board file, part will be updated, lcsc overwritten/cleared.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 246:Part JP2 is already in the database but value, footprint, bom or pos values changed in the board file, part will be updated, lcsc overwritten/cleared.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 239:Part R45 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 246:Part J3 is already in the database but value, footprint, bom or pos values changed in the board file, part will be updated, lcsc overwritten/cleared.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 246:Part JP3 is already in the database but value, footprint, bom or pos values changed in the board file, part will be updated, lcsc overwritten/cleared.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 246:Part JP8 is already in the database but value, footprint, bom or pos values changed in the board file, part will be updated, lcsc overwritten/cleared.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 246:Part JP5 is already in the database but value, footprint, bom or pos values changed in the board file, part will be updated, lcsc overwritten/cleared.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 246:Part JP7 is already in the database but value, footprint, bom or pos values changed in the board file, part will be updated, lcsc overwritten/cleared.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 239:Part J1 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 239:Part C16 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 246:Part JP1 is already in the database but value, footprint, bom or pos values changed in the board file, part will be updated, lcsc overwritten/cleared.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 246:Part JP17 is already in the database but value, footprint, bom or pos values changed in the board file, part will be updated, lcsc overwritten/cleared.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 246:Part JP9 is already in the database but value, footprint, bom or pos values changed in the board file, part will be updated, lcsc overwritten/cleared.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 239:Part J2 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 246:Part JP14 is already in the database but value, footprint, bom or pos values changed in the board file, part will be updated, lcsc overwritten/cleared.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 239:Part U8 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 239:Part C18 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 246:Part JP16 is already in the database but value, footprint, bom or pos values changed in the board file, part will be updated, lcsc overwritten/cleared.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 239:Part U4 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 239:Part R22 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 239:Part R42 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 239:Part U10 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 239:Part C15 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 246:Part JP15 is already in the database but value, footprint, bom or pos values changed in the board file, part will be updated, lcsc overwritten/cleared.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 239:Part TR1 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 239:Part C19 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 239:Part D9 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 246:Part JP6 is already in the database but value, footprint, bom or pos values changed in the board file, part will be updated, lcsc overwritten/cleared.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 246:Part JP4 is already in the database but value, footprint, bom or pos values changed in the board file, part will be updated, lcsc overwritten/cleared.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 239:Part Q5 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 239:Part Q6 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 239:Part Q8 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 239:Part Q7 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 246:Part JP11 is already in the database but value, footprint, bom or pos values changed in the board file, part will be updated, lcsc overwritten/cleared.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 239:Part R44 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 246:Part JP12 is already in the database but value, footprint, bom or pos values changed in the board file, part will be updated, lcsc overwritten/cleared.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 246:Part JP10 is already in the database but value, footprint, bom or pos values changed in the board file, part will be updated, lcsc overwritten/cleared.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 246:Part JP13 is already in the database but value, footprint, bom or pos values changed in the board file, part will be updated, lcsc overwritten/cleared.
+11-02 20:17:59 com_github_bouni_kicad-jlcpcb-tools.store 210:Part H12 does not exist in the database and will be created from the board.
+11-02 20:18:05 com_github_bouni_kicad-jlcpcb-tools.fabrication 222:Successfully plotted Top layer
+11-02 20:18:05 com_github_bouni_kicad-jlcpcb-tools.fabrication 222:Successfully plotted Silk top
+11-02 20:18:05 com_github_bouni_kicad-jlcpcb-tools.fabrication 222:Successfully plotted Mask top
+11-02 20:18:05 com_github_bouni_kicad-jlcpcb-tools.fabrication 222:Successfully plotted Paste top
+11-02 20:18:05 com_github_bouni_kicad-jlcpcb-tools.fabrication 222:Successfully plotted Inner layer 1
+11-02 20:18:05 com_github_bouni_kicad-jlcpcb-tools.fabrication 222:Successfully plotted Inner layer 2
+11-02 20:18:05 com_github_bouni_kicad-jlcpcb-tools.fabrication 222:Successfully plotted Bottom layer
+11-02 20:18:05 com_github_bouni_kicad-jlcpcb-tools.fabrication 222:Successfully plotted Silk top
+11-02 20:18:05 com_github_bouni_kicad-jlcpcb-tools.fabrication 222:Successfully plotted Mask bottom
+11-02 20:18:05 com_github_bouni_kicad-jlcpcb-tools.fabrication 222:Successfully plotted Paste bottom
+11-02 20:18:05 com_github_bouni_kicad-jlcpcb-tools.fabrication 222:Successfully plotted Edges
+11-02 20:18:05 com_github_bouni_kicad-jlcpcb-tools.fabrication 222:Successfully plotted V score cut
+11-02 20:18:05 com_github_bouni_kicad-jlcpcb-tools.fabrication 237:Finished generating Excellon files
+11-02 20:18:05 com_github_bouni_kicad-jlcpcb-tools.fabrication 254:Finished generating ZIP file
+11-02 20:18:05 com_github_bouni_kicad-jlcpcb-tools.fabrication 289:Finished generating CPL file
+11-02 20:18:05 com_github_bouni_kicad-jlcpcb-tools.fabrication 306:Finished generating BOM file
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part H14 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part H13 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part H10 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part H9 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R38 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R43 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R7 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part U5 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D6 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C12 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R16 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R4 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part JP19 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D15 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R35 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D20 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D7 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D25 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D16 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R3 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R37 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part H8 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D5 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part JP18 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part J12 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part H11 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part JP20 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part H4 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D8 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D18 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part JP2 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part U1 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R45 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C9 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part L1 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R9 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R33 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part J3 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D3 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part JP3 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part JP8 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C2 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R25 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part JP5 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R6 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C13 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R29 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part H1 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part JP7 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D24 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R36 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part J1 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part J11 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R14 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R10 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C16 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C4 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part JP1 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part JP17 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R13 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C14 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R34 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part JP9 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R15 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part J2 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R31 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R30 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part U6 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part JP14 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part U8 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C18 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R39 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D26 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C3 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part JP16 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R27 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part U4 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R26 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C5 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C10 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R28 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D14 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D22 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R11 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R12 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R40 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R5 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D19 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C8 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R22 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R42 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D27 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part U10 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D4 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C15 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part JP15 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part TR1 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part H5 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R24 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D2 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C20 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R2 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C19 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C11 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R32 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part U7 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D21 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C21 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D23 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R41 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D9 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part U2 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C1 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part JP6 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part JP4 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part H6 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R23 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part H2 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part Q5 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part Q6 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part Q8 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part Q7 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part H3 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R18 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D12 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D10 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part JP11 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part U3 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R44 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R17 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C6 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part JP12 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part JP10 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R20 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C7 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R19 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D11 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part JP13 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R21 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part H7 does not exist in the database and will be created from the board.
+11-02 20:20:05 com_github_bouni_kicad-jlcpcb-tools.store 210:Part H12 does not exist in the database and will be created from the board.
+11-02 20:20:08 com_github_bouni_kicad-jlcpcb-tools.fabrication 222:Successfully plotted Top layer
+11-02 20:20:08 com_github_bouni_kicad-jlcpcb-tools.fabrication 222:Successfully plotted Silk top
+11-02 20:20:08 com_github_bouni_kicad-jlcpcb-tools.fabrication 222:Successfully plotted Mask top
+11-02 20:20:08 com_github_bouni_kicad-jlcpcb-tools.fabrication 222:Successfully plotted Paste top
+11-02 20:20:08 com_github_bouni_kicad-jlcpcb-tools.fabrication 222:Successfully plotted Inner layer 1
+11-02 20:20:09 com_github_bouni_kicad-jlcpcb-tools.fabrication 222:Successfully plotted Inner layer 2
+11-02 20:20:09 com_github_bouni_kicad-jlcpcb-tools.fabrication 222:Successfully plotted Bottom layer
+11-02 20:20:09 com_github_bouni_kicad-jlcpcb-tools.fabrication 222:Successfully plotted Silk top
+11-02 20:20:09 com_github_bouni_kicad-jlcpcb-tools.fabrication 222:Successfully plotted Mask bottom
+11-02 20:20:09 com_github_bouni_kicad-jlcpcb-tools.fabrication 222:Successfully plotted Paste bottom
+11-02 20:20:09 com_github_bouni_kicad-jlcpcb-tools.fabrication 222:Successfully plotted Edges
+11-02 20:20:09 com_github_bouni_kicad-jlcpcb-tools.fabrication 222:Successfully plotted V score cut
+11-02 20:20:09 com_github_bouni_kicad-jlcpcb-tools.fabrication 237:Finished generating Excellon files
+11-02 20:20:09 com_github_bouni_kicad-jlcpcb-tools.fabrication 254:Finished generating ZIP file
+11-02 20:20:09 com_github_bouni_kicad-jlcpcb-tools.fabrication 289:Finished generating CPL file
+11-02 20:20:09 com_github_bouni_kicad-jlcpcb-tools.fabrication 306:Finished generating BOM file
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part H14 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part H13 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part H10 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part H9 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R38 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R43 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R7 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part U5 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D6 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C12 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R16 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R4 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part JP19 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D15 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R35 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D20 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D7 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D25 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D16 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R3 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R37 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part H8 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D5 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part JP18 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part J12 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part H11 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part JP20 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part H4 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D8 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D18 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part JP2 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part U1 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R45 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C9 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part L1 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R9 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R33 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part J3 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D3 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part JP3 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part JP8 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C2 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R25 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part JP5 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R6 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C13 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R29 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part H1 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part JP7 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D24 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R36 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part J1 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part J11 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R14 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R10 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C16 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C4 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part JP1 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part JP17 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R13 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C14 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R34 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part JP9 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R15 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part J2 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R31 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R30 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part U6 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part JP14 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part U8 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C18 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R39 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D26 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C3 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part JP16 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R27 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part U4 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R26 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C5 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C10 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R28 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D14 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D22 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R11 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R12 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R40 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R5 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D19 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C8 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R22 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R42 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D27 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part U10 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D4 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C15 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part JP15 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part TR1 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part H5 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R24 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D2 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C20 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R2 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C19 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C11 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R32 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part U7 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D21 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C21 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D23 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R41 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D9 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part U2 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C1 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part JP6 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part JP4 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part H6 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R23 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part H2 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part Q5 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part Q6 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part Q8 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part Q7 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part H3 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R18 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D12 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D10 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part JP11 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part U3 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R44 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R17 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C6 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part JP12 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part JP10 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R20 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part C7 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R19 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part D11 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part JP13 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part R21 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part H7 does not exist in the database and will be created from the board.
+11-02 20:20:45 com_github_bouni_kicad-jlcpcb-tools.store 210:Part H12 does not exist in the database and will be created from the board.
+11-02 20:20:58 com_github_bouni_kicad-jlcpcb-tools.store 239:Part R43 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:20:58 com_github_bouni_kicad-jlcpcb-tools.store 239:Part U5 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:20:58 com_github_bouni_kicad-jlcpcb-tools.store 239:Part D5 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:20:58 com_github_bouni_kicad-jlcpcb-tools.store 239:Part R45 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:20:58 com_github_bouni_kicad-jlcpcb-tools.store 239:Part R44 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:20:58 com_github_bouni_kicad-jlcpcb-tools.store 239:Part J1 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:20:58 com_github_bouni_kicad-jlcpcb-tools.store 239:Part C16 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:20:58 com_github_bouni_kicad-jlcpcb-tools.store 239:Part J2 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:20:58 com_github_bouni_kicad-jlcpcb-tools.store 239:Part U8 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:20:58 com_github_bouni_kicad-jlcpcb-tools.store 239:Part C18 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:20:58 com_github_bouni_kicad-jlcpcb-tools.store 239:Part U4 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:20:58 com_github_bouni_kicad-jlcpcb-tools.store 239:Part R22 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:20:58 com_github_bouni_kicad-jlcpcb-tools.store 239:Part R42 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:20:58 com_github_bouni_kicad-jlcpcb-tools.store 239:Part U10 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:20:58 com_github_bouni_kicad-jlcpcb-tools.store 239:Part C15 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:20:58 com_github_bouni_kicad-jlcpcb-tools.store 239:Part TR1 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:20:58 com_github_bouni_kicad-jlcpcb-tools.store 239:Part C19 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:20:58 com_github_bouni_kicad-jlcpcb-tools.store 239:Part D9 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:20:58 com_github_bouni_kicad-jlcpcb-tools.store 239:Part Q5 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:20:58 com_github_bouni_kicad-jlcpcb-tools.store 239:Part Q7 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:20:58 com_github_bouni_kicad-jlcpcb-tools.store 239:Part Q6 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.
+11-02 20:20:58 com_github_bouni_kicad-jlcpcb-tools.store 239:Part Q8 is already in the database and has a lcsc value, the value supplied from the board will overwrite that in the database.

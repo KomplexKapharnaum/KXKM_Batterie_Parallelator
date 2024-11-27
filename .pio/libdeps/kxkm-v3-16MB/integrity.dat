@@ -1,0 +1,16 @@
+FS
+https://github.com/marian-craciunescu/ESP32Ping
+Wire
+Arduino_JSON
+https://github.com/RobTillaart/TCA9555.git
+https://github.com/karl-mohring/TCA95x5_driver.git
+EEPROM
+https://github.com/josephlarralde/ArduinoEventEmitter
+https://github.com/me-no-dev/AsyncTCP.git
+https://github.com/adafruit/Adafruit_BusIO
+https://github.com/hideakitai/ArtNet
+WiFi
+Ethernet
+https://github.com/JChristensen/Timer
+SPI
+https://github.com/me-no-dev/ESPAsyncWebServer.git
