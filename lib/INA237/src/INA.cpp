@@ -51,7 +51,8 @@ inaDet::inaDet(inaEEPROM &inaEE)
     shuntVoltageRegister = INA237_SHUNT_VOLTAGE_REGISTER;
     currentRegister = INA237_CURRENT_REGISTER;
     busVoltage_LSB = INA237_BUS_VOLTAGE_LSB;
-    shuntVoltage_LSB = INA237_SHUNT_VOLTAGE_ADCRANGE0_LSB; // start with ADCRANGE0 (0-40.96mV)
+    // shuntVoltage_LSB = INA237_SHUNT_VOLTAGE_ADCRANGE0_LSB; // start with ADCRANGE0 (0-40.96mV)
+    shuntVoltage_LSB = INA237_SHUNT_VOLTAGE_ADCRANGE1_LSB; // start with ADCRANGE1 (0-163.84mV)
     break;
   case INA260:
     busVoltageRegister = INA_BUS_VOLTAGE_REGISTER;
@@ -82,8 +83,8 @@ inaDet::inaDet(inaEEPROM &inaEE)
       {
         busVoltageRegister += 4;   // Reg for 3rd bus voltage
         shuntVoltageRegister += 4; // Regr for 3rd shunt voltage
-      }                            // of if-then INA322_2
-    }                              // of if-then-else INA3221_1
+      } // of if-then INA322_2
+    } // of if-then-else INA3221_1
     break;
   } // of switch type
 } // of constructor
@@ -164,7 +165,7 @@ void INA_Class::readInafromEEPROM(const uint8_t deviceNumber)
     for (uint8_t n = sizeof(inaEE) + _EEPROM_offset; n; --n) // Implement EEPROM.get template
     {
       EEPROM.read(e++, ptr++); // for ina (inaDet type)
-    }                          // of for-next each byte
+    } // of for-next each byte
 #else
     EEPROM.get(_EEPROM_offset + (deviceNumber * sizeof(inaEE)), inaEE); // Read EEPROM values
 #endif
@@ -195,11 +196,11 @@ void INA_Class::writeInatoEEPROM(const uint8_t deviceNumber)
     for (uint8_t n = sizeof(inaEE) + _EEPROM_offset; n; --n) // Implement EEPROM.put template
     {
       EEPROM.update(e++, *ptr++); // for ina (inaDet type)
-    }                             // for-next
+    } // for-next
 #else
     EEPROM.put(_EEPROM_offset + (deviceNumber * sizeof(inaEE)), inaEE); // Write the structure
 #ifdef ESP32
-    EEPROM.commit();                                                    // Force write to EEPROM when ESP32
+    EEPROM.commit(); // Force write to EEPROM when ESP32
 #endif
 #endif
 #else
@@ -307,7 +308,7 @@ uint8_t INA_Class::begin(const uint16_t maxBusAmps, const uint32_t microOhmR,
                 {
                   inaEE.type = INA231;
                 } // of if-then-else a INA230 or INA231
-              }   // of if-then-else an INA226
+              } // of if-then-else an INA226
             }
             else
             {
@@ -333,12 +334,12 @@ uint8_t INA_Class::begin(const uint16_t maxBusAmps, const uint32_t microOhmR,
                     else
                     {
                       inaEE.type = INA_UNKNOWN;
-                    }                    // of if-then-else it is unknown
-                  }                      // of if-then-else it is an INA237
-                }                        // of if-then-else it is an INA3221
-              }                          // of if-then-else it is an INA260
-            }                            // of if-then-else it is an INA226, INA230, INA231
-          }                              // of if-then-else it is an INA209, INA219, INA220
+                    } // of if-then-else it is unknown
+                  } // of if-then-else it is an INA237
+                } // of if-then-else it is an INA3221
+              } // of if-then-else it is an INA260
+            } // of if-then-else it is an INA226, INA230, INA231
+          } // of if-then-else it is an INA209, INA219, INA220
           if (inaEE.type != INA_UNKNOWN) // Increment device if valid INA2xx
           {
             inaEE.address = deviceAddress;
@@ -361,11 +362,11 @@ uint8_t INA_Class::begin(const uint16_t maxBusAmps, const uint32_t microOhmR,
             {
               initDevice(_DeviceCount);                         // perform initialization on device
               _DeviceCount = ((_DeviceCount + 1) % maxDevices); // start again at 0 if overflow
-            }                                                   // of if-then inaEE.type
-          }                                                     // of if-then we can add device
-        }                                                       // of if-then-else we have an INA-Type device
-      }                                                         // of if-then we have a device
-    }                                                           // for-next each possible I2C address
+            } // of if-then inaEE.type
+          } // of if-then we can add device
+        } // of if-then-else we have an INA-Type device
+      } // of if-then we have a device
+    } // for-next each possible I2C address
   }
   else
   {
@@ -373,7 +374,7 @@ uint8_t INA_Class::begin(const uint16_t maxBusAmps, const uint32_t microOhmR,
     ina.maxBusAmps = maxBusAmps > 1022 ? 1022 : maxBusAmps; // Clamp to maximum of 1022A
     ina.microOhmR = microOhmR;
     initDevice(deviceNumber);
-  }                        // of if-then-else first call
+  } // of if-then-else first call
   _currentINA = UINT8_MAX; // Force read on next call
   return _DeviceCount;
 } // of method begin()
@@ -382,18 +383,21 @@ void INA_Class::initDevice(const uint8_t deviceNumber)
   /*! @brief     Initializes the the given devices using the settings from the internal structure
       @details   This includes (re)computing the device's calibration values.
       @param[in] deviceNumber Device number to explicitly initialize. */
-  // if (ina.type == INA237) {
-  //   ina.operatingMode = INA237_DEFAULT_OPERATING_MODE; // Default to continuous mode of INA237
-  // } else {
-  ina.operatingMode = INA_DEFAULT_OPERATING_MODE; // Default to continuous mode
-  // }
+  if (ina.type == INA237)
+  {
+    ina.operatingMode = INA237_DEFAULT_OPERATING_MODE; // Default to continuous mode of INA237
+  }
+  else
+  {
+    ina.operatingMode = INA_DEFAULT_OPERATING_MODE; // Default to continuous mode
+  }
   writeInatoEEPROM(deviceNumber);                 // Store the structure to EEPROM
   uint8_t programmableGain;                       // work variable for the programmable gain
   uint16_t calibration, maxShuntmV, tempRegister; // Calibration temporary variables
   switch (ina.type)
   {
   case INA219: // Set up INA219 or INA220
-    {
+  {
     // Compute calibration register
     calibration = (uint64_t)409600000 /
                   ((uint64_t)ina.current_LSB * (uint64_t)ina.microOhmR / (uint64_t)100000);
@@ -414,36 +418,49 @@ void INA_Class::initDevice(const uint8_t deviceNumber)
     writeWord(INA_CONFIGURATION_REGISTER, tempRegister, ina.address); // Write to config register
     break;
   }
-  case INA226: {}
-  case INA230: {}
-  case INA231: {}
+  case INA226:
+  {
+  }
+  case INA230:
+  {
+  }
+  case INA231:
+  {
+  }
     // Compute calibration register
     calibration = (uint64_t)51200000 /
                   ((uint64_t)ina.current_LSB * (uint64_t)ina.microOhmR / (uint64_t)100000);
     writeWord(INA_CALIBRATION_REGISTER, calibration, ina.address); // Write calibration
     break;
   case INA237:
-    {
-    // Compute calibration register
+  {
+    // Compute calibration register // TODO check if this is correct
     float shuntR = ina.microOhmR / 100000.0;
     float currentLSB_A = ina.current_LSB / 1000000000.0;
     maxShuntmV = ina.maxBusAmps * ina.microOhmR / 1000; // Compute maximum shunt mV
     if (maxShuntmV <= 40)
-    {                       // ADCRANGE=1 high resolution
+    { // ADCRANGE=1 high resolution
       calibration = (4.0 * 819200000.0 * currentLSB_A * shuntR);
       writeWord(INA_CONFIGURATION_REGISTER, 0b10000, ina.address); // Select ADCRANGE1
     }
     else
-    {                       // ADCRANGE=0 normal resolution
+    { // ADCRANGE=0 normal resolution
       calibration = (819200000.0 * currentLSB_A * shuntR);
     }
     writeWord(INA237_CALIBRATION_REGISTER, calibration, ina.address); // Write calibration
     break;
   }
-  case INA260: {}
-  case INA3221_0: {}
-  case INA3221_1: {}
-  case INA3221_2: {
+  case INA260:
+  {
+  }
+  case INA3221_0:
+  {
+  }
+  case INA3221_1:
+  {
+  }
+  case INA3221_2:
+  {
     break;
   }
   } // of switch type
@@ -526,13 +543,13 @@ void INA_Class::setBusConversion(const uint32_t convTime, const uint8_t deviceNu
         {
           configRegister &= ~INA260_CONFIG_BADC_MASK; // zero out the averages part
           configRegister |= convRate << 7;            // shift in the averages
-        }                                             // of if-then an INA226 or INA260
+        } // of if-then an INA226 or INA260
         break;
       } // of switch type
       writeWord(INA_CONFIGURATION_REGISTER, configRegister,
                 ina.address); // Save new value to device
-    }                         // of if this device needs to be set
-  }                           // for-next each device loop
+    } // of if this device needs to be set
+  } // for-next each device loop
 } // of method setBusConversion()
 void INA_Class::setShuntConversion(const uint32_t convTime, const uint8_t deviceNumber)
 {
@@ -611,14 +628,14 @@ void INA_Class::setShuntConversion(const uint32_t convTime, const uint8_t device
         else
         {
           configRegister &= ~INA260_CONFIG_SADC_MASK; // zero out the averages part
-        }                                             // of if-then-else either INA226/INA3221 or a INA260
-        configRegister |= convRate << 3;              // shift in the averages to register
+        } // of if-then-else either INA226/INA3221 or a INA260
+        configRegister |= convRate << 3; // shift in the averages to register
         break;
       } // of switch type
       writeWord(INA_CONFIGURATION_REGISTER, configRegister,
                 ina.address); // Save new value to device
-    }                         // of if this device needs to be set
-  }                           // for-next each device loop
+    } // of if this device needs to be set
+  } // for-next each device loop
 } // of method setShuntConversion()
 const char *INA_Class::getDeviceName(const uint8_t deviceNumber)
 {
@@ -686,14 +703,14 @@ uint16_t INA_Class::getBusRaw(const uint8_t deviceNumber)
   if (ina.type == INA3221_0 || ina.type == INA3221_1 || ina.type == INA3221_2 ||
       ina.type == INA219)
   {
-    raw = raw >> 3;                                                    // INA219 & INA3221 - the 3 LSB unused, so shift right
-  }                                                                    // of if-then an INA219 or INA3221
+    raw = raw >> 3; // INA219 & INA3221 - the 3 LSB unused, so shift right
+  } // of if-then an INA219 or INA3221
   if (!bitRead(ina.operatingMode, 2) && bitRead(ina.operatingMode, 1)) // Triggered & bus active
   {
     int16_t configRegister =
         readWord(INA_CONFIGURATION_REGISTER, ina.address);              // Get current value
     writeWord(INA_CONFIGURATION_REGISTER, configRegister, ina.address); // Write to trigger next
-  }                                                                     // of if-then triggered mode enabled
+  } // of if-then triggered mode enabled
   return (raw);
 } // of method getBusRaw()
 int32_t INA_Class::getShuntMicroVolts(const uint8_t deviceNumber)
@@ -713,7 +730,7 @@ int32_t INA_Class::getShuntMicroVolts(const uint8_t deviceNumber)
   else
   {
     shuntVoltage = shuntVoltage * ina.shuntVoltage_LSB / 10; // Convert to microvolts
-  }                                                          // of if-then-else an INA260
+  } // of if-then-else an INA260
   return (shuntVoltage);
 } // of method getShuntMicroVolts()
 int16_t INA_Class::getShuntRaw(const uint8_t deviceNumber)
@@ -736,14 +753,14 @@ int16_t INA_Class::getShuntRaw(const uint8_t deviceNumber)
     if (ina.type == INA3221_0 || ina.type == INA3221_1 ||
         ina.type == INA3221_2) // Doesn't use 3 LSB
     {
-      raw = raw >> 3;                                                  // shift over 3 bits, datatype is "int" so shifts in sign bits
-    }                                                                  // of if-then we need to shift INA3221 reading over
-  }                                                                    // of if-then-else an INA260 with inbuilt shunt
+      raw = raw >> 3; // shift over 3 bits, datatype is "int" so shifts in sign bits
+    } // of if-then we need to shift INA3221 reading over
+  } // of if-then-else an INA260 with inbuilt shunt
   if (!bitRead(ina.operatingMode, 2) && bitRead(ina.operatingMode, 0)) // Triggered & shunt active
   {
     int16_t configRegister = readWord(INA_CONFIGURATION_REGISTER, ina.address); // Get current reg
     writeWord(INA_CONFIGURATION_REGISTER, configRegister, ina.address);         // Write to trigger next
-  }                                                                             // of if-then triggered mode enabled
+  } // of if-then triggered mode enabled
   return (raw);
 } // of method getShuntMicroVolts()
 int32_t INA_Class::getBusMicroAmps(const uint8_t deviceNumber)
@@ -806,8 +823,8 @@ void INA_Class::reset(const uint8_t deviceNumber)
       readInafromEEPROM(i);                                                 // Load EEPROM to ina structure
       writeWord(INA_CONFIGURATION_REGISTER, INA_RESET_DEVICE, ina.address); // Set MSB  to reset
       initDevice(i);                                                        // re-initialize device
-    }                                                                       // of if this device needs to be set
-  }                                                                         // for-next each device loop
+    } // of if this device needs to be set
+  } // for-next each device loop
 } // of method reset
 void INA_Class::setMode(const uint8_t mode, const uint8_t deviceNumber)
 {
@@ -830,8 +847,8 @@ void INA_Class::setMode(const uint8_t mode, const uint8_t deviceNumber)
       writeInatoEEPROM(i);                                                // Store back to EEPROM
       configRegister |= ina.operatingMode;                                // shift mode settings
       writeWord(INA_CONFIGURATION_REGISTER, configRegister, ina.address); // Save new value
-    }                                                                     // if-then this device needs to be set
-  }                                                                       // for-next each device loop
+    } // if-then this device needs to be set
+  } // for-next each device loop
 } // of method setMode()
 bool INA_Class::conversionFinished(const uint8_t deviceNumber)
 {
@@ -910,9 +927,9 @@ void INA_Class::waitForConversion(const uint8_t deviceNumber)
         default:
           cvBits = 1;
         } // of switch type
-      }   // of while the conversion hasn't finished
-    }     // of if this device needs to be set
-  }       // for-next each device loop
+      } // of while the conversion hasn't finished
+    } // of if this device needs to be set
+  } // for-next each device loop
 } // of method waitForConversion()
 bool INA_Class::alertOnConversion(const bool alertState, const uint8_t deviceNumber)
 {
@@ -948,8 +965,8 @@ bool INA_Class::alertOnConversion(const bool alertState, const uint8_t deviceNum
       default:
         returnCode = false;
       } // of switch type
-    }   // of if this device needs to be set
-  }     // for-next each device loop
+    } // of if this device needs to be set
+  } // for-next each device loop
   return (returnCode);
 } // of method AlertOnConversion
 bool INA_Class::alertOnShuntOverVoltage(const bool alertState, const int32_t milliVolts,
@@ -983,15 +1000,15 @@ bool INA_Class::alertOnShuntOverVoltage(const bool alertState, const int32_t mil
           bitSet(alertRegister, INA_ALERT_SHUNT_OVER_VOLT_BIT);          // Turn on the bit
           uint16_t threshold = milliVolts * 1000 / ina.shuntVoltage_LSB; // Compute using LSB
           writeWord(INA_ALERT_LIMIT_REGISTER, threshold, ina.address);   // Write register
-        }                                                                // of if we are setting a value
+        } // of if we are setting a value
         writeWord(INA_MASK_ENABLE_REGISTER, alertRegister, ina.address); // Write register back
         returnCode = true;
         break;
       default:
         returnCode = false;
       } // of switch type
-    }   // of if this device needs to be set
-  }     // for-next each device loop
+    } // of if this device needs to be set
+  } // for-next each device loop
   return (returnCode);
 } // of method AlertOnShuntOverVoltage
 bool INA_Class::alertOnShuntUnderVoltage(const bool alertState, const int32_t milliVolts,
@@ -1025,14 +1042,14 @@ bool INA_Class::alertOnShuntUnderVoltage(const bool alertState, const int32_t mi
           bitSet(alertRegister, INA_ALERT_SHUNT_UNDER_VOLT_BIT);         // Turn on the bit
           uint16_t threshold = milliVolts * 1000 / ina.shuntVoltage_LSB; // Compute using LSB
           writeWord(INA_ALERT_LIMIT_REGISTER, threshold, ina.address);   // Write register
-        }                                                                // of if we are setting a value
+        } // of if we are setting a value
         writeWord(INA_MASK_ENABLE_REGISTER, alertRegister, ina.address); // Write register back
         break;
       default:
         returnCode = false;
       } // of switch type
-    }   // of if this device needs to be set
-  }     // for-next each device loop
+    } // of if this device needs to be set
+  } // for-next each device loop
   return (returnCode);
 } // of method AlertOnShuntUnderVoltage
 bool INA_Class::alertOnBusOverVoltage(const bool alertState, const int32_t milliVolts,
@@ -1066,17 +1083,17 @@ bool INA_Class::alertOnBusOverVoltage(const bool alertState, const int32_t milli
         alertRegister &= INA_ALERT_MASK;                     // Mask off all bits
         if (alertState)                                      // Also set threshold
         {
-          bitSet(alertRegister, INA_ALERT_BUS_OVER_VOLT_BIT);            // Turn on the bit
-          uint16_t threshold = milliVolts * 100 / ina.busVoltage_LSB;    // Compute using LSB val
-          writeWord(INA_ALERT_LIMIT_REGISTER, threshold, ina.address);   // Write register
-        }                                                                // of if we are setting a value
+          bitSet(alertRegister, INA_ALERT_BUS_OVER_VOLT_BIT);          // Turn on the bit
+          uint16_t threshold = milliVolts * 100 / ina.busVoltage_LSB;  // Compute using LSB val
+          writeWord(INA_ALERT_LIMIT_REGISTER, threshold, ina.address); // Write register
+        } // of if we are setting a value
         writeWord(INA_MASK_ENABLE_REGISTER, alertRegister, ina.address); // Write register back
         break;
       default:
         returnCode = false;
       } // of switch type
-    }   // of if this device needs to be set
-  }     // for-next each device loop
+    } // of if this device needs to be set
+  } // for-next each device loop
   return (returnCode);
 } // of method AlertOnBusOverVoltageConversion
 bool INA_Class::alertOnBusUnderVoltage(const bool alertState, const int32_t milliVolts,
@@ -1109,17 +1126,17 @@ bool INA_Class::alertOnBusUnderVoltage(const bool alertState, const int32_t mill
         alertRegister &= INA_ALERT_MASK;                                 // Mask off all bits
         if (alertState)                                                  // Also set threshold
         {
-          bitSet(alertRegister, INA_ALERT_BUS_UNDER_VOLT_BIT);           // Turn on the bit
-          uint16_t threshold = milliVolts * 100 / ina.busVoltage_LSB;    // Compute using LSB val
-          writeWord(INA_ALERT_LIMIT_REGISTER, threshold, ina.address);   // Write register
-        }                                                                // of if we are setting a value
+          bitSet(alertRegister, INA_ALERT_BUS_UNDER_VOLT_BIT);         // Turn on the bit
+          uint16_t threshold = milliVolts * 100 / ina.busVoltage_LSB;  // Compute using LSB val
+          writeWord(INA_ALERT_LIMIT_REGISTER, threshold, ina.address); // Write register
+        } // of if we are setting a value
         writeWord(INA_MASK_ENABLE_REGISTER, alertRegister, ina.address); // Write register back
         break;
       default:
         returnCode = false;
       } // of switch type
-    }   // of if this device needs to be set
-  }     // for-next each device loop
+    } // of if this device needs to be set
+  } // for-next each device loop
   return (returnCode);
 } // of method AlertOnBusUnderVoltage
 bool INA_Class::alertOnPowerOverLimit(const bool alertState, const int32_t milliAmps,
@@ -1152,17 +1169,17 @@ bool INA_Class::alertOnPowerOverLimit(const bool alertState, const int32_t milli
         alertRegister &= INA_ALERT_MASK;                                 // Mask off all bits
         if (alertState)                                                  // Also set threshold
         {
-          bitSet(alertRegister, INA_ALERT_POWER_OVER_WATT_BIT);          // Turn on the bit
-          uint16_t threshold = milliAmps * 1000000 / ina.power_LSB;      // Compute using LSB val
-          writeWord(INA_ALERT_LIMIT_REGISTER, threshold, ina.address);   // Write register
-        }                                                                // of if we are setting a value
+          bitSet(alertRegister, INA_ALERT_POWER_OVER_WATT_BIT);        // Turn on the bit
+          uint16_t threshold = milliAmps * 1000000 / ina.power_LSB;    // Compute using LSB val
+          writeWord(INA_ALERT_LIMIT_REGISTER, threshold, ina.address); // Write register
+        } // of if we are setting a value
         writeWord(INA_MASK_ENABLE_REGISTER, alertRegister, ina.address); // Write register back
         break;
       default:
         returnCode = false;
       } // of switch type
-    }   // of if this device needs to be set
-  }     // for-next each device loop
+    } // of if this device needs to be set
+  } // for-next each device loop
   return (returnCode);
 } // of method AlertOnPowerOverLimit
 void INA_Class::setAveraging(const uint16_t averages, const uint8_t deviceNumber)
@@ -1231,8 +1248,8 @@ void INA_Class::setAveraging(const uint16_t averages, const uint8_t deviceNumber
         configRegister &= ~INA226_CONFIG_AVG_MASK; // zero out the averages part
         configRegister |= averageIndex << 9;       // shift in the averages to reg
         break;
-      }                                                                   // of switch type
+      } // of switch type
       writeWord(INA_CONFIGURATION_REGISTER, configRegister, ina.address); // Save new value
-    }                                                                     // of if this device needs to be set
-  }                                                                       // for-next each device loop
+    } // of if this device needs to be set
+  } // for-next each device loop
 } // of method setAveraging()

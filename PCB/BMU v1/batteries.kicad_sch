@@ -2198,6 +2198,16 @@
 	)
 	(wire
 		(pts
+			(xy 232.41 45.72) (xy 232.41 46.99)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9cd889b2-2cc6-4142-aba6-16d3ce1fd2b8")
+	)
+	(wire
+		(pts
 			(xy 232.41 73.66) (xy 232.41 77.47)
 		)
 		(stroke
@@ -2278,7 +2288,7 @@
 	)
 	(wire
 		(pts
-			(xy 232.41 33.02) (xy 232.41 46.99)
+			(xy 232.41 33.02) (xy 232.41 35.56)
 		)
 		(stroke
 			(width 0)
@@ -5370,6 +5380,100 @@
 				)
 				(path "/40c3f397-d07f-488b-b615-517efc4a5c8c/ede9b4b7-549c-4a0a-90de-aef8f304e75f"
 					(reference "H6")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "easyeda2kicad:IRFZ44NPBF")
+		(at 234.95 40.64 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "2dc7906b-103e-43cf-bef6-ba71de52b035")
+		(property "Reference" "Q1"
+			(at 227.33 39.3699 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "IRFZ44NPBF"
+			(at 227.33 41.9099 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Package_TO_SOT_THT:TO-220-3_Horizontal_TabUp"
+			(at 234.95 27.94 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "https://lcsc.com/product-detail/MOSFET_IR_IRFZ44NPBF_IRFZ44NPBF_C2586.html"
+			(at 234.95 25.4 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 234.95 40.64 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part" "C2586"
+			(at 234.95 22.86 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "8a068588-db4a-4335-bd3f-743940b2ea5e")
+		)
+		(pin "2"
+			(uuid "d77715af-ea1d-4551-a720-107213af1b2a")
+		)
+		(pin "3"
+			(uuid "0ce30b8e-ce77-4932-b3c3-0352a586c7a3")
+		)
+		(instances
+			(project "BMU v1"
+				(path "/40c3f397-d07f-488b-b615-517efc4a5c8c/404fd779-052a-4b44-92bc-a9ff818e1713"
+					(reference "Q4")
+					(unit 1)
+				)
+				(path "/40c3f397-d07f-488b-b615-517efc4a5c8c/8e75d9c9-36b3-4715-8008-0cb2c10c4fbe"
+					(reference "Q3")
+					(unit 1)
+				)
+				(path "/40c3f397-d07f-488b-b615-517efc4a5c8c/9b15f43a-be76-42f8-a3fd-d61e4c342bdb"
+					(reference "Q1")
+					(unit 1)
+				)
+				(path "/40c3f397-d07f-488b-b615-517efc4a5c8c/ede9b4b7-549c-4a0a-90de-aef8f304e75f"
+					(reference "Q2")
 					(unit 1)
 				)
 			)

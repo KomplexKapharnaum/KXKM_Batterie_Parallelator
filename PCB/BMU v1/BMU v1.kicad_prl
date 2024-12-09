@@ -80,19 +80,7 @@
     "files": [
       {
         "name": "BMU v1.kicad_sch",
-        "open": true,
-        "window": {
-          "display": 0,
-          "maximized": true,
-          "pos_x": 217,
-          "pos_y": 38,
-          "size_x": 1511,
-          "size_y": 1040
-        }
-      },
-      {
-        "name": "BMU v1.kicad_pcb",
-        "open": true,
+        "open": false,
         "window": {
           "display": 0,
           "maximized": true,
@@ -100,6 +88,18 @@
           "pos_y": 38,
           "size_x": 1728,
           "size_y": 984
+        }
+      },
+      {
+        "name": "BMU v1.kicad_pcb",
+        "open": false,
+        "window": {
+          "display": 0,
+          "maximized": true,
+          "pos_x": 401,
+          "pos_y": 468,
+          "size_x": 1728,
+          "size_y": 1040
         }
       }
     ]

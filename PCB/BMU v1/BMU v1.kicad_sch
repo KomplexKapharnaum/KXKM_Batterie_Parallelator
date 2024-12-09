@@ -3453,6 +3453,16 @@
 	)
 	(wire
 		(pts
+			(xy 31.75 55.88) (xy 31.75 53.34)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "513d764f-39ca-4f78-8582-a592b2111a6f")
+	)
+	(wire
+		(pts
 			(xy 77.47 92.71) (xy 66.04 92.71)
 		)
 		(stroke
@@ -3900,16 +3910,6 @@
 			(type default)
 		)
 		(uuid "a26a306e-ecce-4c1f-aa1f-6b4ea758b273")
-	)
-	(wire
-		(pts
-			(xy 31.75 63.5) (xy 31.75 53.34)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "a2d6f287-8d45-4e4e-8e1b-5d02f7161b5e")
 	)
 	(wire
 		(pts
@@ -4545,17 +4545,6 @@
 			(justify right bottom)
 		)
 		(uuid "a28b01b4-46fc-485c-8daf-21d6bb029ece")
-	)
-	(label "GND_BATT"
-		(at 31.75 63.5 90)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "a7e6e562-5bb8-4ecc-9709-f5a1a739eea6")
 	)
 	(label "MANUAL_SW"
 		(at 179.07 134.62 180)
@@ -6617,6 +6606,72 @@
 			(project "BMU v1"
 				(path "/40c3f397-d07f-488b-b615-517efc4a5c8c"
 					(reference "C19")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 31.75 55.88 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "73ec1e2e-68f9-4047-9f16-b0c415e1533a")
+		(property "Reference" "#PWR092"
+			(at 31.75 62.23 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 31.75 60.325 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 31.75 55.88 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 31.75 55.88 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 31.75 55.88 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "62384500-5148-4383-b657-9530138b9943")
+		)
+		(instances
+			(project "BMU v1"
+				(path "/40c3f397-d07f-488b-b615-517efc4a5c8c"
+					(reference "#PWR092")
 					(unit 1)
 				)
 			)

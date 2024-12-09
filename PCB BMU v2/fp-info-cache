@@ -1,4 +1,4 @@
-23685219933107452
+23706005060352410
 Audio_Module
 Reverb_BTDR-1H
 Digital Reverberation Unit, http://www.belton.co.kr/inc/downfile.php?seq=17&file=pdf (footprint from http://www.uk-electronic.de/PDF/BTDR-1.pdf)
@@ -94751,6 +94751,13 @@ test point THT pad
 0
 1
 1
+TestPoint
+TestPoint_strip_LEDPad_1.5x5.5mm_Drill0.7mm
+THT rectangular pad as test Point, square 1.5mm side length, hole diameter 0.7mm
+test point THT pad rectangle square
+0
+1
+1
 Transformer_SMD
 Pulse_P0926NL
 SMT Gate Drive Transformer, 1:1:1, 8.0x6.3x5.3mm (https://productfinder.pulseeng.com/products/datasheets/SPM2007_61.pdf)
@@ -96341,6 +96348,20 @@ BAT-TH_BS-02-A1AJ010
 2
 2
 easyeda2kicad
+CAP-SMD_BD10.0-L10.3-W10.3-LS11.3-FD
+
+
+0
+2
+2
+easyeda2kicad
+CAP-TH_L3.8-W2.5-P2.50-D0.51
+
+
+0
+2
+2
+easyeda2kicad
 CONN-TH_T44001
 
 
@@ -96370,6 +96391,13 @@ HDR-SMD_20P-P2.54-V-F-R2-C10-S2.54-LS7.2-1
 20
 easyeda2kicad
 IND-SMD_L5.0-W5.0
+
+
+0
+2
+2
+easyeda2kicad
+IND-SMD_L12.0-W12.0_CDRH125L125NP-470MC
 
 
 0
@@ -96432,12 +96460,61 @@ RES-TH_L18.0-W12.6
 6
 6
 easyeda2kicad
+RJ45-SMD_HC-RJ45-055-7_1
+
+
+0
+14
+10
+easyeda2kicad
+RJ45-SMD_MJ88-B011-HLSV6-P
+
+
+0
+14
+10
+easyeda2kicad
+RJ45-TH_HC-RJ45-5622-1-6_1
+
+
+0
+10
+8
+easyeda2kicad
+RJ45-TH_J1B1211CCD
+
+
+0
+16
+14
+easyeda2kicad
 RJ45-TH_RC01061
 
 
 0
 16
 14
+easyeda2kicad
+RJ45-TH_RC01834
+
+
+0
+8
+8
+easyeda2kicad
+RJ45-TH_RJ-804-1-6
+
+
+0
+10
+8
+easyeda2kicad
+SC-70-5_L2.1-W1.3-P0.65-LS2.1-BL
+
+
+0
+5
+5
 easyeda2kicad
 SOD-523_L1.2-W0.8-LS1.6-RD
 
@@ -96459,6 +96536,13 @@ SOT-23-6_L2.9-W1.6-P0.95-LS2.8-BR
 0
 6
 6
+easyeda2kicad
+SOT-89-3_L4.5-W2.5-P1.50-LS4.0-BR
+
+
+0
+3
+3
 easyeda2kicad
 SOT-89-4_L4.5-W2.5-P1.50-LS4.2-BR
 
