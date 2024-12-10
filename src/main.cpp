@@ -8,7 +8,17 @@
 #include "INA_Func.h"
 #include "TCA_Func.h"
 
+int Nb_switch_max = 5;
+int Nb_switch [16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+int check_switch [16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 
+bool print_message = true;
+
+long reconnect_time [16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+int  reconnect_delay = 10000;
+
+int TCA_num = 0;
+int OUT_num = 0;
 
 void setup()
 {
@@ -36,24 +46,52 @@ void setup()
   Serial.print("Found ");
   Serial.print(count, DEC);
   Serial.println(" device(s).");
-  setup_ina();
-  Serial.println("INA setup done");
-  TCA_init();
+
+
+
+
+  setup_tca();
   Serial.println("TCA setup done");
-  for (int i = 0; i < 16; i++)
-  {
-    TCA_write(TCA_num, i, 0);
-  }
+
+
+    setup_ina();
+  Serial.println("INA setup done");
+
+check_INA_TCA_address();
+
 }
 
-int value_pwm = 0;
+
 void loop()
 {
-// for (int i = 0; i < Nb_INA; i++)
+
+  
+ // for (int i = 0; i < Nb_INA; i++)
   for (int i = 0; i < Nb_INA; i++)
   {
-    Serial.printf("Reading INA %d\n", i);
-    read_INA(i);
+    if (print_message) Serial.printf("Reading INA %d\n", i);
+    read_INA(i,print_message);
+    if ((INA.getDeviceAddress(i)>=64)&&(INA.getDeviceAddress(i)<=67))
+    {
+    TCA_num=0;
+    OUT_num=INA.getDeviceAddress(i)-64;
+    }
+        if ((INA.getDeviceAddress(i)>=68)&&(INA.getDeviceAddress(i)<=71))
+    {
+    TCA_num=1;
+    OUT_num=INA.getDeviceAddress(i)-68;
+    }
+        if ((INA.getDeviceAddress(i)>=72)&&(INA.getDeviceAddress(i)<=75))
+    {
+    TCA_num=2;
+    OUT_num=INA.getDeviceAddress(i)-72;
+    }
+        if ((INA.getDeviceAddress(i)>=76)&&(INA.getDeviceAddress(i)<=79))
+    {
+    TCA_num=3;
+    OUT_num=INA.getDeviceAddress(i)-76;
+    }
+   
     /*
 0 Batt switch 4
 1 Batt switch 3
@@ -76,38 +114,94 @@ void loop()
     
         if (read_volt(i) < alert_bat_min_voltage / 1000)
         {
-          Serial.println("Battery voltage is too low");
-          TCA_write(TCA_num, i, 0); // switch off the battery
-          TCA_write(TCA_num, i * 2 + 8, 1);
-          TCA_write(TCA_num, i * 2 + 9, 0);
+             if (print_message) Serial.println("Battery voltage is too low");
+          TCA_write(TCA_num,  OUT_num, 0); // switch off the battery
+          TCA_write(TCA_num,  OUT_num * 2 + 8, 1);
+          TCA_write(TCA_num,  OUT_num * 2 + 9, 0);
+          if (check_switch[i]==0){
+          Nb_switch[i]++;
+          check_switch[i]=1;
+          }
         }
         else if (read_volt(i) > alert_bat_max_voltage / 1000)
         {
-          Serial.println("Battery voltage is too high");
-          TCA_write(TCA_num, i, 0);
-          TCA_write(TCA_num, i * 2 + 8, 1);
-          TCA_write(TCA_num, i * 2 + 9, 0);
+            if (print_message)  Serial.println("Battery voltage is too high");
+          TCA_write(TCA_num,  OUT_num, 0);
+          TCA_write(TCA_num,  OUT_num * 2 + 8, 1);
+          TCA_write(TCA_num,  OUT_num * 2 + 9, 0);
+         if (check_switch[i]==0){
+          Nb_switch[i]++;
+          check_switch[i]=1;
+          }
         }
         else if (read_current(i) > alert_bat_max_current)
         {
-          Serial.println("Battery current is too high");
-          TCA_write(TCA_num, i, 0);
-          TCA_write(TCA_num, i * 2 + 8, 1);
-          TCA_write(TCA_num, i * 2 + 9, 0);
+            if (print_message)  Serial.println("Battery current is too high");
+          TCA_write(TCA_num,  OUT_num, 0);
+          TCA_write(TCA_num,  OUT_num* 2 + 8, 1);
+          TCA_write(TCA_num,  OUT_num * 2 + 9, 0);
+         if (check_switch[i]==0){
+          Nb_switch[i]++;
+          check_switch[i]=1;
+          }
         }
         else if (read_current(i) < -alert_bat_max_current)
         {
-          Serial.println("Battery current is too high");
-          TCA_write(TCA_num, i, 0);
-          TCA_write(TCA_num, i * 2 + 8, 1);
-          TCA_write(TCA_num, i * 2 + 9, 0);
+            if (print_message)  Serial.println("Battery current is too high");
+          TCA_write(TCA_num,  OUT_num, 0);
+          TCA_write(TCA_num,  OUT_num * 2 + 8, 1);
+          TCA_write(TCA_num,  OUT_num * 2 + 9, 0);
+         if (check_switch[i]==0){
+          Nb_switch[i]++;
+          check_switch[i]=1;
+          }
         }
         else
-        {
-          Serial.println("Battery voltage and current are good");
-          TCA_write(TCA_num, i, 1);
-          TCA_write(TCA_num, i * 2 + 8, 0);
-          TCA_write(TCA_num, i * 2 + 9, 1);
+        { 
+          check_switch[i]=0;
+          
+          if (Nb_switch[i]<Nb_switch_max){
+          if (print_message)  Serial.println("Battery voltage and current are good");
+          TCA_write(TCA_num,  OUT_num, 1);
+          TCA_write(TCA_num,  OUT_num * 2 + 8, 0);
+          TCA_write(TCA_num,  OUT_num * 2 + 9, 1);
+
+        }
+        else if (Nb_switch[i]==Nb_switch_max){
+
+          
+          if (Nb_switch[i]>=Nb_switch_max)
+          {
+
+        if (print_message)  Serial.println("too many cut off battery, try to reconnect in" + String(reconnect_delay/1000)+"s");
+          TCA_write(TCA_num,  OUT_num, 0);
+          TCA_write(TCA_num,  OUT_num * 2 + 8, 1);
+          TCA_write(TCA_num,  OUT_num * 2 + 9, 0);
+          check_switch[i]=1;
+          if (reconnect_time[i]==0){
+          reconnect_time[i]=millis();
+          }
+
+
+           if ((millis()-reconnect_time[i]>reconnect_delay)&&(Nb_switch[i]==Nb_switch_max)){
+          TCA_write(TCA_num,  OUT_num, 1); 
+          TCA_write(TCA_num,  OUT_num * 2 + 8, 0);
+          TCA_write(TCA_num,  OUT_num * 2 + 9, 1);
+
+             Nb_switch[i]++;
+             check_switch[i]=0;
+                  }
+          }
+
+
+        }
+        else if (Nb_switch[i]>Nb_switch_max+1){
+          if (print_message)  Serial.println("too many cut off battery, constant cut off");
+          TCA_write(TCA_num,  OUT_num, 0);  
+          TCA_write(TCA_num,  OUT_num * 2 + 8, 1);
+          TCA_write(TCA_num,  OUT_num * 2 + 9, 0);
+          check_switch[i]=1;
+          
         }
         
   }
@@ -118,6 +212,6 @@ void loop()
     Serial.printf("Pin %d: %d\n", j, TCA_read(TCA_num, j));
   }
 */
-
+  }
   delay(500);
 } // of loop

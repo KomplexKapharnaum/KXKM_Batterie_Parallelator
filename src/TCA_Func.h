@@ -11,7 +11,9 @@ TCA9535 TCA_4(TCA_address[4]);
 TCA9535 TCA_5(TCA_address[5]);
 TCA9535 TCA_6(TCA_address[6]);
 TCA9535 TCA_7(TCA_address[7]);
-int TCA_num = 0;
+
+int Nb_TCA = 0;
+byte TCA_address_connected [8] = {0,0,0,0,0,0,0,0};
 
 /*
 0 Batt switch 4
@@ -32,16 +34,19 @@ int TCA_num = 0;
 15 Green 4
 */
 // TCA init
-void TCA_init()
+void setup_tca()
 {
-  // Test the TCA9535 as plugged and set GPIOs
+Serial.println();
   for (int i = 0; i < 8; i++)
   {
     Wire.beginTransmission(TCA_address[i]);
     delay(50);
     if (Wire.endTransmission() == 0)
     {
-      TCA_num = i;
+      Nb_TCA ++;
+      TCA_address_connected[Nb_TCA-1]=TCA_address[i];
+
+  
       if (i == 0)
       {
         TCA_0.begin();
@@ -178,7 +183,7 @@ void TCA_init()
       if (i == 7)
       {
         TCA_7.begin();
-        Serial.println("TCA_7 is connected");
+        Serial.println("TCA_7 at address " + String(TCA_address[i])+" is connected");
         for (int i = 0; i < 4; i++)
         {
           TCA_7.pinMode1(i, OUTPUT);
@@ -196,6 +201,10 @@ void TCA_init()
       }
     }
   }
+  Serial.print("found ");
+  Serial.print(Nb_TCA);
+  Serial.println(" devices");
+
 }
 
 // TCA functions read (TCA_num, pin) TCA_num is the TCA number, pin is the pin number return read value
@@ -251,4 +260,34 @@ bool TCA_write(int TCA_num, int pin, bool value) // write value to pin
     return false;
   else
     return false;
+}
+
+
+
+
+void check_INA_TCA_address(){
+
+Serial.println();
+  Serial.print("found : ");
+  Serial.print(Nb_INA);
+  Serial.print(" INA and ");
+  Serial.print(Nb_TCA);
+  Serial.println(" TCA");
+
+  if (Nb_TCA != Nb_INA/4)
+  {
+    Serial.println("Error : Number of TCA and INA are not correct");
+    if (Nb_INA%4!=0){
+      Serial.println("Error : Missing INA");
+    }
+    else{
+      Serial.println("Error : Missing TCA");
+    }
+
+  }
+  else
+  {
+    Serial.println("Number of TCA and INA are correct");
+  }
+
 }
