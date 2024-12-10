@@ -28,18 +28,23 @@ volatile int64_t sumBusMicroAmp[17] = {};        ///< Sum of bus amperage readin
 volatile uint8_t readings[17];                   ///< Number of measurements taken
 portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED; ///< Synchronization variable
 
-
+byte INA_address_connected[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 int Nb_INA = 0;
 
-void INA_init()
+
+void setup_ina()
 {
+    Serial.println();
     // INA setup
-    Serial.print(F("\n\nBackground INA Read V1.0.1\n"));
+
     uint8_t devicesFound = 0;
     while (deviceNumber == UINT8_MAX) // Loop until we find the device
     {
         devicesFound = INA.begin(50, 2000); // +/- 1 Amps maximum for 0.2 Ohm resistor
-        Serial.println(INA.getDeviceName(devicesFound - 1));
+        Serial.print(F("Found "));
+        Serial.print(devicesFound);
+        Serial.println(F(" INA devices"));
+
         for (uint8_t i = 0; i < devicesFound; i++)
         {
             /* Change the "INA226" in the following statement to whatever device you have attached and
@@ -47,7 +52,12 @@ void INA_init()
             if (strcmp(INA.getDeviceName(i), "INA237") == 0)
             {
                 Nb_INA++;
+                INA_address_connected[Nb_INA-1]=INA_ADDR[i];
                 deviceNumber = i;
+                
+                Serial.println("Found INA_" + String(deviceNumber) + " at address " +String (INA_ADDR[i]) +" is connected");
+
+
                 INA.reset(deviceNumber);                                                      // Reset device to default settings
                 const int shunt_overvoltage = alert_bat_max_current * 2;                      // Shunt voltage in mV
                 INA.alertOnShuntOverVoltage(true, shunt_overvoltage, deviceNumber);           // Alert on shunt overvoltage
@@ -63,17 +73,18 @@ void INA_init()
             delay(5000);
         } // of if-then no device found
     } // of if-then no device found
-    Serial.print(F("Found INA at device number "));
-    Serial.println(deviceNumber);
-    Serial.println();
+
     INA.setAveraging(64);                  // Average each reading 64 times
     INA.setBusConversion(8244);            // Maximum conversion time 8.244ms
     INA.setShuntConversion(8244);          // Maximum conversion time 8.244ms
     INA.setI2CSpeed(I2C_Speed * 10000);    // Set I2C speed
     INA.setMode(INA_MODE_CONTINUOUS_BOTH); // Bus/shunt measured continuously
-    Serial.println(F("INA setup done"));
-    Serial.println("found " + String(Nb_INA) + " INA");
+
 }
+
+
+
+
 
 void IRAM_ATTR InterruptHandler()
 {
@@ -91,14 +102,9 @@ void IRAM_ATTR InterruptHandler()
     portEXIT_CRITICAL_ISR(&mux);
 } // of ISR for handling interrupts
 
-void setup_ina()
-{
-    INA_init();
-    // pinMode(INA_ALERT_PIN, INPUT_PULLUP); // Set the alert pin as an input
-    // attachInterrupt(digitalPinToInterrupt(INA_ALERT_PIN), InterruptHandler, FALLING);
-}
 
-void read_INA(int deviceNumber)
+
+void read_INA(int deviceNumber,bool print_message) // Read the INA device
 {
 
     float amps = ((float)INA.getBusMicroAmps(deviceNumber) / 100000);
@@ -106,18 +112,19 @@ void read_INA(int deviceNumber)
     float power = ((float)volts * (float)amps);
     float power_read = ((float)INA.getBusMicroWatts(deviceNumber) / 1000);
     float shunt = ((float)INA.getShuntMicroVolts(deviceNumber) / 1000);
-    
+       if (print_message) {
         Serial.print(F("\nBus voltage:   "));
         Serial.print((float)volts, 4);
-        Serial.print(F("V\nBus amperage:  "));
+         Serial.print(F("V\nBus amperage:  "));
         Serial.print((float)amps, 4);
         Serial.print(F("A\nShunt voltage: "));
         Serial.print((float)shunt, 4);
-        Serial.print(F("mV\nPower:        "));
+       Serial.print(F("mV\nPower:        "));
         Serial.print((float)power, 4);
         Serial.print(F("W\nPower read:    "));
         Serial.print((float)power_read, 4);
-        Serial.print(F("W\n\n"));
+        Serial.print(F("\n\n"));
+}
     
 }
 
@@ -128,7 +135,7 @@ float read_current(int deviceNumber) // Read the current in A
 
 float read_volt(int deviceNumber) // Read the voltage in V
 {
-    return ((float)INA.getBusMilliVolts(deviceNumber) / 1000);
+    return ((float)INA.getBusMilliVolts(deviceNumber)/ 1000);
 }
 
 float read_power(int deviceNumber) // calculate the power in W
