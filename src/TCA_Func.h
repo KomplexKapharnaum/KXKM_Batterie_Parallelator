@@ -7,8 +7,8 @@ public:
     bool read(int TCA_num, int pin);
     bool write(int TCA_num, int pin, bool value);
     void check_INA_TCA_address();
+    uint8_t getNbTCA();
     byte getDeviceAddress(int TCA_num);
-    int getNbINA() const; // Ajout de la méthode getNbINA
 
 private:
     void initialize_tca(TCA9535 &tca, const char* name);
@@ -17,13 +17,12 @@ private:
     TCA9535 TCA_0, TCA_1, TCA_2, TCA_3, TCA_4, TCA_5, TCA_6, TCA_7;
     int Nb_TCA;
     byte TCA_address_connected[8];
-    int Nb_INA; // Ajout de la déclaration de Nb_INA
 };
 
 TCAHandler::TCAHandler() 
     : TCA_0(TCA_address[0]), TCA_1(TCA_address[1]), TCA_2(TCA_address[2]), TCA_3(TCA_address[3]), 
       TCA_4(TCA_address[4]), TCA_5(TCA_address[5]), TCA_6(TCA_address[6]), TCA_7(TCA_address[7]), 
-      Nb_TCA(0), Nb_INA(0) { // Initialisation de Nb_INA
+      Nb_TCA(0) { // Initialisation de Nb_TCA
     memset(TCA_address_connected, 0, sizeof(TCA_address_connected));
 }
 
@@ -102,30 +101,19 @@ bool TCAHandler::write(int TCA_num, int pin, bool value) {
     return true;
 }
 
-void TCAHandler::check_INA_TCA_address() {
-    Serial.println();
-    Serial.print("found : ");
-    Serial.print(Nb_INA);
-    Serial.print(" INA and ");
-    Serial.print(Nb_TCA);
-    Serial.println(" TCA");
-
-    if (Nb_TCA != Nb_INA / 4) {
-        Serial.println("Error : Number of TCA and INA are not correct");
-        if (Nb_INA % 4 != 0) {
-            Serial.println("Error : Missing INA");
-        } else {
-            Serial.println("Error : Missing TCA");
-        }
-    } else {
-        Serial.println("Number of TCA and INA are correct");
-    }
-}
-
 byte TCAHandler::getDeviceAddress(int TCA_num) {
     return TCA_address[TCA_num];
 }
 
-int TCAHandler::getNbINA() const {
-    return Nb_INA;
+// Get the number of TCA found
+uint8_t TCAHandler::getNbTCA() {
+    uint8_t Nb_TCA = 0;
+    for (int i = 0; i < 8; i++) {
+        Wire.beginTransmission(TCA_address[i]);
+        delay(50);
+        if (Wire.endTransmission() == 0) {
+            Nb_TCA++;
+        }
+    }
+    return Nb_TCA;
 }
