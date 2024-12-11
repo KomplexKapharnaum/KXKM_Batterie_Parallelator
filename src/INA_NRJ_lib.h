@@ -1,6 +1,5 @@
-/**************************************************************
-** INA                                                       **
-***************************************************************/
+#ifndef INA_NRJ_LIB_h
+#define INA_NRJ_LIB_h
 
 #include <INA.h> // Include the INA library
 
@@ -8,17 +7,20 @@ class INAHandler
 {
 public:
     INAHandler();
-    void setup();
+    void begin(int amp, int micro_ohm);
     void read(int deviceNumber, bool print_message);
     float read_current(int deviceNumber);
     float read_volt(int deviceNumber);
     float read_power(int deviceNumber);
+    void set_max_voltage(float voltage);
+    void set_min_voltage(float voltage);
+    void set_max_current(float current);
+    void set_max_charge_current(float current);
     uint8_t getDeviceAddress(int deviceNumber);
     uint8_t getNbINA(); // Ajout de la méthode getNbINA
 
 private:
     void initialize_ina(int deviceNumber);
-
     const int INA_ADDR[16] = {0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4A, 0x4B, 0x4C, 0x4D, 0x4E, 0x4F}; ///< INA addresses
     INA_Class INA;                                                                                                             ///< INA class instantiation
     volatile uint8_t deviceNumber;                                                                                             ///< Device Number to use in example
@@ -26,8 +28,12 @@ private:
     volatile int64_t sumBusMicroAmp[17];                                                                                       ///< Sum of bus amperage readings
     volatile uint8_t readings[17];                                                                                             ///< Number of measurements taken
     portMUX_TYPE mux;                                                                                                          ///< Synchronization variable
-    byte INA_address_connected[8];
-    int Nb_INA;
+    byte INA_address_connected[8];                                                                                             // INA address connected
+    int Nb_INA;                                                                                                                // Number of INA connected
+    int max_voltage = 30000;                                                                                                   // Battery undervoltage threshold in mV;
+    int min_voltage = 24000;                                                                                                   // Battery overvoltage threshold in mV
+    int max_current = 1000;                                                                                                    // Battery overcurrent threshold in mA
+    int max_charge_current;                                                                                                    // Battery charge current threshold in mA
 };
 
 INAHandler::INAHandler()
@@ -39,7 +45,7 @@ INAHandler::INAHandler()
     memset((void *)INA_address_connected, 0, sizeof(INA_address_connected));
 }
 
-void INAHandler::setup()
+void INAHandler::begin(int amp, int micro_ohm)
 {
     Serial.println();
     // INA setup
@@ -47,7 +53,7 @@ void INAHandler::setup()
     uint8_t devicesFound = 0;
     while (deviceNumber == UINT8_MAX)
     {
-        devicesFound = INA.begin(50, 2000); // +/- 1 Amps maximum for 0.2 Ohm resistor
+        devicesFound = INA.begin(amp, micro_ohm); // TODO values to be adjusted for your specific application
         Serial.print(F("Found "));
         Serial.print(devicesFound);
         Serial.println(F(" INA devices"));
@@ -81,11 +87,11 @@ void INAHandler::setup()
 
 void INAHandler::initialize_ina(int deviceNumber)
 {
-    INA.reset(deviceNumber);                                                      // Reset device to default settings
-    const int shunt_overvoltage = alert_bat_max_current * 2;                      // Shunt voltage in mV
-    INA.alertOnShuntOverVoltage(true, shunt_overvoltage, deviceNumber);           // Alert on shunt overvoltage
-    INA.alertOnBusUnderVoltage(true, alert_bat_min_voltage / 1000, deviceNumber); // Alert on bus undervoltage
-    INA.alertOnBusOverVoltage(true, alert_bat_max_voltage / 1000, deviceNumber);  // Alert on bus overvoltage
+    INA.reset(deviceNumber);                                            // Reset device to default settings
+    const int shunt_overvoltage = max_current * 2;                      // Shunt voltage in mV
+    INA.alertOnShuntOverVoltage(true, shunt_overvoltage, deviceNumber); // Alert on shunt overvoltage
+    INA.alertOnBusUnderVoltage(true, min_voltage / 1000, deviceNumber); // Alert on bus undervoltage
+    INA.alertOnBusOverVoltage(true, max_voltage / 1000, deviceNumber);  // Alert on bus overvoltage
 }
 
 void INAHandler::read(int deviceNumber, bool print_message)
@@ -137,3 +143,25 @@ uint8_t INAHandler::getNbINA()
 {
     return Nb_INA;
 }
+
+void INAHandler::set_max_voltage(float voltage) // set the max voltage in mV
+{
+    max_voltage = voltage;
+}
+
+void INAHandler::set_min_voltage(float voltage) // set the min voltage in mV
+{
+    min_voltage = voltage;
+}
+
+void INAHandler::set_max_current(float current) // set the max current in mA
+{
+    max_current = current;
+}
+
+void INAHandler::set_max_charge_current(float current) // set the max charge current in mA
+{
+    max_charge_current = current;
+}
+
+#endif // INA_NRJ_LIB_h

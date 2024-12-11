@@ -1,28 +1,35 @@
-const int I2C_Speed = 50;                // I2C speed in KHz
-const int alert_bat_min_voltage = 24000; // Battery undervoltage threshold in mV
-const int alert_bat_max_voltage = 30000; // Battery overvoltage threshold in mV
-const int alert_bat_max_current = 1;     // Battery overcurrent threshold in A
-const bool print_message = true;
-const int reconnect_delay = 10000;
+const int I2C_Speed = 100; // I2C speed in KHz
+
+// value for battery check
+const int set_min_voltage = 24000;       // Battery undervoltage threshold in mV
+const int set_max_voltage = 30000;       // Battery overvoltage threshold in mV
+const int set_max_current = 1000;        // Battery overcurrent threshold in mA
+const int set_max_charge_current = 1000; // Battery charge current threshold in mA
+const int reconnect_delay = 10000;       // delay to reconnect the battery in ms
+const int nb_switch_on = 5;              // number of switch on before infinite disconnect of the battery
+
+// value for INA devices
+const int max_INA_current = 50;       // Max current in A for INA devices
+const int INA_micro_ohm_shunt = 2000; // Max micro ohm for INA devices
+
+const bool print_message = true; // Print message on serial monitor
+
+const int log_time = 10; // Temps entre chaque enregistrement de log sur SD en secondes
 
 #include <Arduino.h>
 #include "pin_mapppings.h"
-#include "INA_Func.h" 
-#include "TCA_Func.h" 
-#include "Batt_Compute.h"
-#include "SD_Logger.h" 
+#include "INA_NRJ_lib.h"
+#include "TCA_NRJ_lib.h"
+#include "Batt_Parallelator_lib.h"
+#include "SD_Logger.h"
 
-INAHandler inaHandler;                 // Créer une instance de la classe INAHandler
-TCAHandler tcaHandler;                 // Créer une instance de la classe TCAHandler
-BattComputeHandler battComputeHandler; // Créer une instance de la classe BattComputeHandler
-SDLogger sdLogger;                     // Créer une instance de la classe SDLogger
+INAHandler inaHandler;             // Créer une instance de la classe INAHandler
+TCAHandler tcaHandler;             // Créer une instance de la classe TCAHandler
+BATTParallelator BattParallelator; // Créer une instance de la classe BattParallelator
+SDLogger sdLogger;                 // Créer une instance de la classe SDLogger
 
-void setup()
-{
-  Serial.begin(115200);
-  Wire.begin(SDA_pin, SCL_pin);              // sda= GPIO_32 /scl= GPIO_33
-  Wire.setClock(I2C_Speed * 1000); // set I2C
-  // Find all I2C devices
+void I2C_scanner()
+{ // Find all I2C devices
   byte count = 0;
   for (byte i = 8; i < 120; i++)
   {
@@ -43,25 +50,54 @@ void setup()
   Serial.print("Found ");
   Serial.print(count, DEC);
   Serial.println(" device(s).");
+} // end of I2C_scanner
 
-  tcaHandler.setup();
+void setup()
+{
+  if (print_message)
+  {
+    Serial.begin(115200);
+    I2C_scanner();
+  }
+  Wire.begin(SDA_pin, SCL_pin);    // sda= GPIO_32 /scl= GPIO_33
+  Wire.setClock(I2C_Speed * 1000); // set I2C
+
+  tcaHandler.begin();
   Serial.println("TCA setup done");
 
-  inaHandler.setup();
-  Serial.println("INA setup done");
+  inaHandler.set_max_voltage(set_max_voltage);               // set the max voltage in mV
+  inaHandler.set_min_voltage(set_min_voltage);               // set the min voltage in mV
+  inaHandler.set_max_current(set_max_current);               // set the max current in mA
+  inaHandler.set_max_charge_current(set_max_charge_current); // set the max charge current in mA
+  inaHandler.begin(max_INA_current, INA_micro_ohm_shunt);    // Initialiser les INA
+  if (print_message)
+    Serial.println("INA setup done");
 
-  sdLogger.begin(); // Initialiser le logger SD
+  sdLogger.begin();              // Initialiser le logger SD
+  sdLogger.setLogTime(log_time); // Définir le temps entre chaque enregistrement en secondes
+  if (print_message)
+    Serial.println("SD logger setup done");
+
+  BattParallelator.set_max_voltage(set_max_voltage);               // set the max voltage in mV
+  BattParallelator.set_min_voltage(set_min_voltage);               // set the min voltage in mV
+  BattParallelator.set_max_current(set_max_current);               // set the max current in mA
+  BattParallelator.set_max_charge_current(set_max_charge_current); // set the max charge current in mA
+  BattParallelator.set_reconnect_delay(reconnect_delay);           // set the reconnect delay in ms
+  BattParallelator.set_nb_switch_on(nb_switch_on);                 // set the number of switch on before disconnect the battery
+  if (print_message)
+    Serial.println("Battery compute setup done");
 
   int Nb_TCA = tcaHandler.getNbTCA(); // récupérer le nombre de TCA
   int Nb_INA = inaHandler.getNbINA(); // récupérer le nombre de INA
-
-  Serial.println();
-  Serial.print("found : ");
-  Serial.print(Nb_TCA);
-  Serial.print(" INA and ");
-  Serial.print(Nb_INA);
-  Serial.println(" TCA");
-
+  if (print_message)
+  {
+    Serial.println();
+    Serial.print("found : ");
+    Serial.print(Nb_TCA);
+    Serial.print(" INA and ");
+    Serial.print(Nb_INA);
+    Serial.println(" TCA");
+  }
   if (Nb_TCA != Nb_INA / 4) // Vérifier si le nombre de TCA et de INA est correct
   {
     Serial.println("Error : Number of TCA and INA are not correct");
@@ -86,18 +122,14 @@ void loop()
 
   for (int i = 0; i < Nb_INA; i++) // loop through all INA devices
   {
-    if (print_message)
-      Serial.printf("Reading INA %d\n", i);
-    inaHandler.read(i, print_message); // read the INA device
-    battComputeHandler.check_battery(i); // check battery status and switch on/off if needed
-    if (sdLogger.shouldLog()) // Vérifier si on doit enregistrer les données
+    if (print_message) // read the INA device to serial monitor
     {
-      float volt = inaHandler.read_volt(i); // Lire la tension
-      float current = inaHandler.read_current(i); // Lire le courant
-      bool switchState = battComputeHandler.check_battery_status(i); // Vérifier l'état de la batterie
-      unsigned long time = millis();
-      sdLogger.logData(volt, current, switchState, time); // Enregistrer les données sur la carte SD
-    }
+      Serial.printf("Reading INA %d\n", i);
+      inaHandler.read(i, print_message);
+    } 
+    BattParallelator.check_battery_connected_status(i);                                                                                              // check battery status and switch on/off if needed
+    if (sdLogger.shouldLog())                                                                                                       // Vérifier si on doit enregistrer les données
+      sdLogger.logData(millis(), i, inaHandler.read_volt(i), inaHandler.read_current(i), BattParallelator.check_battery_status(i)); // Enregistrer les données sur la carte SD
   } // of for-next loop through all INA devices
   delay(500);
 } // of loop
