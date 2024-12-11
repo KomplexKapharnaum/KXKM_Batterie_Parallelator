@@ -15,7 +15,7 @@ TCA9535 TCA_7(TCA_address[7]);
 int Nb_TCA = 0;
 byte TCA_address_connected [8] = {0,0,0,0,0,0,0,0};
 
-/*
+/* TCA pin mapping
 0 Batt switch 4
 1 Batt switch 3
 2 Batt switch 2
@@ -33,6 +33,23 @@ byte TCA_address_connected [8] = {0,0,0,0,0,0,0,0};
 14 Red 4
 15 Green 4
 */
+
+void initialize_tca(TCA9535 &tca, const char* name) {
+    tca.begin();
+    Serial.println(String(name) + " is connected");
+    for (int i = 0; i < 4; i++) {
+        tca.pinMode1(i, OUTPUT);
+        tca.write1(i, LOW);
+    }
+    for (int i = 5; i < 7; i++) {
+        tca.pinMode1(i, INPUT);
+    }
+    for (int i = 8; i < 16; i++) {
+        tca.pinMode1(i, OUTPUT);
+        tca.write1(i, LOW);
+    }
+}
+
 // TCA init
 void setup_tca()
 {
@@ -46,158 +63,15 @@ Serial.println();
       Nb_TCA ++;
       TCA_address_connected[Nb_TCA-1]=TCA_address[i];
 
-  
-      if (i == 0)
-      {
-        TCA_0.begin();
-        Serial.println("TCA_0 is connected");
-        for (int i = 0; i < 4; i++)
-        {
-          TCA_0.pinMode1(i, OUTPUT);
-          TCA_0.write1(i, LOW);
-        }
-        for (int i = 5; i < 7; i++)
-        {
-          TCA_0.pinMode1(i, INPUT);
-        }
-        for (int i = 8; i < 16; i++)
-        {
-          TCA_0.pinMode1(i, OUTPUT);
-          TCA_0.write1(i, LOW);
-        }
-      }
-      if (i == 1)
-      {
-        TCA_1.begin();
-        Serial.println("TCA_1 is connected");
-        for (int i = 0; i < 4; i++)
-        {
-          TCA_1.pinMode1(i, OUTPUT);
-          TCA_1.write1(i, LOW);
-        }
-        for (int i = 5; i < 7; i++)
-        {
-          TCA_1.pinMode1(i, INPUT);
-        }
-        for (int i = 8; i < 16; i++)
-        {
-          TCA_1.pinMode1(i, OUTPUT);
-          TCA_1.write1(i, LOW);
-        }
-      }
-      if (i == 2)
-      {
-        TCA_2.begin();
-        Serial.println("TCA_2 is connected");
-        for (int i = 0; i < 4; i++)
-        {
-          TCA_2.pinMode1(i, OUTPUT);
-          TCA_2.write1(i, LOW);
-        }
-        for (int i = 5; i < 7; i++)
-        {
-          TCA_2.pinMode1(i, INPUT);
-        }
-        for (int i = 8; i < 16; i++)
-        {
-          TCA_2.pinMode1(i, OUTPUT);
-          TCA_2.write1(i, LOW);
-        }
-      }
-      if (i == 3)
-      {
-        TCA_3.begin();
-        Serial.println("TCA_3 is connected");
-        for (int i = 0; i < 4; i++)
-        {
-          TCA_3.pinMode1(i, OUTPUT);
-          TCA_3.write1(i, LOW);
-        }
-        for (int i = 5; i < 7; i++)
-        {
-          TCA_3.pinMode1(i, INPUT);
-        }
-        for (int i = 8; i < 16; i++)
-        {
-          TCA_3.pinMode1(i, OUTPUT);
-          TCA_3.write1(i, LOW);
-        }
-      }
-      if (i == 4)
-      {
-        TCA_4.begin();
-        Serial.println("TCA_4 is connected");
-        for (int i = 0; i < 4; i++)
-        {
-          TCA_4.pinMode1(i, OUTPUT);
-          TCA_4.write1(i, LOW);
-        }
-        for (int i = 5; i < 7; i++)
-        {
-          TCA_4.pinMode1(i, INPUT);
-        }
-        for (int i = 8; i < 16; i++)
-        {
-          TCA_4.pinMode1(i, OUTPUT);
-          TCA_4.write1(i, LOW);
-        }
-      }
-      if (i == 5)
-      {
-        TCA_5.begin();
-        Serial.println("TCA_5 is connected");
-        for (int i = 0; i < 4; i++)
-        {
-          TCA_5.pinMode1(i, OUTPUT);
-          TCA_5.write1(i, LOW);
-        }
-        for (int i = 5; i < 7; i++)
-        {
-          TCA_5.pinMode1(i, INPUT);
-        }
-        for (int i = 8; i < 16; i++)
-        {
-          TCA_5.pinMode1(i, OUTPUT);
-          TCA_5.write1(i, LOW);
-        }
-      }
-      if (i == 6)
-      {
-        TCA_6.begin();
-        Serial.println("TCA_6 is connected");
-        for (int i = 0; i < 4; i++)
-        {
-          TCA_6.pinMode1(i, OUTPUT);
-          TCA_6.write1(i, LOW);
-        }
-        for (int i = 5; i < 7; i++)
-        {
-          TCA_6.pinMode1(i, INPUT);
-        }
-        for (int i = 8; i < 16; i++)
-        {
-          TCA_6.pinMode1(i, OUTPUT);
-          TCA_6.write1(i, LOW);
-        }
-      }
-      if (i == 7)
-      {
-        TCA_7.begin();
-        Serial.println("TCA_7 at address " + String(TCA_address[i])+" is connected");
-        for (int i = 0; i < 4; i++)
-        {
-          TCA_7.pinMode1(i, OUTPUT);
-          TCA_7.write1(i, LOW);
-        }
-        for (int i = 5; i < 7; i++)
-        {
-          TCA_7.pinMode1(i, INPUT);
-        }
-        for (int i = 8; i < 16; i++)
-        {
-          TCA_7.pinMode1(i, OUTPUT);
-          TCA_7.write1(i, LOW);
-        }
+      switch (i) {
+        case 0: initialize_tca(TCA_0, "TCA_0"); break;
+        case 1: initialize_tca(TCA_1, "TCA_1"); break;
+        case 2: initialize_tca(TCA_2, "TCA_2"); break;
+        case 3: initialize_tca(TCA_3, "TCA_3"); break;
+        case 4: initialize_tca(TCA_4, "TCA_4"); break;
+        case 5: initialize_tca(TCA_5, "TCA_5"); break;
+        case 6: initialize_tca(TCA_6, "TCA_6"); break;
+        case 7: initialize_tca(TCA_7, "TCA_7"); break;
       }
     }
   }
