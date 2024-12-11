@@ -16,8 +16,8 @@ int OUT_num = 0;
 #include "TCA_Func.h"
 #include "compute.h"
 
-TCAHandler tcaHandler;
 INAHandler inaHandler;
+TCAHandler tcaHandler;
 
 void setup()
 {
@@ -52,12 +52,38 @@ void setup()
   inaHandler.setup();
   Serial.println("INA setup done");
 
-  tcaHandler.check_INA_TCA_address();
+  int Nb_TCA = tcaHandler.getNbTCA();
+  int Nb_INA = inaHandler.getNbINA();
+
+  Serial.println();
+  Serial.print("found : ");
+  Serial.print(Nb_TCA);
+  Serial.print(" INA and ");
+  Serial.print(Nb_INA);
+  Serial.println(" TCA");
+
+  if (Nb_TCA != Nb_INA / 4)
+  {
+    Serial.println("Error : Number of TCA and INA are not correct");
+    if (Nb_INA % 4 != 0)
+    {
+      Serial.println("Error : Missing INA");
+    }
+    else
+    {
+      Serial.println("Error : Missing TCA");
+    }
+  }
+  else
+  {
+    Serial.println("Number of TCA and INA are correct");
+  }
 }
 
 void loop()
 {
-  int Nb_INA = tcaHandler.getNbINA(); // Utilisation de la méthode getNbINA
+  int Nb_INA = inaHandler.getNbINA(); // Utilisation de la méthode getNbINA
+
   for (int i = 0; i < Nb_INA; i++) // loop through all INA devices
   {
     if (print_message)

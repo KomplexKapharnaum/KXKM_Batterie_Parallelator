@@ -14,6 +14,7 @@ public:
     float read_volt(int deviceNumber);
     float read_power(int deviceNumber);
     uint8_t getDeviceAddress(int deviceNumber);
+    uint8_t getNbINA() const; // Ajout de la méthode getNbINA
 
 private:
     void initialize_ina(int deviceNumber);
@@ -129,4 +130,8 @@ float INAHandler::read_power(int deviceNumber)
 
 uint8_t INAHandler::getDeviceAddress(int deviceNumber) {
     return INA_ADDR[deviceNumber];
+}
+
+uint8_t INAHandler::getNbINA() const {
+    return Nb_INA;
 }
