@@ -6,6 +6,8 @@
 bool print_message = true;
 
 long reconnect_time[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+
 const int reconnect_delay = 10000;
 
 int TCA_num = 0;
@@ -55,6 +57,7 @@ void setup()
 
 void loop()
 {
+
 
   for (int i = 0; i < Nb_INA; i++) // loop through all INA devices
   {
@@ -137,33 +140,28 @@ void loop()
       }
       else if (Nb_switch[i] == Nb_switch_max)
       {
-
-        if (Nb_switch[i] >= Nb_switch_max)
+        if (reconnect_time[i] == 0)
         {
-
-          if (print_message)
-            Serial.println("too many cut off battery, try to reconnect in" + String(reconnect_delay / 1000) + "s");
-          TCA_write(TCA_num, OUT_num, 0);
-          TCA_write(TCA_num, OUT_num * 2 + 8, 1);
-          TCA_write(TCA_num, OUT_num * 2 + 9, 0);
           check_switch[i] = 1;
-          if (reconnect_time[i] == 0)
-          {
-            reconnect_time[i] = millis();
-          }
-
-          if ((millis() - reconnect_time[i] > reconnect_delay) && (Nb_switch[i] == Nb_switch_max))
-          {
-            TCA_write(TCA_num, OUT_num, 1);
-            TCA_write(TCA_num, OUT_num * 2 + 8, 0);
-            TCA_write(TCA_num, OUT_num * 2 + 9, 1);
-
-            Nb_switch[i]++;
-            check_switch[i] = 0;
-          }
+          switch_off_battery(TCA_num, OUT_num,i);
+          check_switch[i] = 0;
+          reconnect_time[i] = millis();
         }
+        if (millis() - reconnect_time[i] > reconnect_delay)
+        {
+          if (print_message)
+            Serial.println("Battery reconnected");
+          switch_on_battery(TCA_num, OUT_num);
+          check_switch[i] = 0;
+        }
+        else
+        {
+          if (print_message)
+          Serial.println("too many cut off battery, try to reconnect in " + String((reconnect_delay-(millis() - reconnect_time[i])) / 1000) + " s");
+        }
+
       }
-      else if (Nb_switch[i] > Nb_switch_max + 1)
+      else if (Nb_switch[i] > Nb_switch_max )
       {
         if (print_message)
           Serial.println("too many cut off battery, constant cut off");
