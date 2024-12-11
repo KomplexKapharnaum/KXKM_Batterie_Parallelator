@@ -9,6 +9,8 @@ long reconnect_time[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 
 const int reconnect_delay = 10000;
+const int voltage_diff =1;
+const int current_diff =1;
 
 int TCA_num = 0;
 int OUT_num = 0;
@@ -53,6 +55,13 @@ void setup()
   Serial.println("INA setup done");
 
   check_INA_TCA_address();
+
+  for (int i = 0; i < Nb_INA; i++) 
+  {
+    battery_voltage[i] = read_volt(i);
+    battery_current[i] = read_current(i);
+    battery_power[i] = read_power(i);
+  }
 }
 
 void loop()
@@ -61,6 +70,10 @@ void loop()
 
   for (int i = 0; i < Nb_INA; i++) // loop through all INA devices
   {
+    battery_voltage[i] = read_volt(i);
+    battery_current[i] = read_current(i);
+    battery_power[i] = read_power(i);
+
     if (print_message)
       Serial.printf("Reading INA %d\n", i);
     read_INA(i, print_message);
@@ -169,6 +182,15 @@ void loop()
         TCA_write(TCA_num, OUT_num * 2 + 8, 1);
         TCA_write(TCA_num, OUT_num * 2 + 9, 0);
         check_switch[i] = 1;
+      }
+    
+      battery_voltage_max=(battery_voltage, Nb_INA);
+      if (compare_voltage(battery_voltage[i],battery_voltage_max, voltage_diff)==true ){
+        Serial.println("Voltage batterie "+ String(i)+ "is different");
+        check_switch[i] = 1;
+        switch_off_battery(TCA_num, OUT_num, i); // switch off the battery
+        check_switch[i] = 0;
+        
       }
     }
   }
