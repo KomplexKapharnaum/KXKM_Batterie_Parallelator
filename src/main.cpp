@@ -15,9 +15,12 @@ int OUT_num = 0;
 #include "INA_Func.h"
 #include "TCA_Func.h"
 #include "compute.h"
+#include "SDLogger.h" // Inclure le nouveau fichier d'en-tête
 
 INAHandler inaHandler;
 TCAHandler tcaHandler;
+BattComputeHandler battComputeHandler; // Renommage de la classe
+SDLogger sdLogger; // Créer une instance de la nouvelle classe
 
 void setup()
 {
@@ -51,6 +54,8 @@ void setup()
 
   inaHandler.setup();
   Serial.println("INA setup done");
+
+  sdLogger.begin(); // Initialiser le logger SD
 
   int Nb_TCA = tcaHandler.getNbTCA();
   int Nb_INA = inaHandler.getNbINA();
@@ -89,7 +94,8 @@ void loop()
     if (print_message)
       Serial.printf("Reading INA %d\n", i);
     inaHandler.read(i, print_message);
-    check_battery(i);
+    battComputeHandler.check_battery(i); // Utilisation de la nouvelle classe
+    sdLogger.logData(i, inaHandler.read(i, false)); // Enregistrer les données sur la carte SD
   } // of for-next loop through all INA devices
   delay(500);
 } // of loop
