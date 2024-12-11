@@ -16,6 +16,7 @@ private:
     const int chipSelect = 10; // Pin de sélection de la carte SD
     File dataFile;
     unsigned long lastLogTime = 0;
+    const int log_time = 10; // Temps entre chaque enregistrement en secondes
 };
 
 #endif // SDLOGGER_H
