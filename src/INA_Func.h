@@ -32,6 +32,11 @@ byte INA_address_connected[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 int Nb_INA = 0;
 
 
+int battery_voltage[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+int battery_current[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+int battery_power[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+int battery_voltage_max = 0;
+
 void setup_ina()
 {
     Serial.println();
@@ -143,4 +148,30 @@ float read_power(int deviceNumber) // calculate the power in W
     float volts = ((float)INA.getBusMilliVolts(deviceNumber) / 1000);
     float amps = ((float)INA.getBusMicroAmps(deviceNumber) / 10000);
     return ((float)volts * (float)amps);
+}
+
+
+float compare_voltage(float voltage, float voltage_max, float diff) // Compare the voltage with a threshold
+{
+
+    if (voltage < voltage_max-diff)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+
+
+float find_max_voltage(float* battery_voltages, int num_batteries) {
+  float max_voltage = battery_voltages[0];
+  for (int i = 1; i < num_batteries; i++) {
+    if (battery_voltages[i] > max_voltage) {
+      max_voltage = battery_voltages[i];
+    }
+  }
+  return max_voltage;
 }
