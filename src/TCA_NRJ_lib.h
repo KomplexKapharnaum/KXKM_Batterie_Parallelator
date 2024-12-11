@@ -1,10 +1,13 @@
+#ifndef TCA_NRJ_LIB_H
+#define TCA_NRJ_LIB_H
+
 #include "TCA9555.h" // TCA9555 library
 
 class TCAHandler
 {
 public:
     TCAHandler();
-    void setup();
+    void begin();
     bool read(int TCA_num, int pin);
     bool write(int TCA_num, int pin, bool value);
     void check_INA_TCA_address();
@@ -48,7 +51,7 @@ void TCAHandler::initialize_tca(TCA9535 &tca, const char *name)
     }
 }
 
-void TCAHandler::setup()
+void TCAHandler::begin()
 {
     Serial.println();
     for (int i = 0; i < 8; i++)
@@ -185,3 +188,5 @@ uint8_t TCAHandler::getNbTCA()
     }
     return Nb_TCA;
 }
+
+#endif // TCA_NRJ_LIB_H
