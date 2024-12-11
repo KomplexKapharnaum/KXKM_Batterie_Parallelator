@@ -6,25 +6,23 @@ const int alert_bat_max_current = 1;     // Battery overcurrent threshold in A
 const bool print_message = true;
 const int reconnect_delay = 10000;
 
-int OUT_num = 0;
-
 #include <Arduino.h>
 #include "pin_mapppings.h"
-#include "INA_Func.h"
-#include "TCA_Func.h"
-#include "compute.h"
-#include "SDLogger.h" // Inclure le nouveau fichier d'en-tête
+#include "INA_Func.h" 
+#include "TCA_Func.h" 
+#include "Batt_Compute.h"
+#include "SD_Logger.h" 
 
-INAHandler inaHandler;
-TCAHandler tcaHandler;
-BattComputeHandler battComputeHandler; // Renommage de la classe
-SDLogger sdLogger;                     // Créer une instance de la nouvelle classe
+INAHandler inaHandler;                 // Créer une instance de la classe INAHandler
+TCAHandler tcaHandler;                 // Créer une instance de la classe TCAHandler
+BattComputeHandler battComputeHandler; // Créer une instance de la classe BattComputeHandler
+SDLogger sdLogger;                     // Créer une instance de la classe SDLogger
 
 void setup()
 {
   Serial.begin(115200);
-  Wire.begin(32, 33);              // sda= GPIO_32 /scl= GPIO_33
-  Wire.setClock(I2C_Speed * 1000); // set I2C clock at 50 KHz
+  Wire.begin(SDA_pin, SCL_pin);              // sda= GPIO_32 /scl= GPIO_33
+  Wire.setClock(I2C_Speed * 1000); // set I2C
   // Find all I2C devices
   byte count = 0;
   for (byte i = 8; i < 120; i++)
