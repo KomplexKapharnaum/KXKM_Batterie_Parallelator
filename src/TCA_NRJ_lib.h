@@ -23,6 +23,8 @@ private:
     byte TCA_address_connected[8];
 };
 
+/*! @brief Constructor for TCAHandler
+*/
 TCAHandler::TCAHandler()
     : TCA_0(TCA_address[0]), TCA_1(TCA_address[1]), TCA_2(TCA_address[2]), TCA_3(TCA_address[3]),
       TCA_4(TCA_address[4]), TCA_5(TCA_address[5]), TCA_6(TCA_address[6]), TCA_7(TCA_address[7]),
@@ -31,6 +33,10 @@ TCAHandler::TCAHandler()
     memset(TCA_address_connected, 0, sizeof(TCA_address_connected));
 }
 
+/*! @brief Initialize a TCA device
+    @param tca The TCA device
+    @param name The name of the TCA device
+*/
 void TCAHandler::initialize_tca(TCA9535 &tca, const char *name)
 {
     tca.begin();
@@ -51,6 +57,8 @@ void TCAHandler::initialize_tca(TCA9535 &tca, const char *name)
     }
 }
 
+/*! @brief Begin the TCAHandler and initialize connected TCA devices
+*/
 void TCAHandler::begin()
 {
     Serial.println();
@@ -97,6 +105,11 @@ void TCAHandler::begin()
     Serial.println(" devices");
 }
 
+/*! @brief Read the value of a pin on a TCA device
+    @param TCA_num The TCA number
+    @param pin The pin number
+    @return The value of the pin
+*/
 bool TCAHandler::read(int TCA_num, int pin)
 {
     bool val;
@@ -134,6 +147,12 @@ bool TCAHandler::read(int TCA_num, int pin)
     return val;
 }
 
+/*! @brief Write a value to a pin on a TCA device
+    @param TCA_num The TCA number
+    @param pin The pin number
+    @param value The value to write
+    @return True if the write was successful, false otherwise
+*/
 bool TCAHandler::write(int TCA_num, int pin, bool value)
 {
     switch (TCA_num)
@@ -168,12 +187,18 @@ bool TCAHandler::write(int TCA_num, int pin, bool value)
     return true;
 }
 
+/*! @brief Get the device address of a TCA device
+    @param TCA_num The TCA number
+    @return The device address
+*/
 byte TCAHandler::getDeviceAddress(int TCA_num)
 {
     return TCA_address[TCA_num];
 }
 
-// Get the number of TCA found
+/*! @brief Get the number of TCA devices found
+    @return The number of TCA devices
+*/
 uint8_t TCAHandler::getNbTCA()
 {
     uint8_t Nb_TCA = 0;
