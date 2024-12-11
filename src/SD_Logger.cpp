@@ -38,7 +38,7 @@ void SDLogger::logData(float volt, float current, bool switchState, unsigned lon
 bool SDLogger::shouldLog()
 {
     unsigned long currentTime = millis();
-    if (currentTime - lastLogTime >= 10000)
+    if (currentTime - lastLogTime >= log_time * 1000)
     { // 10 secondes
         lastLogTime = currentTime;
         return true;
