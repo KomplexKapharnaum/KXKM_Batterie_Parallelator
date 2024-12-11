@@ -1,13 +1,31 @@
-int Nb_switch_max = 5;
-int Nb_switch[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-int check_switch[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-long reconnect_time[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+class BattComputeHandler {
+public:
+    BattComputeHandler();
+    void switch_off_battery(int TCA_num, int OUT_num, int switch_number);
+    void switch_on_battery(int TCA_num, int OUT_num);
+    uint8_t TCA_num(int INA_num);
+    bool check_battery_status(int INA_num);
+    bool switch_battery(int INA_num, bool switch_on);
+    void check_battery(int INA_num);
+
+private:
+    int Nb_switch_max;
+    int Nb_switch[16];
+    int check_switch[16];
+    long reconnect_time[16];
+};
 
 extern TCAHandler tcaHandler;
 extern INAHandler inaHandler;
 
-void switch_off_battery(int TCA_num, int OUT_num, int switch_number) // switch off the battery
-{
+BattComputeHandler::BattComputeHandler() 
+    : Nb_switch_max(5) {
+    memset(Nb_switch, 0, sizeof(Nb_switch));
+    memset(check_switch, 0, sizeof(check_switch));
+    memset(reconnect_time, 0, sizeof(reconnect_time));
+}
+
+void BattComputeHandler::switch_off_battery(int TCA_num, int OUT_num, int switch_number) {
     tcaHandler.write(TCA_num, OUT_num, 0);         // switch off the battery
     tcaHandler.write(TCA_num, OUT_num * 2 + 8, 1); // set red led on
     tcaHandler.write(TCA_num, OUT_num * 2 + 9, 0); // set green led off
@@ -18,15 +36,13 @@ void switch_off_battery(int TCA_num, int OUT_num, int switch_number) // switch o
     }
 }
 
-void switch_on_battery(int TCA_num, int OUT_num) // switch on the battery
-{
+void BattComputeHandler::switch_on_battery(int TCA_num, int OUT_num) {
     tcaHandler.write(TCA_num, OUT_num, 1);         // switch on the battery
     tcaHandler.write(TCA_num, OUT_num * 2 + 8, 0); // set red led off
     tcaHandler.write(TCA_num, OUT_num * 2 + 9, 1); // set green led on
 }
 
-uint8_t TCA_num(int INA_num) // return TCA number about INA number
-{
+uint8_t BattComputeHandler::TCA_num(int INA_num) {
     if ((inaHandler.getDeviceAddress(INA_num) >= 64) && (inaHandler.getDeviceAddress(INA_num) <= 67))
     {
         return 0;
@@ -49,8 +65,7 @@ uint8_t TCA_num(int INA_num) // return TCA number about INA number
     }
 }
 
-bool check_battery_status(int INA_num) // check battery status
-{
+bool BattComputeHandler::check_battery_status(int INA_num) {
     if (inaHandler.read_volt(INA_num) < alert_bat_min_voltage / 1000)
     {
         if (print_message)
@@ -81,8 +96,7 @@ bool check_battery_status(int INA_num) // check battery status
     }
 }
 
-bool switch_battery(int INA_num, bool switch_on) // return value of the battery are on or off
-{
+bool BattComputeHandler::switch_battery(int INA_num, bool switch_on) {
     int TCA_number = TCA_num(INA_num);
     int OUT_number = (inaHandler.getDeviceAddress(INA_num) - 64) % 4;
     if (switch_on)
@@ -97,8 +111,7 @@ bool switch_battery(int INA_num, bool switch_on) // return value of the battery 
     }
 }
 
-void check_battery(int INA_num) // check the battery status and switch on or off the battery
-{
+void BattComputeHandler::check_battery(int INA_num) {
     if (check_battery_status(INA_num)) // check battery status
     {
         check_switch[INA_num] = 0;              // reset the switch counter
