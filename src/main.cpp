@@ -18,8 +18,6 @@ const int log_time = 10; // Temps entre chaque enregistrement de log sur SD en s
 
 #include <Arduino.h>
 #include "pin_mapppings.h"
-#include "INA_NRJ_lib.h"
-#include "TCA_NRJ_lib.h"
 #include "Batt_Parallelator_lib.h"
 #include "SD_Logger.h"
 
@@ -118,16 +116,14 @@ void setup()
 
 void loop()
 {
-  int Nb_INA = inaHandler.getNbINA(); // récupérer le nombre de INA
-
-  for (int i = 0; i < Nb_INA; i++) // loop through all INA devices
+  int Nb_Batt = inaHandler.getNbINA(); // récupérer le nombre de INA
+  float battery_voltages[Nb_Batt];
+  for (int i = 0; i < Nb_Batt; i++) // loop through all INA devices
   {
     if (print_message) // read the INA device to serial monitor
-    {
-      Serial.printf("Reading INA %d\n", i);
       inaHandler.read(i, print_message);
-    } 
-    BattParallelator.check_battery_connected_status(i);                                                                                              // check battery status and switch on/off if needed
+    BattParallelator.check_battery_connected_status(i);                                                                             // check battery status and switch on/off if needed
+    BattParallelator.find_max_voltage(battery_voltages, i);                                                                    // Trouver la tension maximale
     if (sdLogger.shouldLog())                                                                                                       // Vérifier si on doit enregistrer les données
       sdLogger.logData(millis(), i, inaHandler.read_volt(i), inaHandler.read_current(i), BattParallelator.check_battery_status(i)); // Enregistrer les données sur la carte SD
   } // of for-next loop through all INA devices

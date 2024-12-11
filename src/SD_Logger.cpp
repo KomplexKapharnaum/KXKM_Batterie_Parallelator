@@ -2,6 +2,9 @@
 
 SDLogger::SDLogger() {}
 
+/**
+ * @brief Initialize the SD card and open the log file.
+ */
 void SDLogger::begin()
 {
     if (!SD.begin(chipSelect))
@@ -17,6 +20,15 @@ void SDLogger::begin()
     }
 }
 
+/**
+ * @brief Log data to the SD card.
+ * 
+ * @param time The current time.
+ * @param bat_nb The battery number.
+ * @param volt The voltage.
+ * @param current The current.
+ * @param switchState The state of the switch.
+ */
 void SDLogger::logData(unsigned long time, int bat_nb, float volt, float current, bool switchState)
 {
     if (dataFile)
@@ -38,6 +50,11 @@ void SDLogger::logData(unsigned long time, int bat_nb, float volt, float current
     }
 }
 
+/**
+ * @brief Check if it's time to log data.
+ * 
+ * @return true if it's time to log data, false otherwise.
+ */
 bool SDLogger::shouldLog()
 {
     unsigned long currentTime = millis();
@@ -49,6 +66,11 @@ bool SDLogger::shouldLog()
     return false;
 }
 
+/**
+ * @brief Set the logging interval time.
+ * 
+ * @param time The logging interval time in seconds.
+ */
 void SDLogger::setLogTime(int time) // set log time in seconds
 {
     log_at_time = time * 1000;
