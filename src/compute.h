@@ -1,4 +1,5 @@
-class BattComputeHandler {
+class BattComputeHandler
+{
 public:
     BattComputeHandler();
     void switch_off_battery(int TCA_num, int OUT_num, int switch_number);
@@ -18,14 +19,16 @@ private:
 extern TCAHandler tcaHandler;
 extern INAHandler inaHandler;
 
-BattComputeHandler::BattComputeHandler() 
-    : Nb_switch_max(5) {
+BattComputeHandler::BattComputeHandler()
+    : Nb_switch_max(5)
+{
     memset(Nb_switch, 0, sizeof(Nb_switch));
     memset(check_switch, 0, sizeof(check_switch));
     memset(reconnect_time, 0, sizeof(reconnect_time));
 }
 
-void BattComputeHandler::switch_off_battery(int TCA_num, int OUT_num, int switch_number) {
+void BattComputeHandler::switch_off_battery(int TCA_num, int OUT_num, int switch_number)
+{
     tcaHandler.write(TCA_num, OUT_num, 0);         // switch off the battery
     tcaHandler.write(TCA_num, OUT_num * 2 + 8, 1); // set red led on
     tcaHandler.write(TCA_num, OUT_num * 2 + 9, 0); // set green led off
@@ -36,26 +39,29 @@ void BattComputeHandler::switch_off_battery(int TCA_num, int OUT_num, int switch
     }
 }
 
-void BattComputeHandler::switch_on_battery(int TCA_num, int OUT_num) {
+void BattComputeHandler::switch_on_battery(int TCA_num, int OUT_num)
+{
     tcaHandler.write(TCA_num, OUT_num, 1);         // switch on the battery
     tcaHandler.write(TCA_num, OUT_num * 2 + 8, 0); // set red led off
     tcaHandler.write(TCA_num, OUT_num * 2 + 9, 1); // set green led on
 }
 
-uint8_t BattComputeHandler::TCA_num(int INA_num) {
-    if ((inaHandler.getDeviceAddress(INA_num) >= 64) && (inaHandler.getDeviceAddress(INA_num) <= 67))
+uint8_t BattComputeHandler::TCA_num(int INA_num)
+{
+    int address = inaHandler.getDeviceAddress(INA_num);
+    if (address >= 64 && address <= 67)
     {
         return 0;
     }
-    if ((inaHandler.getDeviceAddress(INA_num) >= 68) && (inaHandler.getDeviceAddress(INA_num) <= 71))
+    else if (address >= 68 && address <= 71)
     {
         return 1;
     }
-    if ((inaHandler.getDeviceAddress(INA_num) >= 72) && (inaHandler.getDeviceAddress(INA_num) <= 75))
+    else if (address >= 72 && address <= 75)
     {
         return 2;
     }
-    if ((inaHandler.getDeviceAddress(INA_num) >= 76) && (inaHandler.getDeviceAddress(INA_num) <= 79))
+    else if (address >= 76 && address <= 79)
     {
         return 3;
     }
@@ -65,26 +71,30 @@ uint8_t BattComputeHandler::TCA_num(int INA_num) {
     }
 }
 
-bool BattComputeHandler::check_battery_status(int INA_num) {
-    if (inaHandler.read_volt(INA_num) < alert_bat_min_voltage / 1000)
+bool BattComputeHandler::check_battery_status(int INA_num)
+{
+    float voltage = inaHandler.read_volt(INA_num);
+    float current = inaHandler.read_current(INA_num);
+
+    if (voltage < alert_bat_min_voltage / 1000)
     {
         if (print_message)
             Serial.println("Battery voltage is too low");
         return false;
     }
-    else if (inaHandler.read_volt(INA_num) > alert_bat_max_voltage / 1000)
+    else if (voltage > alert_bat_max_voltage / 1000)
     {
         if (print_message)
             Serial.println("Battery voltage is too high");
         return false;
     }
-    else if (inaHandler.read_current(INA_num) > alert_bat_max_current)
+    else if (current > alert_bat_max_current)
     {
         if (print_message)
             Serial.println("Battery current is too high");
         return false;
     }
-    else if (inaHandler.read_current(INA_num) < -alert_bat_max_current)
+    else if (current < -alert_bat_max_current)
     {
         if (print_message)
             Serial.println("Battery current is too high");
@@ -96,7 +106,8 @@ bool BattComputeHandler::check_battery_status(int INA_num) {
     }
 }
 
-bool BattComputeHandler::switch_battery(int INA_num, bool switch_on) {
+bool BattComputeHandler::switch_battery(int INA_num, bool switch_on)
+{
     int TCA_number = TCA_num(INA_num);
     int OUT_number = (inaHandler.getDeviceAddress(INA_num) - 64) % 4;
     if (switch_on)
@@ -111,38 +122,37 @@ bool BattComputeHandler::switch_battery(int INA_num, bool switch_on) {
     }
 }
 
-void BattComputeHandler::check_battery(int INA_num) {
-    if (check_battery_status(INA_num)) // check battery status
+void BattComputeHandler::check_battery(int INA_num)
+{
+    if (check_battery_status(INA_num))
     {
-        check_switch[INA_num] = 0;              // reset the switch counter
-        if (Nb_switch[INA_num] < Nb_switch_max) // check the number of switch
+        check_switch[INA_num] = 0; // reset the switch counter
+        if (Nb_switch[INA_num] < Nb_switch_max)
         {
             if (print_message)
                 Serial.println("Battery voltage and current are good");
             switch_on_battery(TCA_num(INA_num), (inaHandler.getDeviceAddress(INA_num) - 64) % 4); // switch on the battery
         }
-        else if (Nb_switch[INA_num] >= Nb_switch_max) // check the number of switching
+        else if (Nb_switch[INA_num] >= Nb_switch_max)
         {
-
             if (print_message)
-                Serial.println("too many cut off battery, try to reconnect in" + String(reconnect_delay / 1000) + "s");
+                Serial.println("too many cut off battery, try to reconnect in " + String(reconnect_delay / 1000) + "s");
             switch_off_battery(TCA_num(INA_num), (inaHandler.getDeviceAddress(INA_num) - 64) % 4, INA_num);
-            if (reconnect_time[INA_num] == 0) // check the time to reconnect
+            if (reconnect_time[INA_num] == 0)
             {
                 reconnect_time[INA_num] = millis();
             }
-
-            if ((millis() - reconnect_time[INA_num] > reconnect_delay) && (Nb_switch[INA_num] == Nb_switch_max)) // check the time to reconnect
+            if ((millis() - reconnect_time[INA_num] > reconnect_delay) && (Nb_switch[INA_num] == Nb_switch_max))
             {
                 switch_on_battery(TCA_num(INA_num), (inaHandler.getDeviceAddress(INA_num) - 64) % 4);
                 Nb_switch[INA_num]++;
                 check_switch[INA_num] = 0;
             }
         }
-        else if (Nb_switch[INA_num] > Nb_switch_max + 1) // check the number of switching max
+        else if (Nb_switch[INA_num] > Nb_switch_max + 1)
         {
             if (print_message)
-                Serial.println("too many cut off battery, try to reconnect in" + String(reconnect_delay / 1000) + "s");
+                Serial.println("too many cut off battery, try to reconnect in " + String(reconnect_delay / 1000) + "s");
             switch_off_battery(TCA_num(INA_num), (inaHandler.getDeviceAddress(INA_num) - 64) % 4, INA_num);
             if (reconnect_time[INA_num] == 0)
             {

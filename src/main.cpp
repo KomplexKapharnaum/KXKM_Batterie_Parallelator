@@ -1,13 +1,11 @@
-#define I2C_Speed 50                // I2C speed in KHz
-#define alert_bat_min_voltage 24000 // Battery undervoltage threshold in mV
-#define alert_bat_max_voltage 30000 // Battery overvoltage threshold in mV
-#define alert_bat_max_current 1     // Battery overcurrent threshold in A
+const int I2C_Speed = 50;                // I2C speed in KHz
+const int alert_bat_min_voltage = 24000; // Battery undervoltage threshold in mV
+const int alert_bat_max_voltage = 30000; // Battery overvoltage threshold in mV
+const int alert_bat_max_current = 1;     // Battery overcurrent threshold in A
 
 const bool print_message = true;
-
 const int reconnect_delay = 10000;
 
-// int TCA_num(i) = 0;
 int OUT_num = 0;
 
 #include <Arduino.h>
@@ -20,7 +18,7 @@ int OUT_num = 0;
 INAHandler inaHandler;
 TCAHandler tcaHandler;
 BattComputeHandler battComputeHandler; // Renommage de la classe
-SDLogger sdLogger; // Créer une instance de la nouvelle classe
+SDLogger sdLogger;                     // Créer une instance de la nouvelle classe
 
 void setup()
 {
@@ -94,8 +92,15 @@ void loop()
     if (print_message)
       Serial.printf("Reading INA %d\n", i);
     inaHandler.read(i, print_message);
-    battComputeHandler.check_battery(i); // Utilisation de la nouvelle classe
-    sdLogger.logData(i, inaHandler.read(i, false)); // Enregistrer les données sur la carte SD
+    battComputeHandler.check_battery(i); // Utilisation de la nouvelle classe et de la méthode check_battery
+    if (sdLogger.shouldLog())
+    {
+      float volt = inaHandler.read_volt(i);
+      float current = inaHandler.read_current(i);
+      bool switchState = battComputeHandler.check_battery_status(i);
+      unsigned long time = millis();
+      sdLogger.logData(volt, current, switchState, time); // Enregistrer les données sur la carte SD
+    }
   } // of for-next loop through all INA devices
   delay(500);
 } // of loop

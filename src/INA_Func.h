@@ -14,7 +14,7 @@ public:
     float read_volt(int deviceNumber);
     float read_power(int deviceNumber);
     uint8_t getDeviceAddress(int deviceNumber);
-    uint8_t getNbINA() const; // Ajout de la méthode getNbINA
+    uint8_t getNbINA(); // Ajout de la méthode getNbINA
 
 private:
     void initialize_ina(int deviceNumber);
@@ -33,10 +33,10 @@ private:
 INAHandler::INAHandler()
     : deviceNumber(UINT8_MAX), mux(portMUX_INITIALIZER_UNLOCKED), Nb_INA(0)
 {
-    memset((void*)sumBusMillVolts, 0, sizeof(sumBusMillVolts));
-    memset((void*)sumBusMicroAmp, 0, sizeof(sumBusMicroAmp));
-    memset((void*)readings, 0, sizeof(readings));
-    memset((void*)INA_address_connected, 0, sizeof(INA_address_connected));
+    memset((void *)sumBusMillVolts, 0, sizeof(sumBusMillVolts));
+    memset((void *)sumBusMicroAmp, 0, sizeof(sumBusMicroAmp));
+    memset((void *)readings, 0, sizeof(readings));
+    memset((void *)INA_address_connected, 0, sizeof(INA_address_connected));
 }
 
 void INAHandler::setup()
@@ -128,10 +128,12 @@ float INAHandler::read_power(int deviceNumber)
     return ((float)volts * (float)amps);
 }
 
-uint8_t INAHandler::getDeviceAddress(int deviceNumber) {
+uint8_t INAHandler::getDeviceAddress(int deviceNumber)
+{
     return INA_ADDR[deviceNumber];
 }
 
-uint8_t INAHandler::getNbINA() const {
+uint8_t INAHandler::getNbINA()
+{
     return Nb_INA;
 }
