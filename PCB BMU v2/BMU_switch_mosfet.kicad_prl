@@ -80,6 +80,18 @@
   "project": {
     "files": [
       {
+        "name": "BMU_switch_mosfet.kicad_pro",
+        "open": false,
+        "window": {
+          "display": 0,
+          "maximized": false,
+          "pos_x": 163,
+          "pos_y": 150,
+          "size_x": 1494,
+          "size_y": 1016
+        }
+      },
+      {
         "name": "BMU_switch_mosfet.kicad_sch",
         "open": false,
         "window": {
@@ -89,30 +101,6 @@
           "pos_y": 38,
           "size_x": 1728,
           "size_y": 984
-        }
-      },
-      {
-        "name": "BMU_switch_mosfet.kicad_pcb",
-        "open": false,
-        "window": {
-          "display": 0,
-          "maximized": true,
-          "pos_x": 401,
-          "pos_y": 468,
-          "size_x": 1728,
-          "size_y": 1040
-        }
-      },
-      {
-        "name": "BMU_switch_mosfet.kicad_pro",
-        "open": false,
-        "window": {
-          "display": 0,
-          "maximized": false,
-          "pos_x": 234,
-          "pos_y": 38,
-          "size_x": 1494,
-          "size_y": 1016
         }
       }
     ]
