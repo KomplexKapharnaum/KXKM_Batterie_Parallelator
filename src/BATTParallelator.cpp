@@ -222,8 +222,13 @@ void BATTParallelator::check_battery_connected_status(int INA_num) {
   }
 }
 
-bool BATTParallelator::compare_voltage(float voltage, float voltage_max, float diff) {
-    return voltage < voltage_max - diff;
+float BATTParallelator::compare_voltage(float voltage, float voltage_max,
+                                        float diff) {
+  if (voltage < voltage_max - diff) {
+    return true;
+  } else {
+    return false;
+  }
 }
 
 float BATTParallelator::find_max_voltage(float *battery_voltages,
