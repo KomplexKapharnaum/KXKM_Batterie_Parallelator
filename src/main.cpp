@@ -25,6 +25,7 @@ INAHandler inaHandler;             // Créer une instance de la classe INAHandle
 TCAHandler tcaHandler;             // Créer une instance de la classe TCAHandler
 BATTParallelator BattParallelator; // Créer une instance de la classe BattParallelator
 SDLogger sdLogger;                 // Créer une instance de la classe SDLogger
+BatteryManager batteryManager;     // Créer une instance de la classe BatteryManager
 
 void I2C_scanner()
 { // Find all I2C devices
@@ -111,6 +112,11 @@ void setup()
   else
   {
     Serial.println("Number of TCA and INA are correct");
+  }
+
+  // Démarrer la tâche de consommation en ampère-heure pour chaque batterie
+  for (int i = 0; i < Nb_INA; i++) {
+    batteryManager.startAmpereHourConsumptionTask(i, 1.0, 600); // 600 mesures par heure
   }
 }
 

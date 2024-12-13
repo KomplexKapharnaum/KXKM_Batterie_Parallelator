@@ -16,7 +16,6 @@ public:
 
 private:
     void initialize_tca(TCA9535 &tca, const char *name);
-
     const byte TCA_address[8] = {0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27}; // TCA9535 address array
     TCA9535 TCA_0, TCA_1, TCA_2, TCA_3, TCA_4, TCA_5, TCA_6, TCA_7;
     int Nb_TCA;

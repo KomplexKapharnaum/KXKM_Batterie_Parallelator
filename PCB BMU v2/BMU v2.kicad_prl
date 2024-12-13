@@ -20,7 +20,7 @@
       "footprints": true,
       "graphics": true,
       "keepouts": true,
-      "lockedItems": true,
+      "lockedItems": false,
       "otherItems": true,
       "pads": true,
       "text": true,
@@ -63,7 +63,7 @@
       34,
       35
     ],
-    "visible_layers": "fffffff_ffffffff",
+    "visible_layers": "0000010_80000001",
     "zone_display_mode": 0
   },
   "git": {
@@ -79,25 +79,13 @@
   "project": {
     "files": [
       {
-        "name": "BMU v2.kicad_sch",
-        "open": false,
-        "window": {
-          "display": 0,
-          "maximized": true,
-          "pos_x": 0,
-          "pos_y": 38,
-          "size_x": 1728,
-          "size_y": 984
-        }
-      },
-      {
         "name": "BMU v2.kicad_pcb",
         "open": false,
         "window": {
           "display": 0,
           "maximized": true,
-          "pos_x": 401,
-          "pos_y": 468,
+          "pos_x": 134,
+          "pos_y": 357,
           "size_x": 1728,
           "size_y": 1040
         }

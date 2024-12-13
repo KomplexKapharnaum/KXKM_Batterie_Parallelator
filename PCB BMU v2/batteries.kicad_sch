@@ -2006,12 +2006,6 @@
 		(uuid "501c4abb-8195-4b3e-aaf1-b6465f607f25")
 	)
 	(junction
-		(at 184.15 157.48)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "555cb546-b9b6-465f-b06b-979ef9816522")
-	)
-	(junction
 		(at 184.15 104.14)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -2028,6 +2022,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "8ca8ecba-6325-4ef9-b87a-db50d15664da")
+	)
+	(junction
+		(at 184.15 160.02)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "aa7f959a-ff7e-40c5-9553-e6cd911ef75e")
 	)
 	(junction
 		(at 184.15 96.52)
@@ -2115,16 +2115,6 @@
 	)
 	(wire
 		(pts
-			(xy 180.34 191.77) (xy 184.15 191.77)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "04cdea5b-b02c-4c87-aed2-ab1a18f227e0")
-	)
-	(wire
-		(pts
 			(xy 196.85 101.6) (xy 196.85 104.14)
 		)
 		(stroke
@@ -2185,7 +2175,7 @@
 	)
 	(wire
 		(pts
-			(xy 184.15 157.48) (xy 184.15 143.51)
+			(xy 184.15 143.51) (xy 184.15 160.02)
 		)
 		(stroke
 			(width 0)
@@ -2325,13 +2315,13 @@
 	)
 	(wire
 		(pts
-			(xy 180.34 201.93) (xy 180.34 191.77)
+			(xy 184.15 161.29) (xy 184.15 160.02)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "3febcbfb-dd12-4fb5-983c-748560955085")
+		(uuid "4539536e-52d8-48bd-8c1c-82290230ccac")
 	)
 	(wire
 		(pts
@@ -2632,16 +2622,6 @@
 			(type default)
 		)
 		(uuid "b59e7a73-bc5d-4801-8fe2-7750aa1a0249")
-	)
-	(wire
-		(pts
-			(xy 184.15 157.48) (xy 184.15 191.77)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "b9a328b6-2160-415a-b984-41e9d4c49222")
 	)
 	(wire
 		(pts
@@ -5235,7 +5215,7 @@
 		(uuid "049c7322-2b17-4b59-98cd-ff8bf2945831")
 	)
 	(label "+BAT_IN"
-		(at 184.15 158.75 0)
+		(at 184.15 161.29 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -5420,6 +5400,18 @@
 			(justify right bottom)
 		)
 		(uuid "f304cdc5-880e-42dd-9dd4-be4e5fa9065c")
+	)
+	(hierarchical_label "+BATT IN"
+		(shape output)
+		(at 184.15 148.59 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "23ab0229-b2dd-4dcc-871f-53c93303a640")
 	)
 	(hierarchical_label "+BATT OUT"
 		(shape output)
@@ -5926,7 +5918,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "2d5986d8-63e5-4a41-86bf-683309784da2")
-		(property "Reference" "#PWR094"
+		(property "Reference" "#PWR0100"
 			(at 185.42 45.72 0)
 			(effects
 				(font
@@ -6003,7 +5995,7 @@
 		(on_board yes)
 		(dnp no)
 		(fields_autoplaced yes)
-		(uuid "2df05809-85b7-42cf-915e-0930ab700abf")
+		(uuid "30fc2eb3-3259-4887-9855-39fe228f2857")
 		(property "Reference" "H4"
 			(at 231.14 160.0199 0)
 			(effects
@@ -6050,7 +6042,7 @@
 			)
 		)
 		(pin "1"
-			(uuid "f3430f4a-5a56-412d-8835-3cfb4c6644d8")
+			(uuid "6127a6f5-4e22-4926-bd44-431ff6478fa6")
 		)
 		(instances
 			(project "BMU v2"
@@ -6153,7 +6145,7 @@
 	)
 	(symbol
 		(lib_id "Mechanical:MountingHole_Pad")
-		(at 184.15 160.02 180)
+		(at 184.15 162.56 180)
 		(unit 1)
 		(exclude_from_sim yes)
 		(in_bom no)
@@ -6162,7 +6154,7 @@
 		(fields_autoplaced yes)
 		(uuid "4ed40c65-8eaa-4fad-b22d-05c4f0682302")
 		(property "Reference" "H8"
-			(at 181.61 162.5601 0)
+			(at 181.61 165.1001 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6171,7 +6163,7 @@
 			)
 		)
 		(property "Value" "MountingHole_Pad"
-			(at 181.61 160.0201 0)
+			(at 181.61 162.5601 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6180,7 +6172,7 @@
 			)
 		)
 		(property "Footprint" "MountingHole:MountingHole_5mm_Pad"
-			(at 184.15 160.02 0)
+			(at 184.15 162.56 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6189,7 +6181,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 184.15 160.02 0)
+			(at 184.15 162.56 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6198,7 +6190,7 @@
 			)
 		)
 		(property "Description" "Mounting Hole with connection"
-			(at 184.15 160.02 0)
+			(at 184.15 162.56 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6920,7 +6912,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "a5b220cd-61fe-4006-b819-c7d6e2521164")
-		(property "Reference" "H23"
+		(property "Reference" "H26"
 			(at 194.31 48.2599 0)
 			(effects
 				(font
