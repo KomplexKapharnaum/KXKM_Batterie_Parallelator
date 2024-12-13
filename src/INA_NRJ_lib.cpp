@@ -21,6 +21,9 @@
 
 #include "INA_NRJ_lib.h"
 
+/**
+ * @brief Constructeur de la classe INAHandler.
+ */
 INAHandler::INAHandler()
     : deviceNumber(UINT8_MAX), mux(portMUX_INITIALIZER_UNLOCKED), Nb_INA(0)
 {
@@ -30,6 +33,11 @@ INAHandler::INAHandler()
     memset((void *)INA_address_connected, 0, sizeof(INA_address_connected));
 }
 
+/**
+ * @brief Initialiser les appareils INA.
+ * @param amp Courant en ampères.
+ * @param micro_ohm Résistance en micro-ohms.
+ */
 void INAHandler::begin(const uint8_t amp, const uint16_t micro_ohm)
 {
     Serial.println();
@@ -70,6 +78,10 @@ void INAHandler::begin(const uint8_t amp, const uint16_t micro_ohm)
     INA.setMode(INA_MODE_CONTINUOUS_BOTH); // Mesure continue bus/shunt
 }
 
+/**
+ * @brief Initialiser un appareil INA spécifique.
+ * @param deviceNumber Numéro de l'appareil.
+ */
 void INAHandler::initialize_ina(const uint8_t deviceNumber)
 {
     INA.reset(deviceNumber);                                            // Réinitialiser l'appareil aux paramètres par défaut
@@ -79,6 +91,11 @@ void INAHandler::initialize_ina(const uint8_t deviceNumber)
     INA.alertOnBusOverVoltage(true, max_voltage / 1000, deviceNumber);  // Alerte sur surtension de bus
 }
 
+/**
+ * @brief Lire les valeurs d'un appareil INA.
+ * @param deviceNumber Numéro de l'appareil.
+ * @param print_message true pour afficher les valeurs lues, false sinon.
+ */
 void INAHandler::read(const uint8_t deviceNumber, const bool print_message)
 {
     float amps = ((float)INA.getBusMicroAmps(deviceNumber) / 100000);
@@ -103,16 +120,31 @@ void INAHandler::read(const uint8_t deviceNumber, const bool print_message)
     }
 }
 
+/**
+ * @brief Lire le courant d'un appareil INA.
+ * @param deviceNumber Numéro de l'appareil.
+ * @return Courant en ampères.
+ */
 float INAHandler::read_current(const uint8_t deviceNumber)
 {
     return ((float)INA.getBusMicroAmps(deviceNumber) / 100000);
 }
 
+/**
+ * @brief Lire la tension d'un appareil INA.
+ * @param deviceNumber Numéro de l'appareil.
+ * @return Tension en volts.
+ */
 float INAHandler::read_volt(const uint8_t deviceNumber)
 {
     return ((float)INA.getBusMilliVolts(deviceNumber) / 1000);
 }
 
+/**
+ * @brief Lire la puissance d'un appareil INA.
+ * @param deviceNumber Numéro de l'appareil.
+ * @return Puissance en watts.
+ */
 float INAHandler::read_power(const uint8_t deviceNumber)
 {
     float volts = ((float)INA.getBusMilliVolts(deviceNumber) / 1000);
@@ -120,36 +152,65 @@ float INAHandler::read_power(const uint8_t deviceNumber)
     return ((float)volts * (float)amps);
 }
 
+/**
+ * @brief Obtenir l'adresse d'un appareil INA.
+ * @param deviceNumber Numéro de l'appareil.
+ * @return Adresse de l'appareil.
+ */
 uint8_t INAHandler::getDeviceAddress(const uint8_t deviceNumber)
 {
     return INA_ADDR[deviceNumber];
 }
 
+/**
+ * @brief Obtenir le nombre d'appareils INA connectés.
+ * @return Nombre d'appareils INA connectés.
+ */
 uint8_t INAHandler::getNbINA()
 {
     return Nb_INA;
 }
 
+/**
+ * @brief Définir la tension maximale.
+ * @param voltage Tension maximale en volts.
+ */
 void INAHandler::set_max_voltage(const float_t voltage)
 {
     max_voltage = voltage;
 }
 
+/**
+ * @brief Définir la tension minimale.
+ * @param voltage Tension minimale en volts.
+ */
 void INAHandler::set_min_voltage(const float_t voltage)
 {
     min_voltage = voltage;
 }
 
+/**
+ * @brief Définir le courant maximal.
+ * @param current Courant maximal en ampères.
+ */
 void INAHandler::set_max_current(const float_t current)
 {
     max_current = current;
 }
 
+/**
+ * @brief Définir le courant de charge maximal.
+ * @param current Courant de charge maximal en ampères.
+ */
 void INAHandler::set_max_charge_current(const float_t current)
 {
     max_charge_current = current;
 }
 
+/**
+ * @brief Définir la vitesse I2C.
+ * @param speed Vitesse I2C en kHz.
+ */
 void INAHandler::setI2CSpeed(int speed)
 {
     I2C_Speed = speed;
