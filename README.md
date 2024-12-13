@@ -14,6 +14,8 @@
 
 ![GitHub Repo stars](https://img.shields.io/github/stars/KomplexKapharnaum/KXKM_Batterie_Parallelator?style=social)
 
+![What is this](BMU.jpeg)
+https://github.com/KomplexKapharnaum/KXKM_Batterie_Parallelator/blob/object-orriented/BMU.jpeg
 
 ## Description
 
