@@ -22,6 +22,8 @@
 #include "WebServerHandler.h"
 #include <SD.h> // Inclure la bibliothèque SD
 #include "SD_Logger.h" // Ajouter cette ligne
+#include <SPIFFS.h> // Ajouter cette ligne
+#include <ArduinoJson.h> // Ajouter cette ligne
 
 extern INAHandler inaHandler;
 extern BATTParallelator BattParallelator;
@@ -48,10 +50,13 @@ void WebServerHandler::begin() {
     }
     Serial.println("Connected to WiFi");
 
-    server.on("/", std::bind(&WebServerHandler::handleRoot, this));
-    server.on("/switch_on", std::bind(&WebServerHandler::handleSwitchOn, this));
-    server.on("/switch_off", std::bind(&WebServerHandler::handleSwitchOff, this));
-    server.on("/log", std::bind(&WebServerHandler::handleLog, this));
+    server.on("/", HTTP_GET, std::bind(&WebServerHandler::handleRoot, this));
+    server.on("/switch_on", HTTP_GET, std::bind(&WebServerHandler::handleSwitchOn, this));
+    server.on("/switch_off", HTTP_GET, std::bind(&WebServerHandler::handleSwitchOff, this));
+    server.on("/log", HTTP_GET, std::bind(&WebServerHandler::handleLog, this));
+    server.serveStatic("/", SPIFFS, "/index.html");
+    server.serveStatic("/style.css", SPIFFS, "/style.css");
+    server.serveStatic("/script.js", SPIFFS, "/script.js");
     server.begin();
     Serial.println("HTTP server started");
 }
@@ -64,26 +69,29 @@ void WebServerHandler::handleClient() {
 }
 
 /**
- * @brief Gérer la requête de la page d'accueil.
+ * @brief Gérer la requête pour la racine du serveur.
  */
 void WebServerHandler::handleRoot() {
-    String html = "<html><body><h1>Battery Monitor</h1>";
-    html += "<h2>Battery Status</h2><ul>";
+    DynamicJsonDocument doc(1024);
+    JsonArray batteryStatus = doc.createNestedArray("batteryStatus");
+    JsonArray controlSwitches = doc.createNestedArray("controlSwitches");
+
     int Nb_Batt = inaHandler.getNbINA();
     for (int i = 0; i < Nb_Batt; i++) {
-        bool isOn = BattParallelator.check_battery_status(i);
-        String ledStatus = isOn ? "green" : "red";
-        html += "<li>Battery " + String(i) + ": Voltage = " + String(inaHandler.read_volt(i)) + "V, Current = " + String(inaHandler.read_current(i)) + "A, Ah = " + String(batteryManager.getAmpereHourConsumption(i)) + " <span style=\"color:" + ledStatus + ";\">●</span></li>";
+        JsonObject status = batteryStatus.createNestedObject();
+        status["index"] = i;
+        status["voltage"] = inaHandler.read_volt(i);
+        status["current"] = inaHandler.read_current(i);
+        status["ampereHour"] = batteryManager.getAmpereHourConsumption(i);
+        status["ledStatus"] = BattParallelator.check_battery_status(i) ? "green" : "red";
+
+        JsonObject switchControl = controlSwitches.createNestedObject();
+        switchControl["index"] = i;
     }
-    html += "</ul>";
-    html += "<h2>Control Switches</h2><ul>";
-    for (int i = 0; i < Nb_Batt; i++) {
-        html += "<li>Battery " + String(i) + ": <a href=\"/switch_on?battery=" + String(i) + "\">Switch On</a> | <a href=\"/switch_off?battery=" + String(i) + "\">Switch Off</a></li>";
-    }
-    html += "</ul>";
-    html += "<h2>Log Data</h2><a href=\"/log\">View Log</a>";
-    html += "</body></html>";
-    server.send(200, "text/html", html);
+
+    String json;
+    serializeJson(doc, json);
+    server.send(200, "application/json", json);
 }
 
 /**
@@ -101,11 +109,11 @@ void WebServerHandler::handleLog() {
         String line = logFile.readStringUntil('\n');
         html += "<tr>";
         int start = 0;
-        int end = line.indexOf(',');
+        int end = line.indexOf(sdLogger.getSeparator());
         while (end != -1) {
             html += "<td>" + line.substring(start, end) + "</td>";
             start = end + 1;
-            end = line.indexOf(',', start);
+            end = line.indexOf(sdLogger.getSeparator(), start);
         }
         html += "<td>" + line.substring(start) + "</td>";
         html += "</tr>";

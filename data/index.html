@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>KXKM NODE32</title>
+    <title>KXKM Batterie Parallelator</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" type="text/css" href="style.css">
 </head>
@@ -9,30 +9,15 @@
     <div class="topnav">
         <h1>KXKM NODE32</h1>
     </div>
-    
-    
     <div id="content">
-        <hr />
-        <table>
-          <tr><th>Node ID</th><td>      <input type="number" id="nodeid" readonly > </td></tr>
-          <tr><th>IP</th><td>           <input type="text" id="nodeip" readonly > </td></tr>
-          <tr><th>Version</th><td>      <input type="number" id="version" readonly > </td></tr>
-          <tr><th>Hardware</th><td>     <input type="number" id="hwrev" readonly > </td></tr>
-        </table>
-        <hr />
-        <table>
-          <tr><th>Channel</th><td>      <input type="number" min="0" max="512" id="channel" onchange="updateConf(this)" > </td></tr>
-          <tr><th>Light ID</th><td>     <input type="number" min="1" max="512" id="lightid" onchange="updateConf(this)" > </td></tr>
-          <tr><th>Universe</th><td>     <input type="number" min="1" max="512" id="dmxuni" onchange="updateConf(this)" > </td></tr>
-        </table>
-        <hr />
-        <table>
-          <tr><th><button onclick="saveConf()">Save</button></th></tr>
-        </table>
-
-
+        <h1>Battery Monitor</h1>
+        <h2>Battery Status</h2>
+        <ul id="batteryStatus"></ul>
+        <h2>Control Switches</h2>
+        <ul id="controlSwitches"></ul>
+        <h2>Log Data</h2>
+        <a href="/log">View Log</a>
     </div>
-    
     <script src="script.js"></script>
 </body>
 </html>

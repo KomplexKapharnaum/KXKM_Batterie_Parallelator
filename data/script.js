@@ -49,19 +49,33 @@ function onMessage(event) {
     var myObj = JSON.parse(event.data);
     var keys = Object.keys(myObj);
 
-    for (var i = 0; i < keys.length; i++){
-        var key = keys[i];
-        console.log(key + " " + myObj[key])
-        
-        if (key.startsWith("slider")){
-            document.getElementById(key).innerHTML = myObj[key];
-            document.getElementById("slider"+ (i+1).toString()).value = myObj[key];
-        }
-        else {
-            if (document.getElementById(key))
-                document.getElementById(key).value = myObj[key];
-        }
+    if (keys.includes("batteryStatus")) {
+        updateBatteryStatus(myObj.batteryStatus);
     }
+
+    if (keys.includes("controlSwitches")) {
+        updateControlSwitches(myObj.controlSwitches);
+    }
+}
+
+function updateBatteryStatus(batteryStatus) {
+    var batteryStatusList = document.getElementById("batteryStatus");
+    batteryStatusList.innerHTML = "";
+    batteryStatus.forEach(function(status) {
+        var li = document.createElement("li");
+        li.innerHTML = `Battery ${status.index}: Voltage = ${status.voltage}V, Current = ${status.current}A, Ah = ${status.ampereHour} <span style="color:${status.ledStatus};">●</span>`;
+        batteryStatusList.appendChild(li);
+    });
+}
+
+function updateControlSwitches(controlSwitches) {
+    var controlSwitchesList = document.getElementById("controlSwitches");
+    controlSwitchesList.innerHTML = "";
+    controlSwitches.forEach(function(switchControl) {
+        var li = document.createElement("li");
+        li.innerHTML = `Battery ${switchControl.index}: <a href="/switch_on?battery=${switchControl.index}">Switch On</a> | <a href="/switch_off?battery=${switchControl.index}">Switch Off</a>`;
+        controlSwitchesList.appendChild(li);
+    });
 }
 
 var newConf = {};

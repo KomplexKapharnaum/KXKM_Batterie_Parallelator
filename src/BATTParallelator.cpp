@@ -1,8 +1,35 @@
+/*
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+
+/**
+ * @file BATTParallelator.cpp
+ * @brief Implémentation de la classe BATTParallelator pour gérer les batteries en parallèle.
+ * 
+ * Ce fichier contient les définitions des méthodes de la classe BATTParallelator,
+ * qui permet de gérer les batteries en parallèle, y compris la vérification de l'état,
+ * la commutation et la gestion des courants et tensions.
+ */
+
 #include "Batt_Parallelator_lib.h"
 
 extern const bool print_message;      // Ajouter cette ligne
 extern BatteryManager batteryManager; // Ajouter cette ligne
 
+/**
+ * @brief Constructeur de la classe BATTParallelator.
+ */
 BATTParallelator::BATTParallelator()
     : Nb_switch_max(5), max_discharge_current(1000), max_charge_current(1000) // Initialiser les courants max
 {
@@ -10,32 +37,74 @@ BATTParallelator::BATTParallelator()
     memset(reconnect_time, 0, sizeof(reconnect_time));
 }
 
+/**
+ * @brief Définir le nombre maximal de commutateurs.
+ * @param nb Nombre maximal de commutateurs.
+ */
 void BATTParallelator::set_nb_switch_on(int nb) { Nb_switch_max = nb; }
 
+/**
+ * @brief Définir le délai de reconnexion.
+ * @param delay Délai de reconnexion en millisecondes.
+ */
 void BATTParallelator::set_reconnect_delay(int delay) {
   reconnect_delay = delay;
 }
 
+/**
+ * @brief Définir la tension maximale.
+ * @param voltage Tension maximale en volts.
+ */
 void BATTParallelator::set_max_voltage(float voltage) { max_voltage = voltage; }
 
+/**
+ * @brief Définir la tension minimale.
+ * @param voltage Tension minimale en volts.
+ */
 void BATTParallelator::set_min_voltage(float voltage) { min_voltage = voltage; }
 
+/**
+ * @brief Définir la différence de tension maximale.
+ * @param diff Différence de tension maximale en volts.
+ */
 void BATTParallelator::set_max_diff_voltage(float diff) { voltage_diff = diff; }
 
+/**
+ * @brief Définir la différence de courant maximale.
+ * @param diff Différence de courant maximale en ampères.
+ */
 void BATTParallelator::set_max_diff_current(float diff) { current_diff = diff; }
 
+/**
+ * @brief Définir le courant maximal.
+ * @param current Courant maximal en ampères.
+ */
 void BATTParallelator::set_max_current(float current) { max_current = current; }
 
+/**
+ * @brief Définir le courant de décharge maximal.
+ * @param current Courant de décharge maximal en ampères.
+ */
 void BATTParallelator::set_max_discharge_current(float current)
 {
     max_discharge_current = current;
 }
 
+/**
+ * @brief Définir le courant de charge maximal.
+ * @param current Courant de charge maximal en ampères.
+ */
 void BATTParallelator::set_max_charge_current(float current)
 {
     max_charge_current = current;
 }
 
+/**
+ * @brief Éteindre une batterie.
+ * @param TCA_num Numéro du TCA.
+ * @param OUT_num Numéro de sortie.
+ * @param switch_number Numéro du commutateur.
+ */
 void BATTParallelator::switch_off_battery(int TCA_num, int OUT_num,
                                           int switch_number) {
   tcaHandler.write(TCA_num, OUT_num, 0);         // switch off the battery
@@ -43,12 +112,22 @@ void BATTParallelator::switch_off_battery(int TCA_num, int OUT_num,
   tcaHandler.write(TCA_num, OUT_num * 2 + 9, 0); // set green led off
 }
 
+/**
+ * @brief Allumer une batterie.
+ * @param TCA_num Numéro du TCA.
+ * @param OUT_num Numéro de sortie.
+ */
 void BATTParallelator::switch_on_battery(int TCA_num, int OUT_num) {
   tcaHandler.write(TCA_num, OUT_num, 1);         // switch on the battery
   tcaHandler.write(TCA_num, OUT_num * 2 + 8, 0); // set red led off
   tcaHandler.write(TCA_num, OUT_num * 2 + 9, 1); // set green led on
 }
 
+/**
+ * @brief Obtenir le numéro du TCA à partir du numéro de l'INA.
+ * @param INA_num Numéro de l'INA.
+ * @return Numéro du TCA.
+ */
 uint8_t BATTParallelator::TCA_num(int INA_num) {
   int address = inaHandler.getDeviceAddress(INA_num);
   if (address >= 64 && address <= 79) {
@@ -58,6 +137,11 @@ uint8_t BATTParallelator::TCA_num(int INA_num) {
   }
 }
 
+/**
+ * @brief Vérifier l'état de la batterie.
+ * @param INA_num Numéro de l'INA.
+ * @return true si la batterie est en bon état, false sinon.
+ */
 bool BATTParallelator::check_battery_status(int INA_num) {
   float voltage = inaHandler.read_volt(INA_num);
   float current = inaHandler.read_current(INA_num);
@@ -144,6 +228,12 @@ bool BATTParallelator::check_battery_status(int INA_num) {
   return return_value;
 }
 
+/**
+ * @brief Vérifier l'offset de tension de la batterie.
+ * @param INA_num Numéro de l'INA.
+ * @param offset Offset de tension en volts.
+ * @return true si l'offset est dans la plage acceptable, false sinon.
+ */
 bool BATTParallelator::check_voltage_offset(int INA_num, float offset) {
   float voltage = inaHandler.read_volt(INA_num);
   float averageVoltage = batteryManager.getAverageVoltage();
@@ -160,6 +250,11 @@ bool BATTParallelator::check_voltage_offset(int INA_num, float offset) {
   return true;
 }
 
+/**
+ * @brief Vérifier l'état de charge de la batterie.
+ * @param INA_num Numéro de l'INA.
+ * @return true si la batterie est en charge, false sinon.
+ */
 bool BATTParallelator::check_charge_status(int INA_num) {
   float current = inaHandler.read_current(INA_num);
   if (current < 0) {
@@ -169,6 +264,12 @@ bool BATTParallelator::check_charge_status(int INA_num) {
   }
 }
 
+/**
+ * @brief Commuter une batterie.
+ * @param INA_num Numéro de l'INA.
+ * @param switch_on true pour allumer la batterie, false pour l'éteindre.
+ * @return true si la batterie est allumée, false sinon.
+ */
 bool BATTParallelator::switch_battery(int INA_num, bool switch_on) {
   int TCA_number = TCA_num(INA_num);
   int OUT_number = (inaHandler.getDeviceAddress(INA_num) - 64) % 4;
@@ -181,6 +282,10 @@ bool BATTParallelator::switch_battery(int INA_num, bool switch_on) {
   }
 }
 
+/**
+ * @brief Vérifier l'état de connexion de la batterie.
+ * @param INA_num Numéro de l'INA.
+ */
 void BATTParallelator::check_battery_connected_status(int INA_num) {
   const float voltageOffset = 0.5; // Définir l'offset de tension en volts
 
@@ -222,8 +327,14 @@ void BATTParallelator::check_battery_connected_status(int INA_num) {
   }
 }
 
-float BATTParallelator::compare_voltage(float voltage, float voltage_max,
-                                        float diff) {
+/**
+ * @brief Comparer la tension de la batterie avec une tension maximale.
+ * @param voltage Tension de la batterie.
+ * @param voltage_max Tension maximale.
+ * @param diff Différence de tension acceptable.
+ * @return true si la tension de la batterie est inférieure à la tension maximale moins la différence, false sinon.
+ */
+bool BATTParallelator::compare_voltage(float voltage, float voltage_max, float diff) {
   if (voltage < voltage_max - diff) {
     return true;
   } else {
@@ -231,6 +342,12 @@ float BATTParallelator::compare_voltage(float voltage, float voltage_max,
   }
 }
 
+/**
+ * @brief Trouver la tension maximale parmi les batteries.
+ * @param battery_voltages Tableau des tensions des batteries.
+ * @param num_batteries Nombre de batteries.
+ * @return Tension maximale.
+ */
 float BATTParallelator::find_max_voltage(float *battery_voltages,
                                          int num_batteries) {
   for (int i = 1; i < inaHandler.getNbINA(); i++) {
@@ -242,6 +359,12 @@ float BATTParallelator::find_max_voltage(float *battery_voltages,
   return max_voltage;
 }
 
+/**
+ * @brief Trouver la tension minimale parmi les batteries.
+ * @param battery_voltages Tableau des tensions des batteries.
+ * @param num_batteries Nombre de batteries.
+ * @return Tension minimale.
+ */
 float BATTParallelator::find_min_voltage(float *battery_voltages,
                                          int num_batteries) {
   float min_voltage = battery_voltages[num_batteries];
@@ -253,6 +376,10 @@ float BATTParallelator::find_min_voltage(float *battery_voltages,
   return min_voltage;
 }
 
+/**
+ * @brief Réinitialiser le compteur de commutateurs pour une batterie.
+ * @param INA_num Numéro de l'INA.
+ */
 void BATTParallelator::reset_switch_count(int INA_num) {
   Nb_switch[INA_num] = 0;
   reconnect_time[INA_num] = 0;
