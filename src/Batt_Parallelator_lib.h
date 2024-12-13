@@ -31,14 +31,14 @@ public:
     float find_min_voltage(float *battery_voltages, int num_batteries);
 
 private:
-    int max_voltage = 30000; // Battery undervoltage threshold in mV;
-    int min_voltage = 24000; // Battery overvoltage threshold in mV
-    int max_current = 1000;  // Battery overcurrent threshold in mA
-    int voltage_diff = 2000; // Battery voltage difference threshold in mV
-    int current_diff = 1000; // Battery current difference threshold in mA
-    int max_charge_current;  // Battery charge current threshold in mA
-    int reconnect_delay;     // delay to reconnect the battery in ms
-    int Nb_switch_max;       // number of switch on before disconnect the battery
+    int max_voltage = 30000; // Seuil de sous-tension de la batterie en mV
+    int min_voltage = 24000; // Seuil de surtension de la batterie en mV
+    int max_current = 1000;  // Seuil de surintensité de la batterie en mA
+    int voltage_diff = 2000; // Seuil de différence de tension de la batterie en mV
+    int current_diff = 1000; // Seuil de différence de courant de la batterie en mA
+    int max_charge_current;  // Seuil de courant de charge de la batterie en mA
+    int reconnect_delay;     // Délai de reconnexion de la batterie en ms
+    int Nb_switch_max;       // Nombre de commutations avant de déconnecter la batterie
     int Nb_switch[16];
     long reconnect_time[16];
 };
@@ -75,9 +75,9 @@ BATTParallelator::BATTParallelator()
 }
 
 /**
- * @brief Set the number of switch on before disconnect the battery.
+ * @brief Définir le nombre de commutations avant de déconnecter la batterie.
  * 
- * @param nb Number of switch on.
+ * @param nb Nombre de commutations.
  */
 void BATTParallelator::set_nb_switch_on(int nb)
 {
@@ -85,9 +85,9 @@ void BATTParallelator::set_nb_switch_on(int nb)
 }
 
 /**
- * @brief Set the delay to reconnect the battery in ms.
+ * @brief Définir le délai de reconnexion de la batterie en ms.
  * 
- * @param delay Reconnect delay.
+ * @param delay Délai de reconnexion.
  */
 void BATTParallelator::set_reconnect_delay(int delay)
 {
@@ -95,9 +95,9 @@ void BATTParallelator::set_reconnect_delay(int delay)
 }
 
 /**
- * @brief Set the max voltage in mV.
+ * @brief Définir la tension maximale en mV.
  * 
- * @param voltage Max voltage.
+ * @param voltage Tension maximale.
  */
 void BATTParallelator::set_max_voltage(float voltage)
 {
@@ -105,9 +105,9 @@ void BATTParallelator::set_max_voltage(float voltage)
 }
 
 /**
- * @brief Set the min voltage in mV.
+ * @brief Définir la tension minimale en mV.
  * 
- * @param voltage Min voltage.
+ * @param voltage Tension minimale.
  */
 void BATTParallelator::set_min_voltage(float voltage)
 {
@@ -115,9 +115,9 @@ void BATTParallelator::set_min_voltage(float voltage)
 }
 
 /**
- * @brief Set the max voltage difference in mV.
+ * @brief Définir la différence de tension maximale en mV.
  * 
- * @param diff Max voltage difference.
+ * @param diff Différence de tension maximale.
  */
 void BATTParallelator::set_max_diff_voltage(float diff)
 {
@@ -125,9 +125,9 @@ void BATTParallelator::set_max_diff_voltage(float diff)
 }
 
 /**
- * @brief Set the max current difference in mA.
+ * @brief Définir la différence de courant maximale en mA.
  * 
- * @param diff Max current difference.
+ * @param diff Différence de courant maximale.
  */
 void BATTParallelator::set_max_diff_current(float diff)
 {
@@ -135,9 +135,9 @@ void BATTParallelator::set_max_diff_current(float diff)
 }
 
 /**
- * @brief Set the max current in mA.
+ * @brief Définir le courant maximal en mA.
  * 
- * @param current Max current.
+ * @param current Courant maximal.
  */
 void BATTParallelator::set_max_current(float current)
 {
@@ -145,9 +145,9 @@ void BATTParallelator::set_max_current(float current)
 }
 
 /**
- * @brief Set the max charge current in mA.
+ * @brief Définir le courant de charge maximal en mA.
  * 
- * @param current Max charge current.
+ * @param current Courant de charge maximal.
  */
 void BATTParallelator::set_max_charge_current(float current)
 {
@@ -155,11 +155,11 @@ void BATTParallelator::set_max_charge_current(float current)
 }
 
 /**
- * @brief Switch off the battery.
+ * @brief Éteindre la batterie.
  * 
- * @param TCA_num TCA number.
- * @param OUT_num Output number.
- * @param switch_number Switch number.
+ * @param TCA_num Numéro TCA.
+ * @param OUT_num Numéro de sortie.
+ * @param switch_number Numéro de commutation.
  */
 void BATTParallelator::switch_off_battery(int TCA_num, int OUT_num, int switch_number)
 {
@@ -169,10 +169,10 @@ void BATTParallelator::switch_off_battery(int TCA_num, int OUT_num, int switch_n
 }
 
 /**
- * @brief Switch on the battery.
+ * @brief Allumer la batterie.
  * 
- * @param TCA_num TCA number.
- * @param OUT_num Output number.
+ * @param TCA_num Numéro TCA.
+ * @param OUT_num Numéro de sortie.
  */
 void BATTParallelator::switch_on_battery(int TCA_num, int OUT_num)
 {
@@ -182,10 +182,10 @@ void BATTParallelator::switch_on_battery(int TCA_num, int OUT_num)
 }
 
 /**
- * @brief Get the TCA number of the INA device number corresponding to battery number.
+ * @brief Obtenir le numéro TCA du numéro de dispositif INA correspondant au numéro de batterie.
  * 
- * @param INA_num INA number.
- * @return uint8_t TCA number.
+ * @param INA_num Numéro INA.
+ * @return uint8_t Numéro TCA.
  */
 uint8_t BATTParallelator::TCA_num(int INA_num)
 {
@@ -201,11 +201,11 @@ uint8_t BATTParallelator::TCA_num(int INA_num)
 }
 
 /**
- * @brief Check battery status and return true if the battery specs are respected.
+ * @brief Vérifier l'état de la batterie et retourner true si les spécifications de la batterie sont respectées.
  * 
- * @param INA_num INA number.
- * @return true If battery specs are respected.
- * @return false If battery specs are not respected.
+ * @param INA_num Numéro INA.
+ * @return true Si les spécifications de la batterie sont respectées.
+ * @return false Si les spécifications de la batterie ne sont pas respectées.
  */
 bool BATTParallelator::check_battery_status(int INA_num)
 {
@@ -249,11 +249,11 @@ bool BATTParallelator::check_battery_status(int INA_num)
 }
 
 /**
- * @brief Check battery charge status and return true if the battery is charging.
+ * @brief Vérifier l'état de charge de la batterie et retourner true si la batterie est en charge.
  * 
- * @param INA_num INA number.
- * @return true If battery is charging.
- * @return false If battery is not charging.
+ * @param INA_num Numéro INA.
+ * @return true Si la batterie est en charge.
+ * @return false Si la batterie n'est pas en charge.
  */
 bool BATTParallelator::check_charge_status(int INA_num)
 {
@@ -269,12 +269,12 @@ bool BATTParallelator::check_charge_status(int INA_num)
 }
 
 /**
- * @brief Switch on/off the battery.
+ * @brief Allumer/éteindre la batterie.
  * 
- * @param INA_num INA number.
- * @param switch_on Switch on or off.
- * @return true If switched on.
- * @return false If switched off.
+ * @param INA_num Numéro INA.
+ * @param switch_on Allumer ou éteindre.
+ * @return true Si allumé.
+ * @return false Si éteint.
  */
 bool BATTParallelator::switch_battery(int INA_num, bool switch_on)
 {
@@ -293,9 +293,9 @@ bool BATTParallelator::switch_battery(int INA_num, bool switch_on)
 }
 
 /**
- * @brief Check battery status and switch on/off if needed and possible (max switch number not reached).
+ * @brief Vérifier l'état de la batterie et allumer/éteindre si nécessaire et possible (nombre maximal de commutations non atteint).
  * 
- * @param INA_num INA number.
+ * @param INA_num Numéro INA.
  */
 void BATTParallelator::check_battery_connected_status(int INA_num)
 {
@@ -333,12 +333,12 @@ void BATTParallelator::check_battery_connected_status(int INA_num)
 }
 
 /**
- * @brief Compare the voltage with a threshold.
+ * @brief Comparer la tension avec un seuil.
  * 
- * @param voltage Voltage to compare.
- * @param voltage_max Max voltage.
- * @param diff Voltage difference.
- * @return float Result of comparison.
+ * @param voltage Tension à comparer.
+ * @param voltage_max Tension maximale.
+ * @param diff Différence de tension.
+ * @return float Résultat de la comparaison.
  */
 float BATTParallelator::compare_voltage(float voltage, float voltage_max, float diff)
 {
@@ -353,11 +353,11 @@ float BATTParallelator::compare_voltage(float voltage, float voltage_max, float 
 }
 
 /**
- * @brief Find the max voltage in an array of voltages.
+ * @brief Trouver la tension maximale dans un tableau de tensions.
  * 
- * @param battery_voltages Array of battery voltages.
- * @param num_batteries Number of batteries.
- * @return float Max voltage.
+ * @param battery_voltages Tableau de tensions de batterie.
+ * @param num_batteries Nombre de batteries.
+ * @return float Tension maximale.
  */
 float BATTParallelator::find_max_voltage(float *battery_voltages, int num_batteries)
 {
@@ -373,11 +373,11 @@ float BATTParallelator::find_max_voltage(float *battery_voltages, int num_batter
 }
 
 /**
- * @brief Find the min voltage in an array of voltages.
+ * @brief Trouver la tension minimale dans un tableau de tensions.
  * 
- * @param battery_voltages Array of battery voltages.
- * @param num_batteries Number of batteries.
- * @return float Min voltage.
+ * @param battery_voltages Tableau de tensions de batterie.
+ * @param num_batteries Nombre de batteries.
+ * @return float Tension minimale.
  */
 float BATTParallelator::find_min_voltage(float *battery_voltages, int num_batteries)
 {
@@ -393,9 +393,9 @@ float BATTParallelator::find_min_voltage(float *battery_voltages, int num_batter
 }
 
 /**
- * @brief Reset the switch count for a specific battery.
+ * @brief Réinitialiser le compteur de commutations pour une batterie spécifique.
  * 
- * @param INA_num INA number.
+ * @param INA_num Numéro INA.
  */
 void BATTParallelator::reset_switch_count(int INA_num)
 {
@@ -404,27 +404,27 @@ void BATTParallelator::reset_switch_count(int INA_num)
 }
 
 /**
- * @brief Get the maximum voltage among all batteries.
+ * @brief Obtenir la tension maximale parmi toutes les batteries.
  * 
- * @return float Maximum voltage.
+ * @return float Tension maximale.
  */
 float BatteryManager::getMaxVoltage() {
     return maxVoltage;
 }
 
 /**
- * @brief Get the minimum voltage among all batteries.
+ * @brief Obtenir la tension minimale parmi toutes les batteries.
  * 
- * @return float Minimum voltage.
+ * @return float Tension minimale.
  */
 float BatteryManager::getMinVoltage() {
     return minVoltage;
 }
 
 /**
- * @brief Get the battery index with the maximum voltage.
+ * @brief Obtenir l'index de la batterie avec la tension maximale.
  * 
- * @return int Battery index with the maximum voltage.
+ * @return int Index de la batterie avec la tension maximale.
  */
 int BatteryManager::getMaxVoltageBattery() {
     maxVoltage = 0; // Réinitialiser la tension maximale
@@ -440,9 +440,9 @@ int BatteryManager::getMaxVoltageBattery() {
 }
 
 /**
- * @brief Get the battery index with the minimum voltage.
+ * @brief Obtenir l'index de la batterie avec la tension minimale.
  * 
- * @return int Battery index with the minimum voltage.
+ * @return int Index de la batterie avec la tension minimale.
  */
 int BatteryManager::getMinVoltageBattery() { 
     minVoltage = 0; // Réinitialiser la tension minimale
@@ -458,9 +458,9 @@ int BatteryManager::getMinVoltageBattery() {
 }
 
 /**
- * @brief Get the average voltage of all batteries.
+ * @brief Obtenir la tension moyenne de toutes les batteries.
  * 
- * @return float Average voltage.
+ * @return float Tension moyenne.
  */
 float BatteryManager::getAverageVoltage() {
     float totalVoltage = 0;
@@ -472,10 +472,10 @@ float BatteryManager::getAverageVoltage() {
 }
 
 /**
- * @brief Get the voltage to current ratio for a specific battery.
+ * @brief Obtenir le rapport tension/courant pour une batterie spécifique.
  * 
- * @param batteryIndex Index of the battery.
- * @return float Voltage to current ratio.
+ * @param batteryIndex Index de la batterie.
+ * @return float Rapport tension/courant.
  */
 float BatteryManager::getVoltageCurrentRatio(int batteryIndex) {
     float voltage = inaHandler.read_volt(batteryIndex);
@@ -495,11 +495,11 @@ struct AmpereHourTaskParams {
 };
 
 /**
- * @brief Start the ampere-hour consumption task for a specific battery.
+ * @brief Démarrer la tâche de consommation en ampère-heure pour une batterie spécifique.
  * 
- * @param batteryIndex Index of the battery.
- * @param durationHours Duration of the task in hours.
- * @param numSamples Number of samples to take.
+ * @param batteryIndex Index de la batterie.
+ * @param durationHours Durée de la tâche en heures.
+ * @param numSamples Nombre d'échantillons à prendre.
  */
 void BatteryManager::startAmpereHourConsumptionTask(int batteryIndex, float durationHours, int numSamples) {
     AmpereHourTaskParams* params = new AmpereHourTaskParams{batteryIndex, durationHours, numSamples, this}; // Passer this comme manager
@@ -508,9 +508,9 @@ void BatteryManager::startAmpereHourConsumptionTask(int batteryIndex, float dura
 }
 
 /**
- * @brief Task to measure ampere-hour consumption.
+ * @brief Tâche pour mesurer la consommation en ampère-heure.
  * 
- * @param pvParameters Parameters for the task.
+ * @param pvParameters Paramètres pour la tâche.
  */
 void BatteryManager::ampereHourConsumptionTask(void* pvParameters) {
     AmpereHourTaskParams* params = static_cast<AmpereHourTaskParams*>(pvParameters);
@@ -541,29 +541,29 @@ void BatteryManager::ampereHourConsumptionTask(void* pvParameters) {
 }
 
 /**
- * @brief Get the ampere-hour consumption for a specific battery.
+ * @brief Obtenir la consommation en ampère-heure pour une batterie spécifique.
  * 
- * @param batteryIndex Index of the battery.
- * @return float Ampere-hour consumption.
+ * @param batteryIndex Index de la batterie.
+ * @return float Consommation en ampère-heure.
  */
 float BatteryManager::getAmpereHourConsumption(int batteryIndex) {
     return ampereHourConsumptions[batteryIndex]; // Retourner la consommation en ampère-heure pour la batterie spécifiée
 }
 
 /**
- * @brief Check if an ampere-hour consumption task is running for a specific battery.
+ * @brief Vérifier si une tâche de consommation en ampère-heure est en cours pour une batterie spécifique.
  * 
- * @param batteryIndex Index of the battery.
- * @return bool True if a task is running, false otherwise.
+ * @param batteryIndex Index de la batterie.
+ * @return bool True si une tâche est en cours, false sinon.
  */
 bool BatteryManager::isAmpereHourConsumptionTaskRunning(int batteryIndex) {
     return ampereHourTaskRunning[batteryIndex];
 }
 
 /**
- * @brief Get the total ampere-hour consumption of all batteries.
+ * @brief Obtenir la consommation totale en ampère-heure de toutes les batteries.
  * 
- * @return float Total ampere-hour consumption.
+ * @return float Consommation totale en ampère-heure.
  */
 float BatteryManager::getTotalConsumption() {
     float totalConsumption = 0;
