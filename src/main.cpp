@@ -49,8 +49,8 @@
  */
 
 #define ENABLE_WEBSERVER // Ajouter cette ligne pour activer le serveur web
-
-const int I2C_Speed = 100; // I2C speed in KHz
+extern const bool print_message = true; // Print message on serial monitor
+const int I2C_Speed = 400;              // I2C speed in KHz
 
 // value for battery check
 const int batt_check_period = 1000;  // Battery check period in ms
@@ -69,10 +69,6 @@ const int nb_switch_on =
 const int max_INA_current = 50;       // Max current in A for INA devices
 const int INA_micro_ohm_shunt = 2000; // Max micro ohm for INA devices
 
-extern const bool print_message; // Print message on serial monitor
-
-const bool print_message = true; // Print message on serial monitor
-
 const int log_time =
     10; // Temps entre chaque enregistrement de log sur SD en secondes
 
@@ -83,11 +79,15 @@ const int log_time =
 
 #ifdef ENABLE_WEBSERVER // necessaire pour le serveur web
 #include "WebServerHandler.h"
+#include "WiFiHandler.h"
 #include <SPIFFS.h>
-const char *ssid = "your_SSID";
-const char *password = "your_PASSWORD";
-WebServerHandler webServerHandler(
-    ssid, password); // Créer une instance de la classe WebServerHandler
+
+const char *ssid = "kxkm-wifi";
+const char *password = "KOMPLEXKAPHARNAUM";
+WiFiHandler
+    wifiHandler(ssid, password); // Créer une instance de la classe WiFiHandler
+WebServerHandler
+    webServerHandler; // Créer une instance de la classe WebServerHandler
 #endif
 
 INAHandler inaHandler; // Créer une instance de la classe INAHandler
@@ -98,7 +98,7 @@ SDLogger sdLogger;    // Créer une instance de la classe SDLogger
 BatteryManager batteryManager; // Créer une instance de la classe BatteryManager
 
 String logFilename =
-    "datalog"; // Définir une variable globale pour le nom du fichier de log
+    "/datalog"; // Définir une variable globale pour le nom du fichier de log
 
 const float voltage_offset = 0.5; // Offset de différence de tension en volts
 
@@ -126,20 +126,22 @@ void I2C_scanner() { // Trouver tous les appareils I2C
   Serial.println(" appareil(s).");
 } // fin de I2C_scanner
 
-void readINADataTask(void *pvParameters);          // Ajouter cette ligne
-void logDataTask(void *pvParameters);              // Ajouter cette ligne
-void checkBatteryVoltagesTask(void *pvParameters); // Ajouter cette ligne
+void readINADataTask(void *pvParameters); // lecture des données INA
+void logDataTask(void *pvParameters);     // enregistrement des données
+void checkBatteryVoltagesTask(void *pvParameters); // vérification des tensions
 
 /**
  * @brief Configuration initiale du programme.
  */
 void setup() {
+  Wire.begin(SDA_pin, SCL_pin);    // sda= GPIO_32 /scl= GPIO_33
+  //Wire.setClock(I2C_Speed * 1000); // définir I2C
+
   if (print_message) {
     Serial.begin(115200);
+    Serial.println("Initialisation du programme");
     I2C_scanner();
   }
-  Wire.begin(SDA_pin, SCL_pin);    // sda= GPIO_32 /scl= GPIO_33
-  Wire.setClock(I2C_Speed * 1000); // définir I2C
 
   tcaHandler.begin();
   Serial.println("Configuration TCA terminée");
@@ -158,9 +160,11 @@ void setup() {
 
   CSVConfig csvConfig = {
       ','}; // Définir la configuration CSV avec un séparateur de virgule
+
   sdLogger.begin(logFilename.c_str(),
                  csvConfig); // Initialiser le logger SD avec le nom du fichier
                              // et la configuration CSV
+
   sdLogger.setLogTime(
       log_time); // Définir le temps entre chaque enregistrement en secondes
   if (print_message)
@@ -227,6 +231,7 @@ void setup() {
                           4096, NULL, 1, NULL, 1);
 
 #ifdef ENABLE_WEBSERVER
+  wifiHandler.begin(); // Démarrer la connexion WiFi
   if (!SPIFFS.begin(true)) {
     Serial.println("An error has occurred while mounting SPIFFS");
     return;
@@ -246,7 +251,13 @@ void readINADataTask(void *pvParameters) {
     float battery_voltages[Nb_Batt];
     for (int i = 0; i < Nb_Batt; i++) { // loop through all INA devices
       if (print_message)                // read the INA device to serial monitor
-        inaHandler.read(i, print_message);
+        {
+          /*
+        Serial.print("INA ADDRESSE :");
+        Serial.println(inaHandler.getDeviceAddress(i));
+        inaHandler.read(i, 1);
+        */
+        }
     }
     vTaskDelay(batt_check_period / 2 /
                portTICK_PERIOD_MS); // Attendre batt_check_period /2 avant de
@@ -281,7 +292,7 @@ void logDataTask(void *pvParameters) {
  * @param pvParameters Paramètres de la tâche.
  */
 void checkBatteryVoltagesTask(void *pvParameters) {
-  const float voltageOffset = 0.5; // Définir l'offset de tension en volts
+  const float voltageOffset = 2.5; // Définir l'offset de tension en volts
 
   while (true) {
     float maxVoltage = batteryManager.getMaxVoltage();

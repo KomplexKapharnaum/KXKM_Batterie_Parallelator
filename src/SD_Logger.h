@@ -22,7 +22,6 @@
 #define SDLOGGER_H
 
 #include <SD.h>
-#include <SPI.h>
 
 struct CSVConfig {
   char separator;
@@ -68,7 +67,7 @@ public:
   char getSeparator() const { return csvConfig.separator; }
 
 private:
-  const int chipSelect = 10; // Pin de sélection de la carte SD
+  const int chipSelect = 21; // Pin de sélection de la carte SD
   File dataFile;
   unsigned long lastLogTime = 0;
   int log_at_time = 10; // Temps entre chaque enregistrement en secondes

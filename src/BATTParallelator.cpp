@@ -15,11 +15,13 @@
 
 /**
  * @file BATTParallelator.cpp
- * @brief Implémentation de la classe BATTParallelator pour gérer les batteries en parallèle.
- * 
- * Ce fichier contient les définitions des méthodes de la classe BATTParallelator,
- * qui permet de gérer les batteries en parallèle, y compris la vérification de l'état,
- * la commutation et la gestion des courants et tensions.
+ * @brief Implémentation de la classe BATTParallelator pour gérer les batteries
+ * en parallèle.
+ *
+ * Ce fichier contient les définitions des méthodes de la classe
+ * BATTParallelator, qui permet de gérer les batteries en parallèle, y compris
+ * la vérification de l'état, la commutation et la gestion des courants et
+ * tensions.
  */
 
 #include "Batt_Parallelator_lib.h"
@@ -31,10 +33,11 @@ extern BatteryManager batteryManager; // Ajouter cette ligne
  * @brief Constructeur de la classe BATTParallelator.
  */
 BATTParallelator::BATTParallelator()
-    : Nb_switch_max(5), max_discharge_current(1000), max_charge_current(1000) // Initialiser les courants max
+    : Nb_switch_max(5), max_discharge_current(1000),
+      max_charge_current(1000) // Initialiser les courants max
 {
-    memset(Nb_switch, 0, sizeof(Nb_switch));
-    memset(reconnect_time, 0, sizeof(reconnect_time));
+  memset(Nb_switch, 0, sizeof(Nb_switch));
+  memset(reconnect_time, 0, sizeof(reconnect_time));
 }
 
 /**
@@ -85,18 +88,16 @@ void BATTParallelator::set_max_current(float current) { max_current = current; }
  * @brief Définir le courant de décharge maximal.
  * @param current Courant de décharge maximal en ampères.
  */
-void BATTParallelator::set_max_discharge_current(float current)
-{
-    max_discharge_current = current;
+void BATTParallelator::set_max_discharge_current(float current) {
+  max_discharge_current = current;
 }
 
 /**
  * @brief Définir le courant de charge maximal.
  * @param current Courant de charge maximal en ampères.
  */
-void BATTParallelator::set_max_charge_current(float current)
-{
-    max_charge_current = current;
+void BATTParallelator::set_max_charge_current(float current) {
+  max_charge_current = current;
 }
 
 /**
@@ -107,6 +108,14 @@ void BATTParallelator::set_max_charge_current(float current)
  */
 void BATTParallelator::switch_off_battery(int TCA_num, int OUT_num,
                                           int switch_number) {
+  if (print_message) {
+    Serial.print("Switching off battery ");
+    Serial.print(switch_number);
+    Serial.print(" on TCA ");
+    Serial.print(TCA_num);
+    Serial.print(" OUT ");
+    Serial.println(OUT_num);
+  }
   tcaHandler.write(TCA_num, OUT_num, 0);         // switch off the battery
   tcaHandler.write(TCA_num, OUT_num * 2 + 8, 1); // set red led on
   tcaHandler.write(TCA_num, OUT_num * 2 + 9, 0); // set green led off
@@ -118,6 +127,12 @@ void BATTParallelator::switch_off_battery(int TCA_num, int OUT_num,
  * @param OUT_num Numéro de sortie.
  */
 void BATTParallelator::switch_on_battery(int TCA_num, int OUT_num) {
+  if (print_message) {
+    Serial.print("Switching on battery ");
+    Serial.print(OUT_num);
+    Serial.print(" on TCA ");
+    Serial.println(TCA_num);
+  }
   tcaHandler.write(TCA_num, OUT_num, 1);         // switch on the battery
   tcaHandler.write(TCA_num, OUT_num * 2 + 8, 0); // set red led off
   tcaHandler.write(TCA_num, OUT_num * 2 + 9, 1); // set green led on
@@ -149,26 +164,26 @@ bool BATTParallelator::check_battery_status(int INA_num) {
   if (voltage < min_voltage / 1000) // check if the battery voltage is too low
   {
     if (print_message)
-      Serial.println("Battery " + String(INA_num) + "voltage is too low");
+      Serial.println("Battery " + String(INA_num) + " voltage is too low");
     return_value = false;
   } else if (voltage >
              max_voltage / 1000) // check if the battery voltage is too high
   {
     if (print_message)
-      Serial.println("Battery " + String(INA_num) + "voltage is too high");
+      Serial.println("Battery " + String(INA_num) + " voltage is too high");
     return_value = false;
   } else if (current > max_current ||
              current < -max_current) // check if the battery current is too high
   {
     if (print_message)
-      Serial.println("Battery " + String(INA_num) + "current is too high");
+      Serial.println("Battery " + String(INA_num) + " current is too high");
     return_value = false;
   } else if (current < -max_charge_current) // check if the battery charge
                                             // current is too high
   {
     if (print_message)
       Serial.println("Battery " + String(INA_num) +
-                     "charge current is too high");
+                     " charge current is too high");
     return_value = false;
   } else if (compare_voltage(
                  voltage, max_voltage,
@@ -176,43 +191,43 @@ bool BATTParallelator::check_battery_status(int INA_num) {
                                 // from the others //TODO check this function
   {
     if (print_message)
-      Serial.println("Voltage batterie " + String(INA_num) + "is different");
+      Serial.println("Voltage batterie " + String(INA_num) + " is different");
     return_value = false;
   } else if (abs(current) > current_diff) // check if the battery current is
                                           // different from the others
   {
     if (print_message)
-      Serial.println("Current battery " + String(INA_num) + "is different");
+      Serial.println("Current battery " + String(INA_num) + " is different");
     return_value = false;
   } else if (check_charge_status(INA_num)) // check if the battery is charging
   {
     if (print_message)
-      Serial.println("Battery " + String(INA_num) + "is charging");
+      Serial.println("Battery " + String(INA_num) + " is charging");
     return_value = true;
   } else if (batteryManager.getAmpereHourConsumption(INA_num) >
              0) // check if the battery is discharging
   {
     if (print_message)
-      Serial.println("Battery " + String(INA_num) + "is discharging");
+      Serial.println("Battery " + String(INA_num) + " is discharging");
     return_value = true;
   } else if (batteryManager.getVoltageCurrentRatio(INA_num) >
              0) // check if the battery is discharging
   {
     if (print_message)
-      Serial.println("Battery " + String(INA_num) + "is discharging");
+      Serial.println("Battery " + String(INA_num) + " is discharging");
     return_value = true;
   } else if (batteryManager.getVoltageCurrentRatio(INA_num) <
              0) // check if the battery is charging
   {
     if (print_message)
-      Serial.println("Battery " + String(INA_num) + "is charging");
+      Serial.println("Battery " + String(INA_num) + " is charging");
     return_value = true;
   } else if (batteryManager.getVoltageCurrentRatio(INA_num) ==
              0) // check if the battery is not charging or discharging
   {
     if (print_message)
       Serial.println("Battery " + String(INA_num) +
-                     "is not charging or discharging");
+                     " is not charging or discharging");
     return_value = true;
   } else if (check_voltage_offset(INA_num,
                                   0.5)) // TODO check this function with better
@@ -220,7 +235,7 @@ bool BATTParallelator::check_battery_status(int INA_num) {
   {
     if (print_message)
       Serial.println("Battery " + String(INA_num) +
-                     "voltage is in offset range");
+                     " voltage is in offset range");
     return_value = true;
   } else {
     return_value = true;
@@ -273,6 +288,19 @@ bool BATTParallelator::check_charge_status(int INA_num) {
 bool BATTParallelator::switch_battery(int INA_num, bool switch_on) {
   int TCA_number = TCA_num(INA_num);
   int OUT_number = (inaHandler.getDeviceAddress(INA_num) - 64) % 4;
+  if (print_message) {
+    Serial.print("Switching ");
+    if (switch_on)
+      Serial.print("on ");
+    else
+      Serial.print("off ");
+    Serial.print(" battery ");
+    Serial.print(INA_num);
+    Serial.print(" on TCA ");
+    Serial.print(TCA_number);
+    Serial.print(" OUT ");
+    Serial.println(OUT_number);
+  }
   if (switch_on) {
     switch_on_battery(TCA_number, OUT_number);
     return true;
@@ -332,9 +360,11 @@ void BATTParallelator::check_battery_connected_status(int INA_num) {
  * @param voltage Tension de la batterie.
  * @param voltage_max Tension maximale.
  * @param diff Différence de tension acceptable.
- * @return true si la tension de la batterie est inférieure à la tension maximale moins la différence, false sinon.
+ * @return true si la tension de la batterie est inférieure à la tension
+ * maximale moins la différence, false sinon.
  */
-bool BATTParallelator::compare_voltage(float voltage, float voltage_max, float diff) {
+bool BATTParallelator::compare_voltage(float voltage, float voltage_max,
+                                       float diff) {
   if (voltage < voltage_max - diff) {
     return true;
   } else {

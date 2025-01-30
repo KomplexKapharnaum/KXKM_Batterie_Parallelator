@@ -15,10 +15,12 @@
 
 /**
  * @file SD_Logger.cpp
- * @brief Implémentation de la classe SDLogger pour gérer l'enregistrement des données sur une carte SD.
+ * @brief Implémentation de la classe SDLogger pour gérer l'enregistrement des
+ * données sur une carte SD.
  */
 
 #include "SD_Logger.h"
+#include <SPI.h>
 
 // Ajouter la définition du constructeur
 SDLogger::SDLogger() : csvConfig{','} {}
@@ -30,17 +32,27 @@ SDLogger::SDLogger() : csvConfig{','} {}
  */
 void SDLogger::begin(const char *filename, CSVConfig config) {
   csvConfig = config;
+  SPI.begin(18, 5, 19); // Initialiser le bus SPI
   if (!SD.begin(chipSelect)) {
     Serial.println("Échec de l'initialisation de la carte SD !");
     return;
   }
   String fullFilename = String(filename) + ".csv";
-  dataFile = SD.open(fullFilename.c_str(), FILE_WRITE);
-  dataFile.println("Temps" + String(csvConfig.separator) +
-                   "Numéro de batterie" + String(csvConfig.separator) +
-                   "Tension" + String(csvConfig.separator) + "Courant" +
-                   String(csvConfig.separator) + "État du commutateur" +
-                   String(csvConfig.separator) + "Consommation en Ah");
+  if (SD.exists(fullFilename.c_str())) {
+    dataFile = SD.open(fullFilename.c_str(), FILE_APPEND); // Ouvrir en mode ajout
+    dataFile.println("Temps" + String(csvConfig.separator) +
+                     "Numéro de batterie" + String(csvConfig.separator) +
+                     "Tension" + String(csvConfig.separator) + "Courant" +
+                     String(csvConfig.separator) + "État du commutateur" +
+                     String(csvConfig.separator) + "Consommation en Ah");
+  } else {
+    dataFile = SD.open(fullFilename.c_str(), FILE_WRITE);
+    dataFile.println("Temps" + String(csvConfig.separator) +
+                     "Numéro de batterie" + String(csvConfig.separator) +
+                     "Tension" + String(csvConfig.separator) + "Courant" +
+                     String(csvConfig.separator) + "État du commutateur" +
+                     String(csvConfig.separator) + "Consommation en Ah");
+  }
   if (!dataFile) {
     Serial.println("Échec de l'ouverture de " + fullFilename +
                    " pour l'écriture !");

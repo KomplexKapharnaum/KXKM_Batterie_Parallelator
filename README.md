@@ -138,3 +138,7 @@ Le dépôt contient également des fichiers KiCad pour les cartes matérielles s
 ## Licence
 
 Ce projet est sous licence GNU General Public License v3.0. Voir le fichier [LICENSE](LICENSE) pour plus de détails. 📜
+
+## Compagnie
+
+Ce projet a été développé par la compagnie [Komplex Kapharnaum](https://www.komplex-kapharnaum.net/), une compagnie de création artistique basée à Lyon, France. Komplex Kapharnaum crée des spectacles et des installations artistiques en utilisant des technologies innovantes pour transformer l'espace public et offrir des expériences immersives au public.

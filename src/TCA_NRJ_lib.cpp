@@ -21,9 +21,14 @@
 #include "TCA_NRJ_lib.h"
 
 TCAHandler::TCAHandler()
-    : TCA_0(TCA_address[0]), TCA_1(TCA_address[1]), TCA_2(TCA_address[2]),
-      TCA_3(TCA_address[3]), TCA_4(TCA_address[4]), TCA_5(TCA_address[5]),
-      TCA_6(TCA_address[6]), TCA_7(TCA_address[7]),
+    : TCA_0(TCA_address[0]), 
+      TCA_1(TCA_address[1]), 
+      TCA_2(TCA_address[2]),
+      TCA_3(TCA_address[3]), 
+      TCA_4(TCA_address[4]), 
+      TCA_5(TCA_address[5]),
+      TCA_6(TCA_address[6]), 
+      TCA_7(TCA_address[7]),
       Nb_TCA(0) { // Initialisation de Nb_TCA
   memset(TCA_address_connected, 0, sizeof(TCA_address_connected));
 }
