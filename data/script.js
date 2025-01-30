@@ -24,8 +24,9 @@ function initWebSocket() {
 
 function onOpen(event) {
     console.log('Connection opened');
-    getValues()
-    getConf()
+    getValues();
+    getConf();
+    setInterval(getValues, 5000); // Mettre à jour toutes les 5 secondes
 }
 
 function onClose(event) {
@@ -46,7 +47,7 @@ function onMessage(event) {
         return;
     }
 
-    var myObj = JSON.parse(event.data);
+    var myObj = JSON.parse(event.data); // Utilisation de JSON pour parser les données reçues
     var keys = Object.keys(myObj);
 
     if (keys.includes("batteryStatus")) {
@@ -59,23 +60,31 @@ function onMessage(event) {
 }
 
 function updateBatteryStatus(batteryStatus) {
-    var batteryStatusList = document.getElementById("batteryStatus");
-    batteryStatusList.innerHTML = "";
-    batteryStatus.forEach(function(status) {
-        var li = document.createElement("li");
-        li.innerHTML = `Battery ${status.index}: Voltage = ${status.voltage}V, Current = ${status.current}A, Ah = ${status.ampereHour} <span style="color:${status.ledStatus};">●</span>`;
-        batteryStatusList.appendChild(li);
-    });
+    const batteryStatusTable = document.getElementById("batteryStatusTable").getElementsByTagName('tbody')[0];
+    batteryStatusTable.innerHTML = batteryStatus.map(status => `
+        <tr>
+            <td>Battery ${status.index}</td>
+            <td>${status.voltage}</td>
+            <td>${status.current}</td>
+            <td>${status.ampereHour}</td>
+            <td><span style="color:${status.ledStatus};">●</span></td>
+            <td>
+                <button onclick="switchBattery(${status.index}, true)">Switch On</button>
+                <button onclick="switchBattery(${status.index}, false)">Switch Off</button>
+            </td>
+        </tr>
+    `).join('');
 }
 
-function updateControlSwitches(controlSwitches) {
-    var controlSwitchesList = document.getElementById("controlSwitches");
-    controlSwitchesList.innerHTML = "";
-    controlSwitches.forEach(function(switchControl) {
-        var li = document.createElement("li");
-        li.innerHTML = `Battery ${switchControl.index}: <a href="/switch_on?battery=${switchControl.index}">Switch On</a> | <a href="/switch_off?battery=${switchControl.index}">Switch Off</a>`;
-        controlSwitchesList.appendChild(li);
-    });
+function switchBattery(index, state) {
+    const action = state ? 'switch_on' : 'switch_off';
+    fetch(`/${action}?battery=${index}`, { method: 'GET' })
+        .then(response => response.text())
+        .then(data => {
+            console.log(data);
+            setTimeout(getValues, 10); // Mettre à jour les valeurs après 10 ms
+        })
+        .catch(error => console.error('Error:', error));
 }
 
 var newConf = {};

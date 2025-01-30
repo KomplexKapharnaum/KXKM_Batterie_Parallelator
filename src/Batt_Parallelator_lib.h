@@ -27,6 +27,10 @@
 #include <cfloat> 
 #include <cmath>
 
+extern TCAHandler tcaHandler;
+extern INAHandler inaHandler;
+extern const bool print_message; // Ajouter cette ligne
+
 class BatteryManager; // Ajouter cette ligne
 
 /**
@@ -174,9 +178,5 @@ private:
     float maxVoltage = 0;
     float minVoltage = FLT_MAX;
 };
-
-extern TCAHandler tcaHandler;
-extern INAHandler inaHandler;
-extern const bool print_message; // Ajouter cette ligne
 
 #endif // BATT_PARALLELATOR_LIB_H

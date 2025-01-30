@@ -22,9 +22,10 @@
 #ifndef WEBSERVERHANDLER_H
 #define WEBSERVERHANDLER_H
 
-#include <WiFi.h>
+
 #include <WebServer.h>
 #include "Batt_Parallelator_lib.h"
+
 
 /**
  * @class WebServerHandler
@@ -34,10 +35,8 @@ class WebServerHandler {
 public:
     /**
      * @brief Constructeur de la classe WebServerHandler.
-     * @param ssid Le SSID du réseau WiFi.
-     * @param password Le mot de passe du réseau WiFi.
      */
-    WebServerHandler(const char* ssid, const char* password);
+    WebServerHandler();
 
     /**
      * @brief Démarrer le serveur web.
@@ -76,9 +75,12 @@ private:
      */
     void handleLog();
 
+    /**
+     * @brief Gérer les requêtes WebSocket pour envoyer les valeurs automatiquement.
+     */
+    void handleWebSocket(); // Ajouter cette ligne
+
     WebServer server; ///< Instance du serveur web.
-    const char* ssid; ///< SSID du réseau WiFi.
-    const char* password; ///< Mot de passe du réseau WiFi.
 };
 
 #endif // WEBSERVERHANDLER_H
