@@ -41,7 +41,7 @@ int BatteryManager::getMinVoltageBattery() {
     int minVoltageBattery = -1;
     for (int i = 0; i < inaHandler.getNbINA(); i++) {
         float voltage = inaHandler.read_volt(i);
-        if (voltage < minVoltage) {
+        if (voltage < minVoltage && voltage > 1) {
             minVoltage = voltage;
             minVoltageBattery = i;
         }
@@ -53,7 +53,13 @@ float BatteryManager::getAverageVoltage() {
     float totalVoltage = 0;
     int numBatteries = inaHandler.getNbINA();
     for (int i = 0; i < numBatteries; i++) {
-        totalVoltage += inaHandler.read_volt(i);
+        int voltage = inaHandler.read_volt(i);
+        if (voltage > 1) {
+            totalVoltage += voltage;
+        }
+        else {
+            numBatteries--;
+        }
     }
     return totalVoltage / numBatteries;
 }

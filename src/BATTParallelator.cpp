@@ -262,6 +262,11 @@ bool BATTParallelator::check_voltage_offset(int INA_num, float offset) {
     }
     return false;
   }
+  if (print_message) {
+      Serial.print("Battery ");
+      Serial.print(INA_num);
+      Serial.print(" voltage is in offset range ! :D");
+      Serial.println(voltage);
   return true;
 }
 
@@ -399,7 +404,7 @@ float BATTParallelator::find_min_voltage(float *battery_voltages,
                                          int num_batteries) {
   float min_voltage = battery_voltages[num_batteries];
   for (int i = 1; i < inaHandler.getNbINA(); i++) {
-    if (battery_voltages[i] < min_voltage) {
+    if (battery_voltages[i] < min_voltage && battery_voltages[i] > 1) {
       min_voltage = battery_voltages[i];
     }
   }

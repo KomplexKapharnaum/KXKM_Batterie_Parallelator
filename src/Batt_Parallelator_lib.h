@@ -123,8 +123,8 @@ public:
     float find_min_voltage(float *battery_voltages, int num_batteries);
 
 private:
-    int max_voltage = 30000; // Seuil de sous-tension de la batterie en mV
-    int min_voltage = 24000; // Seuil de surtension de la batterie en mV
+    int max_voltage = 30000; // Seuil de surtension de la batterie en mV
+    int min_voltage = 24000; // Seuil de sous-tension de la batterie en mV
     int max_current = 1000;  // Seuil de surintensité de la batterie en mA
     int voltage_diff = 2000; // Seuil de différence de tension de la batterie en mV
     int current_diff = 1000; // Seuil de différence de courant de la batterie en mA
