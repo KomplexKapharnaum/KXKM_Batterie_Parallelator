@@ -1,4 +1,4 @@
-24586275006958001
+24588013240062755
 Audio_Module
 Reverb_BTDR-1H
 Digital Reverberation Unit, http://www.belton.co.kr/inc/downfile.php?seq=17&file=pdf (footprint from http://www.uk-electronic.de/PDF/BTDR-1.pdf)
@@ -98853,6 +98853,13 @@ QFN-20_L4.0-W4.0-P0.5-BL-EP
 0
 21
 21
+easyeda2kicad
+R3920
+
+
+0
+2
+2
 easyeda2kicad
 RELAY-TH_HF2150-1A
 

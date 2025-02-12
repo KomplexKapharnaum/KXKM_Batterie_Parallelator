@@ -2354,7 +2354,7 @@
 	)
 	(wire
 		(pts
-			(xy 151.13 36.83) (xy 151.13 49.53)
+			(xy 151.13 36.83) (xy 151.13 39.37)
 		)
 		(stroke
 			(width 0)
@@ -2711,6 +2711,16 @@
 			(type default)
 		)
 		(uuid "db315384-9841-4647-83d4-6fd9902db5b1")
+	)
+	(wire
+		(pts
+			(xy 151.13 44.45) (xy 151.13 49.53)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "dba0366b-f828-4da6-9b68-9e657fef8eb1")
 	)
 	(wire
 		(pts
@@ -5427,6 +5437,17 @@
 	)
 	(hierarchical_label "MANUAL_SW"
 		(shape input)
+		(at 133.35 36.83 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "5fd9488b-28c7-44aa-884b-2782815d4fc5")
+	)
+	(hierarchical_label "BATT_SW"
+		(shape input)
 		(at 133.35 49.53 180)
 		(effects
 			(font
@@ -5434,7 +5455,7 @@
 			)
 			(justify right)
 		)
-		(uuid "8223d259-cb5b-47f2-aee9-5860e5952366")
+		(uuid "7f25f610-0aa4-40e4-a6c7-1ef34b3761bd")
 	)
 	(hierarchical_label "SDA"
 		(shape bidirectional)
@@ -5446,17 +5467,6 @@
 			(justify left)
 		)
 		(uuid "d8566d5b-02dc-458a-bf66-097e6bb7ea56")
-	)
-	(hierarchical_label "BATT_SW"
-		(shape input)
-		(at 133.35 36.83 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "e3080edd-24eb-4be0-9034-1fd75aeaf625")
 	)
 	(hierarchical_label "GND"
 		(shape input)
@@ -6215,7 +6225,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "5aa16437-7b88-4fab-883f-4d4c1594c081")
-		(property "Reference" "R10"
+		(property "Reference" "R14"
 			(at 180.34 137.1599 90)
 			(effects
 				(font
@@ -6412,7 +6422,7 @@
 				)
 			)
 		)
-		(property "Value" "470R"
+		(property "Value" "22R"
 			(at 152.781 53.34 90)
 			(effects
 				(font
@@ -7663,6 +7673,85 @@
 				)
 				(path "/40c3f397-d07f-488b-b615-517efc4a5c8c/ede9b4b7-549c-4a0a-90de-aef8f304e75f"
 					(reference "#PWR023")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:R_Small")
+		(at 151.13 41.91 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "cd4bd2da-d24d-4aa9-a543-aa2fdcf09508")
+		(property "Reference" "R21"
+			(at 149.479 41.91 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "470R"
+			(at 152.781 41.91 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
+			(at 151.13 41.91 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 151.13 41.91 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 151.13 41.91 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "d02756fa-2b2c-43e6-8f58-816f1b867e5e")
+		)
+		(pin "2"
+			(uuid "05999d93-e39f-4c08-9496-ee1f6b9715b2")
+		)
+		(instances
+			(project "BMU v2"
+				(path "/40c3f397-d07f-488b-b615-517efc4a5c8c/404fd779-052a-4b44-92bc-a9ff818e1713"
+					(reference "R21")
+					(unit 1)
+				)
+				(path "/40c3f397-d07f-488b-b615-517efc4a5c8c/8e75d9c9-36b3-4715-8008-0cb2c10c4fbe"
+					(reference "R20")
+					(unit 1)
+				)
+				(path "/40c3f397-d07f-488b-b615-517efc4a5c8c/9b15f43a-be76-42f8-a3fd-d61e4c342bdb"
+					(reference "R1")
+					(unit 1)
+				)
+				(path "/40c3f397-d07f-488b-b615-517efc4a5c8c/ede9b4b7-549c-4a0a-90de-aef8f304e75f"
+					(reference "R8")
 					(unit 1)
 				)
 			)
