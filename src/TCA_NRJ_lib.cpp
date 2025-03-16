@@ -19,6 +19,10 @@
  */
 
 #include "TCA_NRJ_lib.h"
+#include <DebugLogger.h>
+
+// Assurez-vous que `debugLogger` est déclaré et initialisé correctement
+extern DebugLogger debugLogger;
 
 TCAHandler::TCAHandler()
     : TCA_0(TCA_address[0]), 
@@ -35,7 +39,7 @@ TCAHandler::TCAHandler()
 
 void TCAHandler::initialize_tca(TCA9535 &tca, const char *name) {
   tca.begin();
-  Serial.println(String(name) + " est connecté");
+  debugLogger.printlnDebug(DebugLogger::INFO, String(name) + " est connecté");
   for (int i = 0; i < 4; i++) {
     tca.pinMode1(i, OUTPUT);
     tca.write1(i, LOW);
@@ -50,7 +54,6 @@ void TCAHandler::initialize_tca(TCA9535 &tca, const char *name) {
 }
 
 void TCAHandler::begin() {
-  Serial.println();
   for (int i = 0; i < 8; i++) {
     Wire.beginTransmission(TCA_address[i]);
     delay(50);
@@ -86,9 +89,7 @@ void TCAHandler::begin() {
       }
     }
   }
-  Serial.print("trouvé ");
-  Serial.print(Nb_TCA);
-  Serial.println(" appareils");
+  debugLogger.printlnDebug(DebugLogger::INFO, "trouvé " + String(Nb_TCA) + " appareils");
 }
 
 bool TCAHandler::read(int TCA_num, int pin) {
@@ -121,8 +122,7 @@ bool TCAHandler::read(int TCA_num, int pin) {
   default:
     return false;
   }
-  Serial.print(val);
-  Serial.print('\t');
+  debugLogger.printDebug(DebugLogger::INFO, String(val) + '\t');
   return val;
 }
 

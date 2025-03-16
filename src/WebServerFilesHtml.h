@@ -1,3 +1,9 @@
+#ifndef WEBSERVERFILEHTML_H
+#define WEBSERVERFILEHTML_H
+
+#include <pgmspace.h>
+
+const char index_html[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html>
 <head>
@@ -32,3 +38,6 @@
     <script src="script.js"></script>
 </body>
 </html>
+)rawliteral";
+
+#endif // WEBSERVERFILEHTML_H

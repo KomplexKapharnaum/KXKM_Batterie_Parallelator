@@ -13,6 +13,10 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+/*
+API TOKEN GRAFANA =
+BpeukQisC9YQzckyWpFNLmjjoR-YhlHxE0upYKJqeuVzvbTzdz_mE58vWRBnEXa7ZufKI5JFrQ3nm6VeV89GiA==
+*/
 /**
  * @file main.cpp
  * @brief Point d'entrée principal du programme.
@@ -48,9 +52,10 @@
 
  */
 
-#define ENABLE_WEBSERVER // Ajouter cette ligne pour activer le serveur web
-extern const bool print_message = true; // Print message on serial monitor
-const int I2C_Speed = 400;              // I2C speed in KHz
+#include "INA_NRJ_lib.h"
+// #define ENABLE_WEBSERVER // Ajouter cette ligne pour activer le serveur web
+
+const int I2C_Speed = 400; // I2C speed in KHz
 
 // value for battery check
 const int batt_check_period = 1000;  // Battery check period in ms
@@ -74,24 +79,63 @@ const int log_time =
 
 #include "Batt_Parallelator_lib.h"
 #include "SD_Logger.h"
+#include <DebugLogger.h>
 #include "pin_mapppings.h"
 #include <Arduino.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include "WiFiHandler.h"
+
+// const char *ssid = "kxkm5";
+// const char *password = "";
+WiFiHandler
+    wifiHandler("kxkm24gocab"); // Créer une instance de la classe WiFiHandler
+// wifiHandler(ssid, password);     // Créer une instance de la classe
+// WiFiHandler
 
 #ifdef ENABLE_WEBSERVER // necessaire pour le serveur web
 #include "WebServerHandler.h"
-#include "WiFiHandler.h"
-#include <SPIFFS.h>
 
-const char *ssid = "kxkm-wifi";
-const char *password = "KOMPLEXKAPHARNAUM";
-WiFiHandler
-    wifiHandler(ssid, password); // Créer une instance de la classe WiFiHandler
+
 WebServerHandler
     webServerHandler; // Créer une instance de la classe WebServerHandler
+
 #endif
 
-INAHandler inaHandler; // Créer une instance de la classe INAHandler
-TCAHandler tcaHandler; // Créer une instance de la classe TCAHandler
+#include "InfluxDBHandler.h"
+#include "TimeAndInfluxTask.h"
+#include <NTPClient.h>
+#include <WiFiUdp.h>
+#include <time.h>
+
+// Configuration InfluxDB
+const char *influxDBServerUrl = "https://us-east-1-1.aws.cloud2.influxdata.com";
+const char *influxDBOrg = "650b91508ddb9cf3";
+const char *influxDBBucket = "BATT_PARALLELATOR";
+const char *influxDBToken =
+    "QTIEjAI8p9zsaxTnBYExPLyJFJNNGrx-Dz9DU0cTa6tInggXDHX77APTGsoZ7-"
+    "rXgK8JqRZw6ptSdDJaoZtL8A==";
+// QTIEjAI8p9zsaxTnBYExPLyJFJNNGrx-Dz9DU0cTa6tInggXDHX77APTGsoZ7-rXgK8JqRZw6ptSdDJaoZtL8A==
+const bool influxDBInsecure =
+    true; // Ajouter cette ligne pour définir la connexion non sécurisée
+
+InfluxDBHandler influxDBHandler(influxDBServerUrl, influxDBOrg, influxDBBucket,
+                                influxDBToken, influxDBInsecure);
+/*
+  NONE = 0,
+    ERROR = 1 << 0,
+    WARNING = 1 << 1,
+    INFO = 1 << 2,
+    BATTERY = 1 << 3,
+    DEBUG = 1 << 4,
+    I2C = 1 << 5,
+    INFLUXDB = 1 << 6,
+    TIME = 1 << 7
+    */
+
+DebugLogger debugLogger; // Créer une instance de la classe DebugLogger
+INAHandler inaHandler;   // Créer une instance de la classe INAHandler
+TCAHandler tcaHandler;   // Créer une instance de la classe TCAHandler
 BATTParallelator
     BattParallelator; // Créer une instance de la classe BattParallelator
 SDLogger sdLogger;    // Créer une instance de la classe SDLogger
@@ -102,6 +146,11 @@ String logFilename =
 
 const float voltage_offset = 0.5; // Offset de différence de tension en volts
 
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP, "pool.ntp.org");
+
+bool isTimeSynced = false;
+
 /**
  * @brief Scanner les appareils I2C connectés.
  */
@@ -111,41 +160,87 @@ void I2C_scanner() { // Trouver tous les appareils I2C
     Wire.beginTransmission(i);
     delay(50);
     if (Wire.endTransmission() == 0) {
-      Serial.print("Adresse trouvée : ");
-      Serial.print(i, DEC);
-      Serial.print(" (0x");
-      Serial.print(i, HEX);
-      Serial.println(")");
+      debugLogger.printDebug(DebugLogger::I2C, "Adresse trouvée : ");
+      debugLogger.printDebug(DebugLogger::I2C, String(i, DEC));
+      debugLogger.printDebug(DebugLogger::I2C, " (0x");
+      debugLogger.printDebug(DebugLogger::I2C, String(i, HEX));
+      debugLogger.printDebug(DebugLogger::I2C, ")");
       count++;
       delay(1); // peut-être inutile ?
     }           // fin de bonne réponse
   }             // fin de la boucle for
-  Serial.println("Terminé.");
-  Serial.print("Trouvé ");
-  Serial.print(count, DEC);
-  Serial.println(" appareil(s).");
+  debugLogger.printDebug(DebugLogger::I2C, "Terminé.");
+  debugLogger.printDebug(DebugLogger::I2C, "Trouvé ");
+  debugLogger.printDebug(DebugLogger::I2C, String(count, DEC));
+  debugLogger.printlnDebug(DebugLogger::I2C, " appareil(s).");
 } // fin de I2C_scanner
 
-void readINADataTask(void *pvParameters); // lecture des données INA
-void logDataTask(void *pvParameters);     // enregistrement des données
+/**
+ * @brief Tâche pour enregistrer les données sur la carte SD.
+ * @param pvParameters Paramètres de la tâche.
+ */
+void logDataTask(void *pvParameters); // enregistrement des données
+
+/**
+ * @brief Tâche pour vérifier la tension des batteries.
+ * @param pvParameters Paramètres de la tâche.
+ */
 void checkBatteryVoltagesTask(void *pvParameters); // vérification des tensions
+
+/**
+ * @brief Tâche pour envoyer les données stockées sur la carte SD à InfluxDB.
+ * @param pvParameters Paramètres de la tâche.
+ */
+void sendStoredDataTask(void *pvParameters) {
+  while (true) {
+    influxDBHandler.sendStoredData();
+    vTaskDelay(5000 /
+               portTICK_PERIOD_MS); // Attendre 1 seconde avant de réessayer
+  }
+  // vTaskDelete(NULL); // Supprimer la tâche après exécution
+}
+
+#ifdef ENABLE_WEBSERVER
+/**
+ * @brief Tâche pour gérer le serveur web.
+ * @param pvParameters Paramètres de la tâche.
+ */
+void webServerTask(void *pvParameters) {
+  while (true) {
+    webServerHandler.handleClient();
+    vTaskDelay(
+        250 / portTICK_PERIOD_MS); // Attendre 10 ms avant de vérifier à nouveau
+  }
+}
+#endif
 
 /**
  * @brief Configuration initiale du programme.
  */
 void setup() {
-  Wire.begin(SDA_pin, SCL_pin);    // sda= GPIO_32 /scl= GPIO_33
-  //Wire.setClock(I2C_Speed * 1000); // définir I2C
+  Wire.begin(SDA_pin, SCL_pin); // sda= GPIO_32 /scl= GPIO_33
+  // Wire.setClock(I2C_Speed * 1000); // définir I2C
 
-  if (print_message) {
-    Serial.begin(115200);
-    Serial.println("Initialisation du programme");
-    I2C_scanner();
-  }
+  const bool debugLevels[DebugLogger::NUM_LEVELS] = {
+    true, // NONE
+    true, // ERROR
+    true, // WARNING
+    true, // INFO
+    false, // BATTERY
+    true, // DEBUG
+    true, // I2C
+    true, // INFLUXDB
+    true, // TIME
+    true, // WIFI
+    true, // SD
+    true, // SPIFF
+    true  // WEB
+  };
+
+  debugLogger.begin(debugLevels);
 
   tcaHandler.begin();
-  Serial.println("Configuration TCA terminée");
-
+  debugLogger.printlnDebug(DebugLogger::I2C, "Configuration TCA terminée");
   inaHandler.set_max_voltage(
       set_max_voltage); // définir la tension maximale en mV
   inaHandler.set_min_voltage(
@@ -155,8 +250,7 @@ void setup() {
   inaHandler.set_max_charge_current(
       set_max_charge_current); // définir le courant de charge maximal en mA
   inaHandler.begin(max_INA_current, INA_micro_ohm_shunt); // Initialiser les INA
-  if (print_message)
-    Serial.println("Configuration INA terminée");
+  debugLogger.printlnDebug(DebugLogger::I2C, "Configuration INA terminée");
 
   CSVConfig csvConfig = {
       ','}; // Définir la configuration CSV avec un séparateur de virgule
@@ -167,8 +261,8 @@ void setup() {
 
   sdLogger.setLogTime(
       log_time); // Définir le temps entre chaque enregistrement en secondes
-  if (print_message)
-    Serial.println("Configuration du logger SD terminée");
+  debugLogger.printlnDebug(DebugLogger::I2C,
+                           "Configuration du logger SD terminée");
 
   BattParallelator.set_max_voltage(
       set_max_voltage); // définir la tension maximale en mV
@@ -188,30 +282,37 @@ void setup() {
                      // la batterie
   BattParallelator.set_max_diff_voltage(
       voltage_offset); // Définir l'offset de différence de tension
-  if (print_message)
-    Serial.println("Configuration de la gestion des batteries terminée");
+  debugLogger.printlnDebug(
+      DebugLogger::I2C, "Configuration de la gestion des batteries terminée");
 
   int Nb_TCA = tcaHandler.getNbTCA(); // récupérer le nombre de TCA
   int Nb_INA = inaHandler.getNbINA(); // récupérer le nombre de INA
-  if (print_message) {
-    Serial.println();
-    Serial.print("trouvé : ");
-    Serial.print(Nb_TCA);
-    Serial.print(" INA et ");
-    Serial.print(Nb_INA);
-    Serial.println(" TCA");
-  }
+  debugLogger.printlnDebug(DebugLogger::I2C, "");
+  debugLogger.printDebug(DebugLogger::I2C, "trouvé : ");
+  debugLogger.printDebug(DebugLogger::I2C, String(Nb_TCA));
+  debugLogger.printDebug(DebugLogger::I2C, " INA et ");
+  debugLogger.printDebug(DebugLogger::I2C, String(Nb_INA));
+  debugLogger.printlnDebug(DebugLogger::I2C, " TCA");
+
   if (Nb_TCA !=
       Nb_INA / 4) { // Vérifier si le nombre de TCA et de INA est correct
-    Serial.println("Erreur : Le nombre de TCA et de INA n'est pas correct");
+    debugLogger.printlnDebug(
+        DebugLogger::I2C,
+        "Erreur : Le nombre de TCA et de INA n'est pas correct");
     if (Nb_INA % 4 != 0) {
-      Serial.println("Erreur : INA manquant");
+      debugLogger.printlnDebug(DebugLogger::I2C, "Erreur : INA manquant");
     } else {
-      Serial.println("Erreur : TCA manquant");
+      debugLogger.printlnDebug(DebugLogger::I2C, "Erreur : TCA manquant");
     }
   } else {
-    Serial.println("Le nombre de TCA et de INA est correct");
+    debugLogger.printlnDebug(DebugLogger::I2C,
+                             "Le nombre de TCA et de INA est correct");
   }
+
+  int detected_batteries = BattParallelator.detect_batteries();
+  debugLogger.printDebug(DebugLogger::BATTERY,
+                         "Nombre de batteries détectées: ");
+  debugLogger.printlnDebug(DebugLogger::BATTERY, String(detected_batteries));
 
   // Démarrer la tâche de consommation en ampère-heure pour chaque batterie
   for (int i = 0; i < Nb_INA; i++) {
@@ -220,71 +321,118 @@ void setup() {
   }
 
   // Créer une tâche pour lire les données des INA
-  xTaskCreatePinnedToCore(readINADataTask, "ReadINADataTask", 4096, NULL, 1,
-                          NULL, 0);
+  /*
+    xTaskCreatePinnedToCore(readINADataTask, "ReadINADataTask", 4096, NULL, 1,
+                            NULL, 0);
+  */
 
   // Créer une tâche pour enregistrer les données sur la carte SD
-  xTaskCreatePinnedToCore(logDataTask, "LogDataTask", 4096, NULL, 1, NULL, 1);
+  xTaskCreatePinnedToCore(logDataTask, "LogDataTask", 8192, NULL, 0, NULL, 1);
 
   // Créer une tâche pour vérifier la tension des batteries
   xTaskCreatePinnedToCore(checkBatteryVoltagesTask, "CheckBatteryVoltagesTask",
-                          4096, NULL, 1, NULL, 1);
+                          4096, NULL, 0, NULL, 1);
+
+  // Créer une tâche pour envoyer les données stockées sur la carte SD à
+  // InfluxDB
+  xTaskCreatePinnedToCore(sendStoredDataTask, "SendStoredDataTask", 65536, NULL,
+                          1, NULL, 0); // 32768
+
+  // Créer une tâche pour gérer le temps et InfluxDB
+  xTaskCreatePinnedToCore(timeAndInfluxTask, "TimeAndInfluxTask", 8192, NULL, 1,
+                          NULL, 0);
+
+  wifiHandler.begin(); // Démarrer la connexion WiFi
 
 #ifdef ENABLE_WEBSERVER
-  wifiHandler.begin(); // Démarrer la connexion WiFi
+/*
   if (!SPIFFS.begin(true)) {
-    Serial.println("An error has occurred while mounting SPIFFS");
+    debugLogger.printlnDebug(DebugLogger::SPIFF,
+                             "An error has occurred while mounting SPIFFS");
     return;
   }
-  Serial.println("SPIFFS mounted successfully");
+  debugLogger.printlnDebug(DebugLogger::SPIFF, "SPIFFS mounted successfully");
+  */
   webServerHandler.begin(); // Démarrer le serveur web
+
+  // Créer une tâche pour gérer le serveur web
+
+  xTaskCreatePinnedToCore(webServerTask, "WebServerTask", 12288, NULL, 1, NULL,
+                          1);
+
 #endif
+
+  if (!SD.begin()) {
+    debugLogger.printlnDebug(DebugLogger::SD, "Card Mount Failed");
+    return;
+  }
+  debugLogger.printlnDebug(DebugLogger::SD, "SD card initialized");
+
+  /*
+  // Afficher les statistiques des tâches
+  printTaskStats();
+
+  // Afficher les statistiques d'exécution des tâches
+  printRunTimeStats();
+  */
 }
 
-/**
- * @brief Tâche pour lire les données des appareils INA.
- * @param pvParameters Paramètres de la tâche.
- */
-void readINADataTask(void *pvParameters) {
-  while (true) {
-    int Nb_Batt = inaHandler.getNbINA(); // récupérer le nombre de INA
-    float battery_voltages[Nb_Batt];
-    for (int i = 0; i < Nb_Batt; i++) { // loop through all INA devices
-      if (print_message)                // read the INA device to serial monitor
-        {
-          /*
-        Serial.print("INA ADDRESSE :");
-        Serial.println(inaHandler.getDeviceAddress(i));
-        inaHandler.read(i, 1);
-        */
-        }
+// Fonction pour obtenir l'heure actuelle
+String getCurrentTime() {
+  if (isTimeSynced) {
+    timeClient.update();
+    debugLogger.printDebug(DebugLogger::TIME, "Time synchronized with NTP");
+    return timeClient.getFormattedTime();
+  } else {
+    struct tm timeinfo;
+    if (getLocalTime(&timeinfo)) {
+      char buffer[20];
+      strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &timeinfo);
+      debugLogger.printDebug(DebugLogger::TIME, "RTC time available");
+      return String(buffer);
+    } else {
+      debugLogger.printDebug(DebugLogger::TIME,
+                             "RTC time not available, returning default time");
+      return "1970-01-01 00:00:00"; // Valeur par défaut si l'heure n'est pas
+                                    // disponible
     }
-    vTaskDelay(batt_check_period / 2 /
-               portTICK_PERIOD_MS); // Attendre batt_check_period /2 avant de
-                                    // lire à nouveau
   }
 }
 
 /**
- * @brief Tâche pour enregistrer les données sur la carte SD.
+ * @brief Tâche pour enregistrer les données sur la carte SD et influxDB.
  * @param pvParameters Paramètres de la tâche.
  */
 void logDataTask(void *pvParameters) {
   while (true) {
     if (sdLogger.shouldLog()) { // Vérifier si on doit enregistrer les données
+      String currentTime = getCurrentTime(); // Obtenir l'heure actuelle
+      debugLogger.printDebug(DebugLogger::TIME, "Current Time: ");
+      debugLogger.printlnDebug(DebugLogger::TIME, currentTime);
+
       int Nb_Batt = inaHandler.getNbINA(); // récupérer le nombre de INA
       for (int i = 0; i < Nb_Batt; i++) {
-        sdLogger.logData(millis(), i, inaHandler.read_volt(i),
-                         inaHandler.read_current(i),
-                         BattParallelator.check_battery_status(i),
-                         batteryManager.getAmpereHourConsumption(
-                             i)); // Enregistrer les données sur la carte SD
+        if (inaHandler.read_volt(i) >
+            1) { // Enregistrer uniquement les batteries connectées
+          sdLogger.logData(currentTime.c_str(), i, inaHandler.read_volt(i),
+                           inaHandler.read_current(i),
+                           BattParallelator.check_battery_status(i),
+                           batteryManager.getAmpereHourConsumption(
+                               i)); // Enregistrer les données sur la carte SD
+
+          // Envoyer les données à InfluxDB
+          influxDBHandler.writeBatteryData(
+              "battery_data", i, inaHandler.read_volt(i),
+              inaHandler.read_current(i),
+              batteryManager.getAmpereHourConsumption(i));
+        }
       }
     }
     vTaskDelay(
         log_time * 1000 /
         portTICK_PERIOD_MS); // Attendre log_time avant de vérifier à nouveau
   }
+  // vTaskDelete(NULL); // Supprimer la tâche après exécution
 }
 
 /**
@@ -299,17 +447,29 @@ void checkBatteryVoltagesTask(void *pvParameters) {
     float minVoltage = batteryManager.getMinVoltage();
     float averageVoltage = batteryManager.getAverageVoltage();
 
-    if (print_message) {
-      Serial.print("Max Voltage: ");
-      Serial.println(maxVoltage);
-      Serial.print("Min Voltage: ");
-      Serial.println(minVoltage);
-      Serial.print("Average Voltage: ");
-      Serial.println(averageVoltage);
+    if (debugLogger.isCategoryEnabled(debugLogger.BATTERY)) {
+      debugLogger.printDebug(DebugLogger::BATTERY, "Max Voltage: ");
+      debugLogger.printlnDebug(DebugLogger::BATTERY, String(maxVoltage));
+      debugLogger.printDebug(DebugLogger::BATTERY, "Min Voltage: ");
+      debugLogger.printlnDebug(DebugLogger::BATTERY, String(minVoltage));
+      debugLogger.printDebug(DebugLogger::BATTERY, "Average Voltage: ");
+      debugLogger.printlnDebug(DebugLogger::BATTERY, String(averageVoltage));
     }
 
     int Nb_Batt = inaHandler.getNbINA();
     for (int i = 0; i < Nb_Batt; i++) {
+      float voltage = inaHandler.read_volt(i);
+      if (voltage > 1) {
+        if (debugLogger.isCategoryEnabled(debugLogger.BATTERY)) {
+          debugLogger.printDebug(DebugLogger::BATTERY, "Battery ");
+          debugLogger.printDebug(DebugLogger::BATTERY, String(i));
+          debugLogger.printDebug(DebugLogger::BATTERY, " Voltage :");
+          debugLogger.printDebug(DebugLogger::BATTERY, String(voltage));
+          debugLogger.printDebug(DebugLogger::BATTERY, "  Current :");
+          debugLogger.printlnDebug(DebugLogger::BATTERY,
+                                   String(inaHandler.read_current(i)));
+        }
+      }
       if (!BattParallelator.check_voltage_offset(i, voltageOffset)) {
         BattParallelator.check_battery_connected_status(
             i); // Utiliser les valeurs pour vérifier l'état de la batterie
@@ -326,8 +486,7 @@ void checkBatteryVoltagesTask(void *pvParameters) {
  * @brief Boucle principale du programme.
  */
 void loop() {
-#ifdef ENABLE_WEBSERVER
-  webServerHandler.handleClient();
-#endif
   // Laisser les tâches FreeRTOS gérer les opérations
+// vTaskDelay(1000 / portTICK_PERIOD_MS); // Ajouter un léger délai pour
+  // éviter une boucle serrée
 }

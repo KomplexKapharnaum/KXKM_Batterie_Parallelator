@@ -47,7 +47,7 @@ public:
    * @param switchState L'état du commutateur.
    * @param ampereHour La consommation en ampère-heure.
    */
-  void logData(unsigned long time, int bat_nb, float volt, float current,
+  void logData(const char *time, int bat_nb, float volt, float current,
                bool switchState, float ampereHour);
 
   /**
@@ -72,6 +72,7 @@ private:
   unsigned long lastLogTime = 0;
   int log_at_time = 10; // Temps entre chaque enregistrement en secondes
   CSVConfig csvConfig;  // Ajouter cette ligne
+  const char *filename; // Ajouter cette ligne
 };
 
 #endif // SDLOGGER_H

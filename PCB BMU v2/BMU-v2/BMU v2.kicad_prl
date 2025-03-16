@@ -1,7 +1,7 @@
 {
   "board": {
-    "active_layer": 0,
-    "active_layer_preset": "All Layers",
+    "active_layer": 36,
+    "active_layer_preset": "",
     "auto_track_width": true,
     "hidden_netclasses": [],
     "hidden_nets": [],
@@ -77,19 +77,6 @@
     "version": 3
   },
   "project": {
-    "files": [
-      {
-        "name": "BMU v2.kicad_sch",
-        "open": true,
-        "window": {
-          "display": 0,
-          "maximized": true,
-          "pos_x": 217,
-          "pos_y": 38,
-          "size_x": 1294,
-          "size_y": 1079
-        }
-      }
-    ]
+    "files": []
   }
 }

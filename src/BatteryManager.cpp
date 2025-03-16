@@ -22,8 +22,12 @@
  */
 
 #include "Batt_Parallelator_lib.h"
+#include <DebugLogger.h>
 
-int BatteryManager::getMaxVoltageBattery() {
+// Assurez-vous que `debugLogger` est déclaré et initialisé correctement
+extern DebugLogger debugLogger;
+
+float BatteryManager::getMaxVoltageBattery() {
     maxVoltage = 0; // Réinitialiser la tension maximale
     int maxVoltageBattery = -1;
     for (int i = 0; i < inaHandler.getNbINA(); i++) {
@@ -33,10 +37,11 @@ int BatteryManager::getMaxVoltageBattery() {
             maxVoltageBattery = i;
         }
     }
+    debugLogger.printlnDebug(DebugLogger::BATTERY, "Max voltage battery index: " + String(maxVoltageBattery));
     return maxVoltageBattery;
 }
 
-int BatteryManager::getMinVoltageBattery() { 
+float BatteryManager::getMinVoltageBattery() { 
     minVoltage = 0; // Réinitialiser la tension minimale
     int minVoltageBattery = -1;
     for (int i = 0; i < inaHandler.getNbINA(); i++) {
@@ -46,6 +51,7 @@ int BatteryManager::getMinVoltageBattery() {
             minVoltageBattery = i;
         }
     }
+    debugLogger.printlnDebug(DebugLogger::BATTERY, "Min voltage battery index: " + String(minVoltageBattery));
     return minVoltageBattery;
 }
 
@@ -61,7 +67,9 @@ float BatteryManager::getAverageVoltage() {
             numBatteries--;
         }
     }
-    return totalVoltage / numBatteries;
+    float averageVoltage = totalVoltage / numBatteries;
+    debugLogger.printlnDebug(DebugLogger::BATTERY, "Average voltage: " + String(averageVoltage));
+    return averageVoltage;
 }
 
 float BatteryManager::getMaxVoltage() {
@@ -85,7 +93,7 @@ float BatteryManager::getVoltageCurrentRatio(int batteryIndex) {
 void BatteryManager::startAmpereHourConsumptionTask(int batteryIndex, float durationHours, int numSamples) {
     AmpereHourTaskParams* params = new AmpereHourTaskParams{batteryIndex, durationHours, numSamples, this}; // Passer this comme manager
     ampereHourTaskRunning[batteryIndex] = true; // Marquer la tâche comme en cours
-    xTaskCreate(ampereHourConsumptionTask, "AmpereHourConsumptionTask", 2048, params, 1, NULL);
+    xTaskCreate(ampereHourConsumptionTask, "AmpereHourConsumptionTask", 8192, params, 1, NULL);
 }
 
 void BatteryManager::ampereHourConsumptionTask(void* pvParameters) {
@@ -105,8 +113,7 @@ void BatteryManager::ampereHourConsumptionTask(void* pvParameters) {
         startTime += sampleInterval;
     }
     float ampereHourConsumption = (totalCurrent / numSamples) * durationHours; // Calculer la consommation en ampère-heure
-    Serial.print("Ampere-hour consumption: ");
-    Serial.println(ampereHourConsumption);
+    debugLogger.printlnDebug(DebugLogger::BATTERY, "Ampere-hour consumption for battery " + String(batteryIndex) + ": " + String(ampereHourConsumption));
 
     BatteryManager* manager = static_cast<BatteryManager*>(params->manager);
     manager->ampereHourConsumptions[batteryIndex] = ampereHourConsumption; // Stocker la consommation en ampère-heure

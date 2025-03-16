@@ -23,6 +23,7 @@
 #define INA_NRJ_LIB_h
 
 #include <INA.h> // Inclure la bibliothèque INA
+#include <DebugLogger.h>
 
 /**
  * @class INAHandler
@@ -33,7 +34,7 @@ class INAHandler
 public:
     INAHandler();
     void begin(const uint8_t amp, const uint16_t micro_ohm);
-    void read(const uint8_t deviceNumber, bool print_message);
+    void read(const uint8_t deviceNumber);
     float read_current(const uint8_t deviceNumber);
     float read_volt(const uint8_t deviceNumber);
     float read_power(const uint8_t deviceNumber);
@@ -44,6 +45,7 @@ public:
     uint8_t getDeviceAddress(const uint8_t deviceNumber);
     uint8_t getNbINA();
     void setI2CSpeed(int speed);
+    int detect_batteries();
 
 private:
     void initialize_ina(const uint8_t deviceNumber);

@@ -20,6 +20,10 @@
  */
 
 #include "WiFiHandler.h"
+#include <DebugLogger.h>
+
+// Assurez-vous que `debugLogger` est déclaré et initialisé correctement
+extern DebugLogger debugLogger;
 
 /**
  * @brief Constructeur de la classe WiFiHandler.
@@ -30,14 +34,43 @@ WiFiHandler::WiFiHandler(const char *ssid, const char *password)
     : ssid(ssid), password(password) {}
 
 /**
+ * @brief Constructeur de la classe WiFiHandler pour les réseaux sans mot de passe.
+ * @param ssid Le SSID du réseau WiFi.
+ */
+WiFiHandler::WiFiHandler(const char *ssid)
+    : ssid(ssid), password(NULL) {}
+
+/**
  * @brief Démarrer la connexion WiFi.
  */
 void WiFiHandler::begin() {
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(1000);
-    Serial.println("Connecting to WiFi.handler...");
+  WiFi.mode(WIFI_STA);
+  WiFi.setHostname("BatteryMonitor");
+
+  if (password) {
+    WiFi.begin(ssid, password);
+  } else {
+    WiFi.begin(ssid);
   }
-  Serial.println("!!!!!!!!!!!!!   Connected to WiFi    !!!!!!!!!!!!!");
-  Serial.println(WiFi.localIP());
+  while (WiFi.status() != WL_CONNECTED) {
+    vTaskDelay(1000);
+    debugLogger.printlnDebug(DebugLogger::WIFI,"Connecting to WiFi...");
+  }
+  debugLogger.printlnDebug(DebugLogger::WIFI,"=======================> Connected to WiFi");
+  debugLogger.printlnDebug(DebugLogger::WIFI,WiFi.localIP().toString());
+}
+
+WiFiHandler::WiFiHandler() {}
+
+void WiFiHandler::begin(const char* ssid, const char* password) {
+    WiFi.begin(ssid, password);
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(1000);
+        Serial.println("Connecting to WiFi...");
+    }
+    Serial.println("Connected to WiFi");
+}
+
+bool WiFiHandler::isConnected() {
+    return WiFi.status() == WL_CONNECTED;
 }

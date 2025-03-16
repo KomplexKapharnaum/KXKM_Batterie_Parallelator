@@ -20,6 +20,8 @@
  */
 
 #include "INA_NRJ_lib.h"
+#include <DebugLogger.h>
+extern DebugLogger debugLogger;
 
 /**
  * @brief Constructeur de la classe INAHandler.
@@ -40,16 +42,13 @@ INAHandler::INAHandler()
  */
 void INAHandler::begin(const uint8_t amp, const uint16_t micro_ohm)
 {
-    Serial.println();
-    // Configuration de l'INA
+        // Configuration de l'INA
 
     uint8_t devicesFound = 0;
     while (deviceNumber == UINT8_MAX)
     {
         devicesFound = INA.begin(amp, micro_ohm); // TODO ajuster les valeurs pour votre application spécifique
-        Serial.print(F("Trouvé "));
-        Serial.print(devicesFound);
-        Serial.println(F(" appareils INA"));
+        debugLogger.printDebug(DebugLogger::INFO, "Trouvé " + String(devicesFound) + " appareils INA");
 
         for (uint8_t i = 0; i < devicesFound; i++)
         {
@@ -59,14 +58,14 @@ void INAHandler::begin(const uint8_t amp, const uint16_t micro_ohm)
                 INA_address_connected[Nb_INA - 1] = INA_ADDR[i];
                 deviceNumber = i;
 
-                Serial.println("Trouvé INA_" + String(deviceNumber) + " à l'adresse " + String(INA_ADDR[i]) + " est connecté");
+                debugLogger.printlnDebug(DebugLogger::INFO, "Trouvé INA_" + String(deviceNumber) + " à l'adresse " + String(INA_ADDR[i]) + " est connecté");
 
                 initialize_ina(deviceNumber);
             }
         }
         if (deviceNumber == UINT8_MAX && devicesFound == 0)
         {
-            Serial.print(F("Aucun appareil trouvé. Attente de 5s et nouvelle tentative...\n"));
+            debugLogger.printlnDebug(DebugLogger::WARNING, "Aucun appareil trouvé. Attente de 5s et nouvelle tentative...");
             delay(5000);
         }
     }
@@ -94,17 +93,15 @@ void INAHandler::initialize_ina(const uint8_t deviceNumber)
 /**
  * @brief Lire les valeurs d'un appareil INA.
  * @param deviceNumber Numéro de l'appareil.
- * @param print_message true pour afficher les valeurs lues, false sinon.
  */
-void INAHandler::read(const uint8_t deviceNumber, const bool print_message)
+void INAHandler::read(const uint8_t deviceNumber)
 {
     float amps = ((float)INA.getBusMicroAmps(deviceNumber) / 100000);
     float volts = ((float)INA.getBusMilliVolts(deviceNumber) / 1000);
     float power = ((float)volts * (float)amps);
     float power_read = ((float)INA.getBusMicroWatts(deviceNumber) / 1000);
     float shunt = ((float)INA.getShuntMicroVolts(deviceNumber) / 1000);
-    if (print_message)
-    {
+    /*
         Serial.printf("Lecture INA %d\n", deviceNumber);
         Serial.print(F("\nTension de bus:   "));
         Serial.print((float)volts, 4);
@@ -117,7 +114,7 @@ void INAHandler::read(const uint8_t deviceNumber, const bool print_message)
         Serial.print(F("W\nPuissance lue:    "));
         Serial.print((float)power_read, 4);
         Serial.print(F("\n\n"));
-    }
+        */
 }
 
 /**

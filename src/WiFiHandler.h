@@ -23,6 +23,7 @@
 #define WIFIHANDLER_H
 
 #include <WiFi.h>
+#include <DebugLogger.h>
 
 /**
  * @class WiFiHandler
@@ -32,19 +33,43 @@ class WiFiHandler {
 public:
     /**
      * @brief Constructeur de la classe WiFiHandler.
+     */
+    WiFiHandler();
+
+    /**
+     * @brief Constructeur de la classe WiFiHandler.
      * @param ssid Le SSID du réseau WiFi.
      * @param password Le mot de passe du réseau WiFi.
      */
-    WiFiHandler(const char* ssid, const char* password);
+    WiFiHandler(const char *ssid, const char *password);
+
+    /**
+     * @brief Constructeur de la classe WiFiHandler pour les réseaux sans mot de passe.
+     * @param ssid Le SSID du réseau WiFi.
+     */
+    WiFiHandler(const char *ssid);
+
+    /**
+     * @brief Démarrer la connexion WiFi.
+     * @param ssid Le SSID du réseau WiFi.
+     * @param password Le mot de passe du réseau WiFi.
+     */
+    void begin(const char* ssid, const char* password);
 
     /**
      * @brief Démarrer la connexion WiFi.
      */
     void begin();
 
+    /**
+     * @brief Vérifier si la connexion WiFi est établie.
+     * @return true si connecté, false sinon.
+     */
+    bool isConnected();
+
 private:
-    const char* ssid; ///< SSID du réseau WiFi.
-    const char* password; ///< Mot de passe du réseau WiFi.
+    const char *ssid;
+    const char *password;
 };
 
 #endif // WIFIHANDLER_H
