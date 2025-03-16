@@ -25,8 +25,10 @@
  */
 
 #include "Batt_Parallelator_lib.h"
+#include <DebugLogger.h>
 
-extern const bool print_message;      // Ajouter cette ligne
+// Assurez-vous que `debugLogger` est déclaré et initialisé correctement
+extern DebugLogger debugLogger;
 extern BatteryManager batteryManager; // Ajouter cette ligne
 
 /**
@@ -108,14 +110,9 @@ void BATTParallelator::set_max_charge_current(float current) {
  */
 void BATTParallelator::switch_off_battery(int TCA_num, int OUT_num,
                                           int switch_number) {
-  if (print_message) {
-    Serial.print("Switching off battery ");
-    Serial.print(switch_number);
-    Serial.print(" on TCA ");
-    Serial.print(TCA_num);
-    Serial.print(" OUT ");
-    Serial.println(OUT_num);
-  }
+  debugLogger.printlnDebug(debugLogger.BATTERY, "Switching off battery " + String(switch_number) +
+                                      " on TCA " + String(TCA_num) +
+                                      " OUT " + String(OUT_num));
   tcaHandler.write(TCA_num, OUT_num, 0);         // switch off the battery
   tcaHandler.write(TCA_num, OUT_num * 2 + 8, 1); // set red led on
   tcaHandler.write(TCA_num, OUT_num * 2 + 9, 0); // set green led off
@@ -127,12 +124,8 @@ void BATTParallelator::switch_off_battery(int TCA_num, int OUT_num,
  * @param OUT_num Numéro de sortie.
  */
 void BATTParallelator::switch_on_battery(int TCA_num, int OUT_num) {
-  if (print_message) {
-    Serial.print("Switching on battery ");
-    Serial.print(OUT_num);
-    Serial.print(" on TCA ");
-    Serial.println(TCA_num);
-  }
+  debugLogger.printlnDebug(DebugLogger::BATTERY, "Switching on battery " + String(OUT_num) +
+                                      " on TCA " + String(TCA_num));
   tcaHandler.write(TCA_num, OUT_num, 1);         // switch on the battery
   tcaHandler.write(TCA_num, OUT_num * 2 + 8, 0); // set red led off
   tcaHandler.write(TCA_num, OUT_num * 2 + 9, 1); // set green led on
@@ -163,79 +156,76 @@ bool BATTParallelator::check_battery_status(int INA_num) {
   bool return_value;
   if (voltage < min_voltage / 1000) // check if the battery voltage is too low
   {
-    if (print_message)
-      Serial.println("Battery " + String(INA_num) + " voltage is too low");
+    if ( voltage > 1)
+      debugLogger.printlnDebug(DebugLogger::BATTERY, "Battery " + String(INA_num + 1) + " voltage is too low");
     return_value = false;
   } else if (voltage >
              max_voltage / 1000) // check if the battery voltage is too high
   {
-    if (print_message)
-      Serial.println("Battery " + String(INA_num) + " voltage is too high");
+    if ( voltage > 1)
+      debugLogger.printlnDebug(DebugLogger::BATTERY, "Battery " + String(INA_num + 1) + " voltage is too high");
     return_value = false;
   } else if (current > max_current ||
              current < -max_current) // check if the battery current is too high
   {
-    if (print_message)
-      Serial.println("Battery " + String(INA_num) + " current is too high");
+    if ( voltage > 1)
+      debugLogger.printlnDebug(DebugLogger::BATTERY, "Battery " + String(INA_num + 1) + " current is too high");
     return_value = false;
   } else if (current < -max_charge_current) // check if the battery charge
                                             // current is too high
   {
-    if (print_message)
-      Serial.println("Battery " + String(INA_num) +
-                     " charge current is too high");
+    if ( voltage > 1)
+      debugLogger.printlnDebug(DebugLogger::BATTERY, "Battery " + String(INA_num + 1) + " charge current is too high");
     return_value = false;
   } else if (compare_voltage(
                  voltage, max_voltage,
                  voltage_diff)) // check if the battery voltage is different
                                 // from the others //TODO check this function
   {
-    if (print_message)
-      Serial.println("Voltage batterie " + String(INA_num) + " is different");
+    if ( voltage > 1)
+      debugLogger.printlnDebug(DebugLogger::BATTERY, "Voltage batterie " + String(INA_num + 1) + " is different");
     return_value = false;
   } else if (abs(current) > current_diff) // check if the battery current is
                                           // different from the others
   {
-    if (print_message)
-      Serial.println("Current battery " + String(INA_num) + " is different");
+    if ( voltage > 1)
+      debugLogger.printlnDebug(DebugLogger::BATTERY, "Current battery " + String(INA_num + 1) + " is different");
     return_value = false;
   } else if (check_charge_status(INA_num)) // check if the battery is charging
   {
-    if (print_message)
-      Serial.println("Battery " + String(INA_num) + " is charging");
+    if ( voltage > 1)
+      debugLogger.printlnDebug(DebugLogger::BATTERY, "Battery " + String(INA_num + 1) + " is charging");
     return_value = true;
   } else if (batteryManager.getAmpereHourConsumption(INA_num) >
              0) // check if the battery is discharging
   {
-    if (print_message)
-      Serial.println("Battery " + String(INA_num) + " is discharging");
+    if ( voltage > 1)
+      debugLogger.printlnDebug(DebugLogger::BATTERY, "Battery " + String(INA_num + 1) + " is discharging");
     return_value = true;
   } else if (batteryManager.getVoltageCurrentRatio(INA_num) >
              0) // check if the battery is discharging
   {
-    if (print_message)
-      Serial.println("Battery " + String(INA_num) + " is discharging");
+    if ( voltage > 1)
+      debugLogger.printlnDebug(DebugLogger::BATTERY, "Battery " + String(INA_num + 1) + " is discharging");
     return_value = true;
   } else if (batteryManager.getVoltageCurrentRatio(INA_num) <
              0) // check if the battery is charging
   {
-    if (print_message)
-      Serial.println("Battery " + String(INA_num) + " is charging");
+    if ( voltage > 1)
+      debugLogger.printlnDebug(DebugLogger::BATTERY, "Battery " + String(INA_num + 1) + " is charging");
     return_value = true;
   } else if (batteryManager.getVoltageCurrentRatio(INA_num) ==
              0) // check if the battery is not charging or discharging
   {
-    if (print_message)
-      Serial.println("Battery " + String(INA_num) +
-                     " is not charging or discharging");
+    if ( voltage > 1)
+      debugLogger.printlnDebug(DebugLogger::BATTERY, "Battery " + String(INA_num + 1) + " is not charging or discharging");
     return_value = true;
   } else if (check_voltage_offset(INA_num,
                                   0.5)) // TODO check this function with better
                                         // offset or calculation of the offset
   {
-    if (print_message)
-      Serial.println("Battery " + String(INA_num) +
-                     " voltage is in offset range");
+    if ( voltage > 1)
+      debugLogger.printlnDebug(DebugLogger::BATTERY, "Battery " + String(INA_num + 1) + " voltage is in offset range");
     return_value = true;
   } else {
     return_value = true;
@@ -254,20 +244,17 @@ bool BATTParallelator::check_voltage_offset(int INA_num, float offset) {
   float averageVoltage = batteryManager.getAverageVoltage();
 
   if (abs(voltage - averageVoltage) > offset) {
-    if (print_message) {
-      Serial.print("Battery ");
-      Serial.print(INA_num);
-      Serial.print(" voltage is out of offset range: ");
-      Serial.println(voltage);
+    if ( voltage > 1) {
+      debugLogger.printlnDebug(DebugLogger::BATTERY, "Battery " + String(INA_num + 1) +
+                                         " voltage is out of offset range: " + String(voltage));
     }
     return false;
   }
-  if (print_message) {
-      Serial.print("Battery ");
-      Serial.print(INA_num);
-      Serial.print(" voltage is in offset range ! :D");
-      Serial.println(voltage);
-  return true;
+  if ( voltage > 1) {
+    debugLogger.printlnDebug(DebugLogger::BATTERY, "Battery " + String(INA_num + 1) +
+                                       " voltage is in offset range ! :D " + String(voltage));
+  }
+  return true; // Ajouter cette ligne pour s'assurer que la fonction retourne toujours une valeur booléenne
 }
 
 /**
@@ -293,19 +280,16 @@ bool BATTParallelator::check_charge_status(int INA_num) {
 bool BATTParallelator::switch_battery(int INA_num, bool switch_on) {
   int TCA_number = TCA_num(INA_num);
   int OUT_number = (inaHandler.getDeviceAddress(INA_num) - 64) % 4;
-  if (print_message) {
-    Serial.print("Switching ");
-    if (switch_on)
-      Serial.print("on ");
-    else
-      Serial.print("off ");
-    Serial.print(" battery ");
-    Serial.print(INA_num);
-    Serial.print(" on TCA ");
-    Serial.print(TCA_number);
-    Serial.print(" OUT ");
-    Serial.println(OUT_number);
-  }
+
+  debugLogger.printDebug(DebugLogger::BATTERY, "Switching ");
+  if (switch_on)
+    debugLogger.printDebug(DebugLogger::BATTERY, "on ");
+  else
+    debugLogger.printDebug(DebugLogger::BATTERY, "off ");
+  debugLogger.printDebug(DebugLogger::BATTERY, " battery " + String(INA_num + 1) +
+                                   " on TCA " + String(TCA_number) +
+                                   " OUT " + String(OUT_number));
+  
   if (switch_on) {
     switch_on_battery(TCA_number, OUT_number);
     return true;
@@ -325,16 +309,14 @@ void BATTParallelator::check_battery_connected_status(int INA_num) {
   if (check_battery_status(INA_num) &&
       check_voltage_offset(INA_num, voltageOffset)) {
     if (Nb_switch[INA_num] < 1) {
-      if (print_message)
-        Serial.println("Battery voltage and current are good");
+      debugLogger.printlnDebug(DebugLogger::BATTERY, "Battery voltage and current are good");
       switch_on_battery(TCA_num(INA_num),
                         (inaHandler.getDeviceAddress(INA_num) - 64) %
                             4); // switch on the battery
       Nb_switch[INA_num]++;
     } else if (Nb_switch[INA_num] < Nb_switch_max) {
-      if (print_message)
-        Serial.println("cut off battery, try to reconnect in " +
-                       String(reconnect_delay / 1000) + "s");
+      debugLogger.printlnDebug(DebugLogger::BATTERY, "cut off battery, try to reconnect in " +
+                                       String(reconnect_delay / 1000) + "s");
       switch_off_battery(TCA_num(INA_num),
                          (inaHandler.getDeviceAddress(INA_num) - 64) % 4,
                          INA_num); // switch off the battery
@@ -351,8 +333,7 @@ void BATTParallelator::check_battery_connected_status(int INA_num) {
         Nb_switch[INA_num]++;     // increment the number of switch on
       }
     } else {
-      if (print_message)
-        Serial.println("Battery is disconnected");
+      debugLogger.printlnDebug(DebugLogger::BATTERY, "Battery is disconnected");
       switch_off_battery(TCA_num(INA_num),
                          (inaHandler.getDeviceAddress(INA_num) - 64) % 4,
                          INA_num); // switch off the battery
@@ -418,4 +399,18 @@ float BATTParallelator::find_min_voltage(float *battery_voltages,
 void BATTParallelator::reset_switch_count(int INA_num) {
   Nb_switch[INA_num] = 0;
   reconnect_time[INA_num] = 0;
+}
+
+/**
+ * @brief Détecter le nombre de batteries dont la tension est supérieure à 5V.
+ * @return Nombre de batteries détectées.
+ */
+int BATTParallelator::detect_batteries() {
+  int count = 0;
+  for (int i = 0; i < inaHandler.getNbINA(); i++) {
+    if (inaHandler.read_volt(i) > 5.0) {
+      count++;
+    }
+  }
+  return count;
 }

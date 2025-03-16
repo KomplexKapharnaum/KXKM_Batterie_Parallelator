@@ -20,10 +20,14 @@
  */
 
 #include "SD_Logger.h"
+#include <DebugLogger.h>
 #include <SPI.h>
 
+// Assurez-vous que `debugLogger` est déclaré et initialisé correctement
+extern DebugLogger debugLogger;
+
 // Ajouter la définition du constructeur
-SDLogger::SDLogger() : csvConfig{','} {}
+SDLogger::SDLogger() : csvConfig{','}, filename(nullptr) {}
 
 /**
  * @brief Initialiser la carte SD et ouvrir le fichier de log.
@@ -31,31 +35,42 @@ SDLogger::SDLogger() : csvConfig{','} {}
  * @param config La configuration du CSV.
  */
 void SDLogger::begin(const char *filename, CSVConfig config) {
+  this->filename = filename;
   csvConfig = config;
   SPI.begin(18, 5, 19); // Initialiser le bus SPI
   if (!SD.begin(chipSelect)) {
-    Serial.println("Échec de l'initialisation de la carte SD !");
+    debugLogger.printlnDebug(DebugLogger::ERROR, "Échec de l'initialisation de la carte SD !");
     return;
   }
   String fullFilename = String(filename) + ".csv";
   if (SD.exists(fullFilename.c_str())) {
     dataFile = SD.open(fullFilename.c_str(), FILE_APPEND); // Ouvrir en mode ajout
-    dataFile.println("Temps" + String(csvConfig.separator) +
-                     "Numéro de batterie" + String(csvConfig.separator) +
-                     "Tension" + String(csvConfig.separator) + "Courant" +
-                     String(csvConfig.separator) + "État du commutateur" +
-                     String(csvConfig.separator) + "Consommation en Ah");
+    if (dataFile) {
+      dataFile.println("Temps" + String(csvConfig.separator) +
+                       "Numéro de batterie" + String(csvConfig.separator) +
+                       "Tension" + String(csvConfig.separator) + "Courant" +
+                       String(csvConfig.separator) + "État du commutateur" +
+                       String(csvConfig.separator) + "Consommation en Ah");
+      //dataFile.close(); // Assurez-vous de fermer le fichier après l'avoir créé
+    } else {
+      debugLogger.printlnDebug(DebugLogger::ERROR, "Échec de l'ouverture de " + fullFilename + " pour l'ajout !");
+    }
   } else {
-    dataFile = SD.open(fullFilename.c_str(), FILE_WRITE);
-    dataFile.println("Temps" + String(csvConfig.separator) +
-                     "Numéro de batterie" + String(csvConfig.separator) +
-                     "Tension" + String(csvConfig.separator) + "Courant" +
-                     String(csvConfig.separator) + "État du commutateur" +
-                     String(csvConfig.separator) + "Consommation en Ah");
+    dataFile = SD.open(fullFilename.c_str(), FILE_WRITE); // Ouvrir en mode écriture
+    if (dataFile) {
+      dataFile.println("Temps" + String(csvConfig.separator) +
+                       "Numéro de batterie" + String(csvConfig.separator) +
+                       "Tension" + String(csvConfig.separator) + "Courant" +
+                       String(csvConfig.separator) + "État du commutateur" +
+                       String(csvConfig.separator) + "Consommation en Ah");
+      //dataFile.close(); // Assurez-vous de fermer le fichier après l'avoir créé
+    } else {
+      debugLogger.printlnDebug(DebugLogger::ERROR, "Échec de l'ouverture de " + fullFilename + " pour l'écriture !");
+    }
   }
   if (!dataFile) {
-    Serial.println("Échec de l'ouverture de " + fullFilename +
-                   " pour l'écriture !");
+    debugLogger.printlnDebug(DebugLogger::ERROR, "Échec de l'ouverture de " + fullFilename +
+                             " pour l'écriture !");
   }
 }
 
@@ -69,9 +84,11 @@ void SDLogger::begin(const char *filename, CSVConfig config) {
  * @param switchState L'état du commutateur.
  * @param ampereHour La consommation en ampère-heure.
  */
-void SDLogger::logData(unsigned long time, int bat_nb, float volt,
-                       float current, bool switchState, float ampereHour) {
-  if (dataFile) {
+void SDLogger::logData(const char *time, int bat_nb, float volt, float current,
+                       bool switchState, float ampereHour) {
+  String fullFilename = String(filename) + ".csv";
+  dataFile = SD.open(fullFilename.c_str(), FILE_APPEND);
+  if (dataFile && volt > 1) { // Enregistrer uniquement les batteries connectées
     dataFile.print(time);
     dataFile.print(csvConfig.separator);
     dataFile.print(bat_nb);
@@ -84,8 +101,9 @@ void SDLogger::logData(unsigned long time, int bat_nb, float volt,
     dataFile.print(csvConfig.separator);
     dataFile.println(ampereHour);
     dataFile.flush();
+    //dataFile.close();
   } else {
-    Serial.println("Erreur d'écriture dans le fichier de log");
+    debugLogger.printlnDebug(DebugLogger::ERROR, "Erreur d'écriture dans le fichier de log");
   }
 }
 

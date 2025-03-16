@@ -107,7 +107,6 @@ Le fichier `main.cpp` est le point d'entrée principal du programme. Voici un ap
   - `reconnect_delay` : Délai de reconnexion de la batterie en ms.
   - `nb_switch_on` : Nombre de commutations avant déconnexion de la batterie.
   - `log_time` : Temps entre chaque enregistrement de log sur SD en secondes.
-  - `print_message` : Indicateur pour afficher les messages sur le moniteur série.
 
 - **Déclarations des instances** :
   - `INAHandler inaHandler` : Instance de la classe INAHandler pour gérer les appareils INA.

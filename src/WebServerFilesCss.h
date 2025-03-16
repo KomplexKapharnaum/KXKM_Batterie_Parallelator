@@ -1,3 +1,9 @@
+#ifndef WEBSERVERFILECSS_H
+#define WEBSERVERFILECSS_H
+
+#include <pgmspace.h>
+
+const char style_css[] PROGMEM = R"rawliteral(
 html {
   font-family: Arial, Helvetica, sans-serif;
   display: inline-block;
@@ -106,4 +112,6 @@ a {
 a:hover {
   text-decoration: underline; /* Ajouter une décoration au survol */
 }
+)rawliteral";
 
+#endif // WEBSERVERFILECSS_H

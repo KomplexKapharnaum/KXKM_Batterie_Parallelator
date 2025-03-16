@@ -24,8 +24,10 @@
 
 
 #include <WebServer.h>
+#include <WebSocketsServer.h> // Ajout de cette ligne pour déclarer WStype_t
+#include <ESPAsyncWebServer.h> // Ajouter cette ligne
 #include "Batt_Parallelator_lib.h"
-
+#include <DebugLogger.h> // Ajouter cette ligne
 
 /**
  * @class WebServerHandler
@@ -54,33 +56,36 @@ public:
      */
     void setVoltageOffset(float offset);
 
+    void onNotFound(std::function<void(AsyncWebServerRequest *)> fn); // Modifier cette ligne
+
+    void handleNotFound(AsyncWebServerRequest *request); // Modifier cette ligne
+
+    void handleWebSocket(AsyncWebServerRequest *request); // Modifier cette ligne
+
+    void onWebSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length); // Ajouter cette ligne
+
+    AsyncWebServer server; ///< Instance du serveur web. Modifier cette ligne
+
 private:
     /**
      * @brief Gérer la requête de la page d'accueil.
      */
-    void handleRoot();
+    void handleRoot(AsyncWebServerRequest *request); // Modifier cette ligne
 
     /**
      * @brief Gérer la requête pour allumer une batterie.
      */
-    void handleSwitchOn();
+    void handleSwitchOn(AsyncWebServerRequest *request); // Modifier cette ligne
 
     /**
      * @brief Gérer la requête pour éteindre une batterie.
      */
-    void handleSwitchOff();
+    void handleSwitchOff(AsyncWebServerRequest *request); // Modifier cette ligne
 
     /**
      * @brief Gérer la requête pour afficher le fichier de log.
      */
-    void handleLog();
-
-    /**
-     * @brief Gérer les requêtes WebSocket pour envoyer les valeurs automatiquement.
-     */
-    void handleWebSocket(); // Ajouter cette ligne
-
-    WebServer server; ///< Instance du serveur web.
+    void handleLog(AsyncWebServerRequest *request); // Modifier cette ligne
 };
 
 #endif // WEBSERVERHANDLER_H

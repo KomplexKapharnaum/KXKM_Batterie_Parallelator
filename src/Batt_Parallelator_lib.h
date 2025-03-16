@@ -24,12 +24,12 @@
 
 #include "INA_NRJ_lib.h"
 #include "TCA_NRJ_lib.h"
+#include <DebugLogger.h>
 #include <cfloat> 
 #include <cmath>
 
 extern TCAHandler tcaHandler;
 extern INAHandler inaHandler;
-extern const bool print_message; // Ajouter cette ligne
 
 class BatteryManager; // Ajouter cette ligne
 
@@ -122,6 +122,8 @@ public:
     float find_max_voltage(float *battery_voltages, int num_batteries);
     float find_min_voltage(float *battery_voltages, int num_batteries);
 
+    int detect_batteries(); // Ajouter cette ligne
+
 private:
     int max_voltage = 30000; // Seuil de surtension de la batterie en mV
     int min_voltage = 24000; // Seuil de sous-tension de la batterie en mV
@@ -149,8 +151,8 @@ struct AmpereHourTaskParams {
  */
 class BatteryManager {
 public:
-    int getMaxVoltageBattery();
-    int getMinVoltageBattery();
+    float getMaxVoltageBattery();
+    float getMinVoltageBattery();
     float getAverageVoltage();
     float getVoltageCurrentRatio(int batteryIndex);
     void startAmpereHourConsumptionTask(int batteryIndex, float durationHours, int numSamples);
