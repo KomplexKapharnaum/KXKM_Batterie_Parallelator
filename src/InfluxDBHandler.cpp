@@ -42,13 +42,13 @@ InfluxDBHandler::InfluxDBHandler(const char *serverUrl, const char *org,
 
 void InfluxDBHandler::begin() {
     if (WiFi.status() != WL_CONNECTED) {
-        debugLogger.printlnDebug(DebugLogger::WIFI, "WiFi not connected. Cannot connect to InfluxDB.");
+        debugLogger.println(DebugLogger::WIFI, "WiFi not connected. Cannot connect to InfluxDB.");
         return;
     }
     if (!client.validateConnection()) {
-        debugLogger.printlnDebug(DebugLogger::INFLUXDB, "InfluxDB connection failed: " + client.getLastErrorMessage());
+        debugLogger.println(DebugLogger::INFLUXDB, "InfluxDB connection failed: " + client.getLastErrorMessage());
     } else {
-        debugLogger.printlnDebug(DebugLogger::INFLUXDB, "Connected to InfluxDB");
+        debugLogger.println(DebugLogger::INFLUXDB, "Connected to InfluxDB");
     }
 }
 
@@ -56,12 +56,12 @@ void InfluxDBHandler::writeBatteryData(const char *measurement, int batteryId,
                                        float voltage, float current,
                                        float temperature) {
     if (WiFi.status() != WL_CONNECTED) {
-        debugLogger.printlnDebug(DebugLogger::WIFI, "WiFi not connected. Cannot write to InfluxDB.");
+        debugLogger.println(DebugLogger::WIFI, "WiFi not connected. Cannot write to InfluxDB.");
         storeData(measurement, ("battery=" + String(batteryId)).c_str(), ("voltage=" + String(voltage) + ",current=" + String(current) + ",temperature=" + String(temperature)).c_str());
         return;
     }
     if (!client.validateConnection()) {
-        debugLogger.printlnDebug(DebugLogger::INFLUXDB, "InfluxDB connection failed: " + client.getLastErrorMessage());
+        debugLogger.println(DebugLogger::INFLUXDB, "InfluxDB connection failed: " + client.getLastErrorMessage());
         storeData(measurement, ("battery=" + String(batteryId)).c_str(), ("voltage=" + String(voltage) + ",current=" + String(current) + ",temperature=" + String(temperature)).c_str());
         return;
     }
@@ -75,13 +75,13 @@ void InfluxDBHandler::writeBatteryData(const char *measurement, int batteryId,
     point.addField("temperature", temperature);
     if (!client.writePoint(point)) {
         String errorMessage = client.getLastErrorMessage();
-        debugLogger.printlnDebug(DebugLogger::INFLUXDB, "InfluxDB write failed: " + errorMessage);
+        debugLogger.println(DebugLogger::INFLUXDB, "InfluxDB write failed: " + errorMessage);
         if (errorMessage.indexOf("SSL - Internal error") != -1) {
-            debugLogger.printlnDebug(DebugLogger::INFLUXDB, "Attempting to re-establish connection...");
+            debugLogger.println(DebugLogger::INFLUXDB, "Attempting to re-establish connection...");
         }
         storeData(measurement, ("battery=" + String(batteryId)).c_str(), ("voltage=" + String(voltage) + ",current=" + String(current) + ",temperature=" + String(temperature)).c_str());
     } else {
-        debugLogger.printlnDebug(DebugLogger::INFLUXDB, "Data written to InfluxDB");
+        debugLogger.println(DebugLogger::INFLUXDB, "Data written to InfluxDB");
     }
 }
 
@@ -90,19 +90,19 @@ void InfluxDBHandler::storeData(const char *measurement, const char *tags,
     const String Filename = String("/influxdb_temp.txt");
 
     if (ESP.getFreeHeap() < 5000) {
-        debugLogger.printlnDebug(DebugLogger::ERROR, "Pas assez de mémoire pour initialiser SPIFFS !");
+        debugLogger.println(DebugLogger::ERROR, "Pas assez de mémoire pour initialiser SPIFFS !");
         return;
     }
 
     if (!SPIFFS.begin(true)) {
-        debugLogger.printlnDebug(DebugLogger::ERROR, "Échec de l'initialisation de SPIFFS !");
+        debugLogger.println(DebugLogger::ERROR, "Échec de l'initialisation de SPIFFS !");
         return;
     }
 
     if (!SPIFFS.exists(Filename.c_str())) {
         File file = SPIFFS.open(Filename.c_str(), FILE_WRITE);
         if (!file) {
-            debugLogger.printlnDebug(DebugLogger::INFLUXDB, "Failed to create file");
+            debugLogger.println(DebugLogger::INFLUXDB, "Failed to create file");
             return;
         }
         file.close();
@@ -116,41 +116,41 @@ void InfluxDBHandler::storeData(const char *measurement, const char *tags,
         file.print(",");
         file.println(fields);
         file.close();
-        debugLogger.printlnDebug(DebugLogger::INFLUXDB, "Data stored temporarily on SPIFFS");
+        debugLogger.println(DebugLogger::INFLUXDB, "Data stored temporarily on SPIFFS");
     } else {
-        debugLogger.printlnDebug(DebugLogger::INFLUXDB, "Failed to open file for writing");
+        debugLogger.println(DebugLogger::INFLUXDB, "Failed to open file for writing");
     }
 }
 
 void InfluxDBHandler::sendStoredData() {
     if (ESP.getFreeHeap() < 5000) {
-        debugLogger.printlnDebug(DebugLogger::ERROR, "Pas assez de mémoire pour initialiser SPIFFS !");
+        debugLogger.println(DebugLogger::ERROR, "Pas assez de mémoire pour initialiser SPIFFS !");
         return;
     }
 
     if (!SPIFFS.begin(true)) {
-        debugLogger.printlnDebug(DebugLogger::ERROR, "Échec de l'initialisation de SPIFFS !");
+        debugLogger.println(DebugLogger::ERROR, "Échec de l'initialisation de SPIFFS !");
         return;
     }
 
     if (WiFi.status() != WL_CONNECTED) {
-        debugLogger.printlnDebug(DebugLogger::WIFI, "WiFi not connected. Cannot send stored data to InfluxDB.");
+        debugLogger.println(DebugLogger::WIFI, "WiFi not connected. Cannot send stored data to InfluxDB.");
         return;
     }
     if (!client.validateConnection()) {
-        debugLogger.printlnDebug(DebugLogger::INFLUXDB, "InfluxDB connection failed: " + client.getLastErrorMessage());
+        debugLogger.println(DebugLogger::INFLUXDB, "InfluxDB connection failed: " + client.getLastErrorMessage());
         return;
     }
 
     const String Filename = String("/influxdb_temp.txt");
 
     if (!SPIFFS.begin(true)) {
-        debugLogger.printlnDebug(DebugLogger::ERROR, "Échec de l'initialisation de SPIFFS !");
+        debugLogger.println(DebugLogger::ERROR, "Échec de l'initialisation de SPIFFS !");
         return;
     }
 
     if (!SPIFFS.exists(Filename.c_str())) {
-        debugLogger.printlnDebug(DebugLogger::INFLUXDB, "No stored data to send");
+        debugLogger.println(DebugLogger::INFLUXDB, "No stored data to send");
         return;
     }
 
@@ -173,7 +173,7 @@ void InfluxDBHandler::sendStoredData() {
                 String field = fields.substring(fieldStart, fieldEnd);
                 int equalSign = field.indexOf('=');
                 if (equalSign == -1) {
-                    debugLogger.printlnDebug(DebugLogger::INFLUXDB, "Malformed field: " + field);
+                    debugLogger.println(DebugLogger::INFLUXDB, "Malformed field: " + field);
                     continue;
                 }
                 String fieldName = field.substring(0, equalSign);
@@ -186,7 +186,7 @@ void InfluxDBHandler::sendStoredData() {
             String field = fields.substring(fieldStart);
             int equalSign = field.indexOf('=');
             if (equalSign == -1) {
-                debugLogger.printlnDebug(DebugLogger::INFLUXDB, "Malformed field: " + field);
+                debugLogger.println(DebugLogger::INFLUXDB, "Malformed field: " + field);
             } else {
                 String fieldName = field.substring(0, equalSign);
                 String fieldValue = field.substring(equalSign + 1);
@@ -194,15 +194,15 @@ void InfluxDBHandler::sendStoredData() {
             }
 
             if (!client.writePoint(point)) {
-                debugLogger.printlnDebug(DebugLogger::INFLUXDB, "InfluxDB write failed: " + client.getLastErrorMessage());
+                debugLogger.println(DebugLogger::INFLUXDB, "InfluxDB write failed: " + client.getLastErrorMessage());
                 file.close();
                 return;
             }
         }
         file.close();
         SPIFFS.remove("/influxdb_temp.txt");
-        debugLogger.printlnDebug(DebugLogger::INFLUXDB, "Stored data sent to InfluxDB");
+        debugLogger.println(DebugLogger::INFLUXDB, "Stored data sent to InfluxDB");
     } else {
-        debugLogger.printlnDebug(DebugLogger::INFLUXDB, "Failed to open file for reading");
+        debugLogger.println(DebugLogger::INFLUXDB, "Failed to open file for reading");
     }
 }

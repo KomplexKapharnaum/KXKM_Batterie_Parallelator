@@ -48,7 +48,7 @@ void INAHandler::begin(const uint8_t amp, const uint16_t micro_ohm)
     while (deviceNumber == UINT8_MAX)
     {
         devicesFound = INA.begin(amp, micro_ohm); // TODO ajuster les valeurs pour votre application spécifique
-        debugLogger.printDebug(DebugLogger::INFO, "Trouvé " + String(devicesFound) + " appareils INA");
+        debugLogger.print(DebugLogger::INFO, "Trouvé " + String(devicesFound) + " appareils INA");
 
         for (uint8_t i = 0; i < devicesFound; i++)
         {
@@ -58,14 +58,14 @@ void INAHandler::begin(const uint8_t amp, const uint16_t micro_ohm)
                 INA_address_connected[Nb_INA - 1] = INA_ADDR[i];
                 deviceNumber = i;
 
-                debugLogger.printlnDebug(DebugLogger::INFO, "Trouvé INA_" + String(deviceNumber) + " à l'adresse " + String(INA_ADDR[i]) + " est connecté");
+                debugLogger.println(DebugLogger::INFO, "Trouvé INA_" + String(deviceNumber) + " à l'adresse " + String(INA_ADDR[i]) + " est connecté");
 
                 initialize_ina(deviceNumber);
             }
         }
         if (deviceNumber == UINT8_MAX && devicesFound == 0)
         {
-            debugLogger.printlnDebug(DebugLogger::WARNING, "Aucun appareil trouvé. Attente de 5s et nouvelle tentative...");
+            debugLogger.println(DebugLogger::WARNING, "Aucun appareil trouvé. Attente de 5s et nouvelle tentative...");
             delay(5000);
         }
     }
@@ -134,6 +134,7 @@ float INAHandler::read_current(const uint8_t deviceNumber)
  */
 float INAHandler::read_volt(const uint8_t deviceNumber)
 {
+    
     return ((float)INA.getBusMilliVolts(deviceNumber) / 1000);
 }
 

@@ -67,16 +67,16 @@ void WebServerHandler::begin() {
         request->send_P(200, "application/javascript", script_js);
       });
       server.onNotFound([](AsyncWebServerRequest *request) { // Corriger la déclaration de la fonction lambda
-        debugLogger.printlnDebug(DebugLogger::SPIFF,("File Not Found"));
+        debugLogger.println(DebugLogger::SPIFF,("File Not Found"));
         request->send(404, "text/plain", "File Not Found");
       });
       server.begin();
-      debugLogger.printlnDebug(DebugLogger::WEB,"HTTP server started");
+      debugLogger.println(DebugLogger::WEB,"HTTP server started");
       // Ajouter cette ligne pour envoyer les valeurs automatiquement via WebSocket
       webSocket.begin(); // Initialiser le serveur WebSocket
       webSocket.onEvent(std::bind(&WebServerHandler::onWebSocketEvent, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4)); // Ajouter cette ligne
     } else {
-      debugLogger.printlnDebug(DebugLogger::WIFI, "WiFi not connected, cannot start server");
+      debugLogger.println(DebugLogger::WIFI, "WiFi not connected, cannot start server");
     }
   } catch (const std::exception& e) {
     Serial.print("Exception caught in WebServerHandler::begin: ");
@@ -94,7 +94,7 @@ void WebServerHandler::handleClient() {
   } else {
     if (WiFi.status() != WL_CONNECTED) { // Vérifier si le serveur est en cours d'exécution
       webSocket.close(); // Fermer le WebSocket
-      debugLogger.printlnDebug(DebugLogger::WIFI, "WiFi disconnected, server stopped");
+      debugLogger.println(DebugLogger::WIFI, "WiFi disconnected, server stopped");
     }
   }
 }
@@ -178,7 +178,7 @@ void WebServerHandler::setVoltageOffset(float offset) {
  * @brief Gérer les requêtes WebSocket pour envoyer les valeurs automatiquement.
  */
 void WebServerHandler::handleWebSocket(AsyncWebServerRequest *request) {
-  debugLogger.printlnDebug(DebugLogger::INFO, "WebSocket request received");
+  debugLogger.println(DebugLogger::INFO, "WebSocket request received");
 
   // Utiliser ArduinoJson pour générer le JSON
   StaticJsonDocument<1024> doc;
@@ -195,13 +195,13 @@ void WebServerHandler::handleWebSocket(AsyncWebServerRequest *request) {
 
   String json;
   serializeJson(doc, json);
-  debugLogger.printlnDebug(DebugLogger::INFO, "Sending JSON data: " + json);
+  debugLogger.println(DebugLogger::INFO, "Sending JSON data: " + json);
   request->send(200, "application/json", json); // Utiliser request->send au lieu de server.send
 }
 
 void WebServerHandler::onWebSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length) {
   if (type == WStype_TEXT) {
-    debugLogger.printlnDebug(DebugLogger::INFO, "[" + String(num) + "] Received text: " + String((char*)payload));
+    debugLogger.println(DebugLogger::INFO, "[" + String(num) + "] Received text: " + String((char*)payload));
 
     // Utiliser ArduinoJson pour générer le JSON
     StaticJsonDocument<1024> doc;
@@ -218,7 +218,7 @@ void WebServerHandler::onWebSocketEvent(uint8_t num, WStype_t type, uint8_t *pay
 
     String json;
     serializeJson(doc, json);
-    debugLogger.printlnDebug(DebugLogger::INFO, "Sending JSON data: " + json);
+    debugLogger.println(DebugLogger::INFO, "Sending JSON data: " + json);
     webSocket.sendTXT(num, json); // Envoyer les données via WebSocket
   }
 }
@@ -228,7 +228,7 @@ void WebServerHandler::onWebSocketEvent(uint8_t num, WStype_t type, uint8_t *pay
  */
 void WebServerHandler::handleNotFound(AsyncWebServerRequest *request) {
   String message = "404: Not Found - " + request->url(); // Utiliser request->url() au lieu de server.url()
-  debugLogger.printlnDebug(DebugLogger::ERROR, message); // Utiliser DebugLogger pour le débogage
+  debugLogger.println(DebugLogger::ERROR, message); // Utiliser DebugLogger pour le débogage
   request->send(404, "text/plain", message); // Utiliser request->send au lieu de server.send
 }
 

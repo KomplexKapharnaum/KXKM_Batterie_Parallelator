@@ -39,7 +39,7 @@ TCAHandler::TCAHandler()
 
 void TCAHandler::initialize_tca(TCA9535 &tca, const char *name) {
   tca.begin();
-  debugLogger.printlnDebug(DebugLogger::INFO, String(name) + " est connecté");
+  debugLogger.println(DebugLogger::INFO, String(name) + " est connecté");
   for (int i = 0; i < 4; i++) {
     tca.pinMode1(i, OUTPUT);
     tca.write1(i, LOW);
@@ -89,7 +89,7 @@ void TCAHandler::begin() {
       }
     }
   }
-  debugLogger.printlnDebug(DebugLogger::INFO, "trouvé " + String(Nb_TCA) + " appareils");
+  debugLogger.println(DebugLogger::INFO, "trouvé " + String(Nb_TCA) + " appareils");
 }
 
 bool TCAHandler::read(int TCA_num, int pin) {
@@ -122,7 +122,7 @@ bool TCAHandler::read(int TCA_num, int pin) {
   default:
     return false;
   }
-  debugLogger.printDebug(DebugLogger::INFO, String(val) + '\t');
+//  debugLogger.print(DebugLogger::INFO, String(val) + '\t');
   return val;
 }
 
