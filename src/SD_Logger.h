@@ -23,6 +23,8 @@
 
 #include <SD.h>
 
+#define MAX_BATTERIES 16 // À ajuster selon votre besoin
+
 struct CSVConfig {
   char separator;
 };
@@ -30,6 +32,7 @@ struct CSVConfig {
 class SDLogger {
 public:
   SDLogger();
+  ~SDLogger(); // Ajout du destructeur
   /**
    * @brief Initialiser la carte SD et ouvrir le fichier de log.
    * @param filename Le nom du fichier de log.
@@ -38,17 +41,34 @@ public:
   void begin(const char *filename, CSVConfig config);
 
   /**
-   * @brief Enregistrer les données sur la carte SD.
+   * @brief Stocke les données d'une batterie pour un instant donné.
    *
    * @param time Le temps actuel.
    * @param bat_nb Le numéro de la batterie.
    * @param volt La tension.
    * @param current Le courant.
    * @param switchState L'état du commutateur.
-   * @param ampereHour La consommation en ampère-heure.
+   * @param ampereHourConsumption La consommation en ampère-heure (décharge).
+   * @param ampereHourCharge La charge en ampère-heure.
+   * @param totalConsumption La consommation totale en ampère-heure de toutes les batteries.
+   * @param totalCharge La charge totale en ampère-heure de toutes les batteries.
+   * @param totalCurrent Le courant total instantané de toutes les batteries.
    */
   void logData(const char *time, int bat_nb, float volt, float current,
-               bool switchState, float ampereHour);
+               bool switchState, float ampereHourConsumption, float ampereHourCharge,
+               float totalConsumption, float totalCharge, float totalCurrent);
+
+  /**
+   * @brief Écrit la ligne complète dans le fichier (à appeler après avoir loggé toutes les batteries).
+   */
+  void flushLine();
+
+  /**
+   * @brief À appeler au début pour définir le nombre de batteries.
+   *
+   * @param count Le nombre de batteries.
+   */
+  void setBatteryCount(int count);
 
   /**
    * @brief Vérifier s'il est temps d'enregistrer les données.
@@ -72,7 +92,23 @@ private:
   unsigned long lastLogTime = 0;
   int log_at_time = 10; // Temps entre chaque enregistrement en secondes
   CSVConfig csvConfig;  // Ajouter cette ligne
-  const char *filename; // Ajouter cette ligne
+  char *filename = nullptr; // Modifié pour être un pointeur modifiable
+  int findNextFileNumber(const char *baseFilename);
+  int batteryCount = 4; // Par défaut 4 batteries
+  struct BatteryData {
+    float volt;
+    float current;
+    bool switchState;
+    float ampereHourConsumption;
+    float ampereHourCharge;
+    bool valid;
+  };
+    float totalConsumption;
+    float totalCharge;
+    float totalCurrent;
+
+  BatteryData batteryBuffer[MAX_BATTERIES];
+  char lastTime[32]; // Pour stocker le timestamp courant
 };
 
 #endif // SDLOGGER_H

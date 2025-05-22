@@ -54,10 +54,10 @@ void WiFiHandler::begin() {
   }
   while (WiFi.status() != WL_CONNECTED) {
     vTaskDelay(1000);
-    debugLogger.printlnDebug(DebugLogger::WIFI,"Connecting to WiFi...");
+    debugLogger.println(DebugLogger::WIFI,"Connecting to WiFi...");
   }
-  debugLogger.printlnDebug(DebugLogger::WIFI,"=======================> Connected to WiFi");
-  debugLogger.printlnDebug(DebugLogger::WIFI,WiFi.localIP().toString());
+  debugLogger.println(DebugLogger::WIFI,"=======================> Connected to WiFi");
+  debugLogger.println(DebugLogger::WIFI,WiFi.localIP().toString());
 }
 
 WiFiHandler::WiFiHandler() {}
