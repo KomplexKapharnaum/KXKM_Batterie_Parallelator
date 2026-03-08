@@ -2,10 +2,14 @@
 
 Système de gestion de batteries en parallèle basé sur un ESP32 (Battery Management Unit — BMU). Ce firmware surveille, protège et pilote automatiquement jusqu'à 16 packs batterie connectés en parallèle.
 
+Développé par [**KompleX KapharnaüM**](https://komplex-kapharnaum.net) pour alimenter leurs installations de scénographie numérique en milieu urbain, sans accès au réseau électrique.
+
 ---
 
 ## Table des matières
 
+- [À propos de KompleX KapharnaüM](#à-propos-de-komplex-kapharnaüm)
+- [Contexte du projet](#contexte-du-projet)
 - [Présentation](#présentation)
 - [Matériel requis](#matériel-requis)
 - [Architecture du système](#architecture-du-système)
@@ -17,6 +21,37 @@ Système de gestion de batteries en parallèle basé sur un ESP32 (Battery Manag
 - [Comportement des LEDs](#comportement-des-leds)
 - [Bibliothèques utilisées](#bibliothèques-utilisées)
 - [Licence](#licence)
+
+---
+
+## À propos de KompleX KapharnaüM
+
+[KompleX KapharnaüM](https://komplex-kapharnaum.net) (KXKM) est une compagnie artistique basée à **Villeurbanne** (agglomération de Lyon), active depuis plus de 20 ans dans le **spectacle vivant**, les **arts de la rue** et la **création numérique**.
+
+La compagnie réunit une cinquantaine d'artistes — vidéastes, musiciens, graphistes, plasticiens, concepteurs — autour de créations déambulatoires immersives qui investissent l'espace public : rues, places, quartiers, friches urbaines. Leurs œuvres mêlent projections vidéo, dispositifs sonores, performances et interactivité pour faire dialoguer fiction, patrimoine urbain et habitants.
+
+Quelques créations emblématiques :
+- *Hide & See (K)* — portrait déambulatoire et intime d'un quartier à travers les regards croisés de ses habitants
+- *Continent* — forme urbaine performative et musicale inspirée de textes contemporains
+- *Contacts (carnaval digital)* — carnaval urbain réinventé par le numérique, mêlant foule et projections interactives
+- *Le Très Grand Film* — documentaire participatif à grande échelle, tourné dans différents territoires
+
+Sur le plan technique, KXKM développe sa propre plateforme matérielle embarquée — la carte **K32** basée sur un ESP32 — et maintient un écosystème de firmware et de bibliothèques open source sur [GitHub](https://github.com/KomplexKapharnaum).
+
+---
+
+## Contexte du projet
+
+Les installations de KompleX KapharnaüM se déploient souvent **hors réseau électrique** (espaces publics, friches, quartiers sans prises de courant). Pour alimenter leurs dispositifs de scénographie numérique (éclairage LED, projection, son, contrôle), la compagnie utilise plusieurs **packs batterie en parallèle**.
+
+Le **KXKM Batterie Parallelator** répond à ce besoin :
+
+- **Mise en parallèle sécurisée** de plusieurs batteries de différents états de charge
+- **Protection individuelle** de chaque batterie (sur/sous-tension, sur-courant, déséquilibre)
+- **Reconnexion automatique** des batteries après résolution d'un défaut
+- **Supervision visuelle** par LED pour les techniciens sur le terrain
+
+Ce projet s'inscrit dans l'écosystème K32 de KXKM, aux côtés d'autres outils embarqués développés pour la régie technique de leurs spectacles.
 
 ---
 
@@ -264,4 +299,4 @@ Ce projet est distribué sous licence **GNU General Public License v3.0** — vo
 
 ---
 
-*Projet développé par [KomplexKapharnaum](https://github.com/KomplexKapharnaum).*
+*Projet développé par [KompleX KapharnaüM](https://komplex-kapharnaum.net) — compagnie de spectacle vivant et d'arts numériques, Villeurbanne. · [GitHub](https://github.com/KomplexKapharnaum)*
