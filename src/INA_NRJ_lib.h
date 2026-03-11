@@ -58,8 +58,8 @@ private:
     portMUX_TYPE mux;                                                                                                          ///< Variable de synchronisation
     byte INA_address_connected[8];                                                                                             // Adresse INA connectée
     uint8_t Nb_INA;                                                                                                            // Nombre d'INA connectés
-    int max_voltage = 30000;                                                                                                   // Seuil de sous-tension de la batterie en mV;
-    int min_voltage = 24000;                                                                                                   // Seuil de surtension de la batterie en mV
+    int max_voltage = 30000;                                                                                                   // Seuil de surtension de la batterie en mV (overvoltage)
+    int min_voltage = 24000;                                                                                                   // Seuil de sous-tension de la batterie en mV (undervoltage)
     int max_current = 1000;                                                                                                    // Seuil de surintensité de la batterie en mA
     int max_charge_current = 1000;                                                                                             // Seuil de courant de charge de la batterie en mA
     int I2C_Speed = 100; // Vitesse I2C en KHz

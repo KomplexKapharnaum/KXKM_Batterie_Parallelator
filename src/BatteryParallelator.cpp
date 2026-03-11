@@ -146,8 +146,8 @@ void BATTParallelator::switch_off_battery(int INA_num) {
                                                " on TCA " + String(TCA_num) +
                                                " OUT " + String(OUT_num));
   tcaHandler.write(TCA_num, OUT_num, 0);     // switch off the battery
-  tcaHandler.write(TCA_num, OUT_num + 8, 1); // set red led on
-  tcaHandler.write(TCA_num, OUT_num + 9, 0); // set green led off
+  tcaHandler.write(TCA_num, OUT_num * 2 + 8, 1); // set red led on
+  tcaHandler.write(TCA_num, OUT_num * 2 + 9, 0); // set green led off
   delay(50); // wait for the battery to switch off
 }
 
@@ -289,6 +289,7 @@ void BATTParallelator::check_battery_connected_status(int INA_num) {
     debugLogger.println(DebugLogger::BATTERY,
                         "Battery " + String(INA_num + 1) + " is disconnected.");
     switch_battery(INA_num, 0); // Eteindre la batterie
+    break;
 
   case ERROR:
     debugLogger.println(DebugLogger::BATTERY,
@@ -327,6 +328,8 @@ bool BATTParallelator::compare_voltage(float voltage, float voltage_max,
  * @return Tension maximale.
  */
 float BATTParallelator::find_max_voltage(float *battery_voltages, int Nb_Batt) {
+  if (Nb_Batt <= 0) return 0.0f;
+  max_voltage = battery_voltages[0];
   for (int i = 1; i < Nb_Batt; i++) {
     if (battery_voltages[i] > max_voltage) {
       max_voltage = battery_voltages[i];
@@ -343,8 +346,9 @@ float BATTParallelator::find_max_voltage(float *battery_voltages, int Nb_Batt) {
  */
 float BATTParallelator::find_min_voltage(float *battery_voltages,
                                          int num_batteries) {
-  float min_voltage = battery_voltages[num_batteries];
-  for (int i = 1; i < inaHandler.getNbINA(); i++) {
+  if (num_batteries <= 0) return 0.0f;
+  float min_voltage = battery_voltages[0];
+  for (int i = 1; i < num_batteries; i++) {
     if (battery_voltages[i] < min_voltage && battery_voltages[i] > 1) {
       min_voltage = battery_voltages[i];
     }
