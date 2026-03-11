@@ -99,7 +99,7 @@ void INAHandler::initialize_ina(const uint8_t deviceNumber)
  */
 void INAHandler::read(const uint8_t deviceNumber)
 {
-    float amps = ((float)INA.getBusMicroAmps(deviceNumber) / 100000);
+    float amps = ((float)INA.getBusMicroAmps(deviceNumber) / 1000000);
     float volts = ((float)INA.getBusMilliVolts(deviceNumber) / 1000);
     float power = ((float)volts * (float)amps);
     float power_read = ((float)INA.getBusMicroWatts(deviceNumber) / 1000);
@@ -129,7 +129,7 @@ float INAHandler::read_current(const uint8_t deviceNumber)
 {
     I2CLockGuard lock;
     if (!lock.isAcquired()) return 0.0f;
-    return ((float)INA.getBusMicroAmps(deviceNumber) / 100000);
+    return ((float)INA.getBusMicroAmps(deviceNumber) / 1000000);
 }
 
 /**
@@ -154,7 +154,7 @@ float INAHandler::read_power(const uint8_t deviceNumber)
     I2CLockGuard lock;
     if (!lock.isAcquired()) return 0.0f;
     float volts = ((float)INA.getBusMilliVolts(deviceNumber) / 1000);
-    float amps = ((float)INA.getBusMicroAmps(deviceNumber) / 100000);
+    float amps = ((float)INA.getBusMicroAmps(deviceNumber) / 1000000);
     return (volts * amps);
 }
 

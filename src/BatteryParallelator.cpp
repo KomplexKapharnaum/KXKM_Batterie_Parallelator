@@ -165,6 +165,7 @@ void BATTParallelator::switch_on_battery(int INA_num) {
   tcaHandler.write(TCA_num, OUT_num, 1);         // switch on the battery
   tcaHandler.write(TCA_num, OUT_num * 2 + 8, 0); // set red led off
   tcaHandler.write(TCA_num, OUT_num * 2 + 9, 1); // set green led on
+  vTaskDelay(pdMS_TO_TICKS(100)); // MOSFET dead-time protection
 }
 
 /**
