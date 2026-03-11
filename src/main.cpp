@@ -166,7 +166,7 @@ void I2C_scanner() { // Trouver tous les appareils I2C
   byte count = 0;
   for (byte i = 8; i < 120; i++) {
     Wire.beginTransmission(i);
-    delay(50);
+    delay(1);
     if (Wire.endTransmission() == 0) {
       debugLogger.print(DebugLogger::I2C, "Adresse trouvée : ");
       debugLogger.print(DebugLogger::I2C, String(i, DEC));
