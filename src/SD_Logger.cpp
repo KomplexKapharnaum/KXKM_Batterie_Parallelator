@@ -298,7 +298,7 @@ String SDLogger::getCurrentTime(const char* logFileBase) {
       const char *compileTime = __TIME__;
       char month[4];
       int day, year, hour, minute, second;
-      sscanf(compileDate, "%s %d %d", month, &day, &year);
+      sscanf(compileDate, "%3s %d %d", month, &day, &year);
       sscanf(compileTime, "%d:%d:%d", &hour, &minute, &second);
       const char *months[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
                               "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
