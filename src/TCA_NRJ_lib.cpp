@@ -57,7 +57,7 @@ void TCAHandler::initialize_tca(TCA9535 &tca, const char *name) {
 void TCAHandler::begin() {
   for (int i = 0; i < 8; i++) {
     Wire.beginTransmission(TCA_address[i]);
-    delay(50);
+    delay(1);
     if (Wire.endTransmission() == 0) {
       Nb_TCA++;
       TCA_address_connected[Nb_TCA - 1] = TCA_address[i];
@@ -165,15 +165,5 @@ bool TCAHandler::write(int TCA_num, int pin, bool value) {
 byte TCAHandler::getDeviceAddress(int TCA_num) { return TCA_address[TCA_num]; }
 
 uint8_t TCAHandler::getNbTCA() {
-  I2CLockGuard lock;
-  if (!lock.isAcquired()) return 0;
-  uint8_t Nb_TCA = 0;
-  for (int i = 0; i < 8; i++) {
-    Wire.beginTransmission(TCA_address[i]);
-    delay(50);
-    if (Wire.endTransmission() == 0) {
-      Nb_TCA++;
-    }
-  }
-  return Nb_TCA;
+  return Nb_TCA; // Return cached count from begin()
 }
