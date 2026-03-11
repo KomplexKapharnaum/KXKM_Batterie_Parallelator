@@ -154,8 +154,8 @@ float INAHandler::read_power(const uint8_t deviceNumber)
     I2CLockGuard lock;
     if (!lock.isAcquired()) return 0.0f;
     float volts = ((float)INA.getBusMilliVolts(deviceNumber) / 1000);
-    float amps = ((float)INA.getBusMicroAmps(deviceNumber) / 10000);
-    return ((float)volts * (float)amps);
+    float amps = ((float)INA.getBusMicroAmps(deviceNumber) / 100000);
+    return (volts * amps);
 }
 
 /**
