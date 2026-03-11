@@ -87,6 +87,10 @@ out/
 # End of https://www.gitignore.io/api/kicad,linux
 
 .pio/
+# Credentials
+**/credentials.h
+!**/credentials.h.example
+
 # KiCad backup archives (all locations)
 *-backups/
 **/jlcpcb/production_files/*.zip
