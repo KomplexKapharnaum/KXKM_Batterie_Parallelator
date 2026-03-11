@@ -85,6 +85,7 @@ public:
   void setLogTime(int time);
 
   char getSeparator() const { return csvConfig.separator; }
+  String getCurrentTime(const char* logFileBase); // Modifié pour prendre un argument
 
 private:
   const int chipSelect = 21; // Pin de sélection de la carte SD
@@ -94,7 +95,7 @@ private:
   CSVConfig csvConfig;  // Ajouter cette ligne
   char *filename = nullptr; // Modifié pour être un pointeur modifiable
   int findNextFileNumber(const char *baseFilename);
-  int batteryCount = 4; // Par défaut 4 batteries
+  int batteryCount = 16; // Par défaut 4 batteries
   struct BatteryData {
     float volt;
     float current;
@@ -109,6 +110,7 @@ private:
 
   BatteryData batteryBuffer[MAX_BATTERIES];
   char lastTime[32]; // Pour stocker le timestamp courant
+  time_t getLastLogTimeFromSD(const char* logFileBase); // Ajouté
 };
 
 #endif // SDLOGGER_H

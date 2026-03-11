@@ -148,7 +148,7 @@ void BATTParallelator::switch_off_battery(int INA_num) {
   tcaHandler.write(TCA_num, OUT_num, 0);     // switch off the battery
   tcaHandler.write(TCA_num, OUT_num * 2 + 8, 1); // set red led on
   tcaHandler.write(TCA_num, OUT_num * 2 + 9, 0); // set green led off
-  delay(50); // wait for the battery to switch off
+  vTaskDelay(pdMS_TO_TICKS(50)); // wait for the battery to switch off
 }
 
 /**

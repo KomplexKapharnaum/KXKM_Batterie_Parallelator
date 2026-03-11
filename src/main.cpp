@@ -86,6 +86,7 @@ const int log_time =
 // const char *logFileBase = "datalog_k-led1";
 
 #include "BatteryParallelator.h"
+#include "I2CMutex.h"
 #include "SD_Logger.h"
 #include "WiFiHandler.h"
 #include "pin_mapppings.h"
@@ -93,6 +94,9 @@ const int log_time =
 #include <DebugLogger.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+
+// Global I2C mutex — serializes all Wire transactions across tasks
+SemaphoreHandle_t i2cMutex = NULL;
 
 // const char *ssid = "kxkm5";
 // const char *password = "";
@@ -339,9 +343,9 @@ void debugBatteryTable() {
     int outNum = (inaHandler.getDeviceAddress(i) - 64) % 4;
     total_current += current;
     // Lire les états des E/S TCA
-    int switchState = tcaHandler.read(tcaNum, outNum);       // set pin N° 0
-    int ledRedState = tcaHandler.read(tcaNum, outNum + 8);   // set pin N° 8
-    int ledGreenState = tcaHandler.read(tcaNum, outNum + 9); // set pin N° 9
+    int switchState = tcaHandler.read(tcaNum, outNum);           // switch pin
+    int ledRedState = tcaHandler.read(tcaNum, outNum * 2 + 8);   // red LED pin
+    int ledGreenState = tcaHandler.read(tcaNum, outNum * 2 + 9); // green LED pin
 
     // Analyse des messages
     String analysis = "";
@@ -435,6 +439,7 @@ void checkBatteryTask(void *pvParameters) {
  * @brief Configuration initiale du programme.
  */
 void setup() {
+  i2cMutexInit(); // Must be before any I2C or task operations
   Wire.begin(SDA_pin, SCL_pin); // sda= GPIO_32 /scl= GPIO_33
   // Wire.setClock(I2C_Speed * 1000); // définir I2C
 
@@ -538,10 +543,6 @@ void setup() {
   // Créer une tâche pour enregistrer les données sur la carte SD
   xTaskCreatePinnedToCore(logDataTask, "LogDataTask", 8192, NULL, 0, NULL, 1);
 #endif
-sdLogger.setBatteryCount(Nb_Batt); // Définir le nombre de batteries
-debugLogger.print(DebugLogger::SD, "Nombre de batteries : ");
-debugLogger.println(DebugLogger::SD, String(Nb_Batt));
-
   // Créer une tâche pour vérifier la tension des batteries
   xTaskCreatePinnedToCore(checkBatteryTask, "checkBatteryTask", 4096, NULL, 0,
                           NULL, 1);
