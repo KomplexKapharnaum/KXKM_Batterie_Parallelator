@@ -73,7 +73,7 @@ void INAHandler::begin(const uint8_t amp, const uint16_t micro_ohm)
     INA.setAveraging(64);                  // Moyenne chaque lecture 64 fois
     INA.setBusConversion(8244);            // Temps de conversion maximum 8.244ms
     INA.setShuntConversion(8244);          // Temps de conversion maximum 8.244ms
-    INA.setI2CSpeed(I2C_Speed * 10000);    // Définir la vitesse I2C
+    INA.setI2CSpeed(I2C_Speed * 1000);     // Définir la vitesse I2C (100kHz)
     INA.setMode(INA_MODE_CONTINUOUS_BOTH); // Mesure continue bus/shunt
 }
 
@@ -84,10 +84,12 @@ void INAHandler::begin(const uint8_t amp, const uint16_t micro_ohm)
 void INAHandler::initialize_ina(const uint8_t deviceNumber)
 {
     INA.reset(deviceNumber);                                            // Réinitialiser l'appareil aux paramètres par défaut
-    const int shunt_overvoltage = max_current * 2;                      // Tension de shunt en mV
-    INA.alertOnShuntOverVoltage(true, shunt_overvoltage, deviceNumber); // Alerte sur surtension de shunt
-    INA.alertOnBusUnderVoltage(true, min_voltage / 1000, deviceNumber); // Alerte sur sous-tension de bus
-    INA.alertOnBusOverVoltage(true, max_voltage / 1000, deviceNumber);  // Alerte sur surtension de bus
+    // Shunt overvoltage: max_current(mA) * shunt_resistance(2mOhm) / 1000 = mV
+    // 2x safety margin for transients
+    const int shunt_overvoltage_mV = (max_current * 2 * 2) / 1000;     // e.g. 1000mA * 2mOhm * 2x = 4mV
+    INA.alertOnShuntOverVoltage(true, shunt_overvoltage_mV, deviceNumber);
+    INA.alertOnBusUnderVoltage(true, min_voltage, deviceNumber);        // min_voltage already in mV (24000)
+    INA.alertOnBusOverVoltage(true, max_voltage, deviceNumber);         // max_voltage already in mV (30000)
 }
 
 /**
