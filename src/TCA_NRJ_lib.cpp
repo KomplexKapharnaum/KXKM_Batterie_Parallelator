@@ -19,6 +19,7 @@
  */
 
 #include "TCA_NRJ_lib.h"
+#include "I2CMutex.h"
 #include <DebugLogger.h>
 
 // Assurez-vous que `debugLogger` est déclaré et initialisé correctement
@@ -93,6 +94,8 @@ void TCAHandler::begin() {
 }
 
 bool TCAHandler::read(int TCA_num, int pin) {
+  I2CLockGuard lock;
+  if (!lock.isAcquired()) return false;
   bool val;
   switch (TCA_num) {
   case 0:
@@ -122,11 +125,12 @@ bool TCAHandler::read(int TCA_num, int pin) {
   default:
     return false;
   }
-//  debugLogger.print(DebugLogger::INFO, String(val) + '\t');
   return val;
 }
 
 bool TCAHandler::write(int TCA_num, int pin, bool value) {
+  I2CLockGuard lock;
+  if (!lock.isAcquired()) return false;
   switch (TCA_num) {
   case 0:
     TCA_0.write1(pin, value);
@@ -161,6 +165,8 @@ bool TCAHandler::write(int TCA_num, int pin, bool value) {
 byte TCAHandler::getDeviceAddress(int TCA_num) { return TCA_address[TCA_num]; }
 
 uint8_t TCAHandler::getNbTCA() {
+  I2CLockGuard lock;
+  if (!lock.isAcquired()) return 0;
   uint8_t Nb_TCA = 0;
   for (int i = 0; i < 8; i++) {
     Wire.beginTransmission(TCA_address[i]);
