@@ -52,9 +52,16 @@ void WiFiHandler::begin() {
   } else {
     WiFi.begin(ssid);
   }
-  while (WiFi.status() != WL_CONNECTED) {
-    vTaskDelay(1000);
+  constexpr int kWifiTimeoutMs = 30000;
+  int elapsed = 0;
+  while (WiFi.status() != WL_CONNECTED && elapsed < kWifiTimeoutMs) {
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    elapsed += 1000;
     debugLogger.println(DebugLogger::WIFI,"Connecting to WiFi...");
+  }
+  if (WiFi.status() != WL_CONNECTED) {
+    debugLogger.println(DebugLogger::WIFI,"WiFi connection timeout after 30s");
+    return;
   }
   debugLogger.println(DebugLogger::WIFI,"=======================> Connected to WiFi");
   debugLogger.println(DebugLogger::WIFI,WiFi.localIP().toString());
@@ -64,9 +71,16 @@ WiFiHandler::WiFiHandler() {}
 
 void WiFiHandler::begin(const char* ssid, const char* password) {
     WiFi.begin(ssid, password);
-    while (WiFi.status() != WL_CONNECTED) {
+    constexpr int kWifiTimeoutMs = 30000;
+    int elapsed = 0;
+    while (WiFi.status() != WL_CONNECTED && elapsed < kWifiTimeoutMs) {
         delay(1000);
+        elapsed += 1000;
         Serial.println("Connecting to WiFi...");
+    }
+    if (WiFi.status() != WL_CONNECTED) {
+        Serial.println("WiFi connection timeout");
+        return;
     }
     Serial.println("Connected to WiFi");
 }
