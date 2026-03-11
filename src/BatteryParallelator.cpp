@@ -244,8 +244,10 @@ void BATTParallelator::check_battery_connected_status(int INA_num) {
   BatteryState state;
 
   // Vérifier l'état de la batterie
+  // mem_set_max_current is in mA, current is in A — convert for comparison
+  const float overcurrent_limit_A = (2.0f * mem_set_max_current) / 1000.0f;
   if (voltage < 0 ||
-      current > 2 * mem_set_max_current) { // Conditions critiques
+      current > overcurrent_limit_A) { // Conditions critiques
     state = ERROR;
   } else if (voltage < 1) {
     state = DISCONNECTED;
@@ -406,8 +408,9 @@ bool BATTParallelator::is_voltage_within_range(float voltage) {
  * @return true si le courant est dans les limites, false sinon.
  */
 bool BATTParallelator::is_current_within_range(float current) {
-  if (abs(current) > mem_set_max_current ||
-      current < -mem_set_max_charge_current) {
+  // mem_set_max_current/charge are in mA, current is in A — convert
+  if (abs(current) > mem_set_max_current / 1000.0f ||
+      current < -(mem_set_max_charge_current / 1000.0f)) {
     debugLogger.println(DebugLogger::BATTERY,
                         "Current out of range: " + String(current));
     return false;
@@ -422,9 +425,10 @@ bool BATTParallelator::is_current_within_range(float current) {
  * @return true si les différences sont acceptables, false sinon.
  */
 bool BATTParallelator::is_difference_acceptable(float voltage, float current) {
+  // mem_set_current_diff is in mA, current is in A — convert
   return !(
       compare_voltage(voltage, mem_set_max_voltage, mem_set_voltage_diff) ||
-      abs(current) > mem_set_current_diff);
+      abs(current) > mem_set_current_diff / 1000.0f);
 }
 
 /**
