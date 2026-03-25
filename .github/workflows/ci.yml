@@ -33,6 +33,5 @@ jobs:
 
       - name: Run Unity tests (native)
         run: pio test -e native
-
-      - name: Build ESP32 firmware
-        run: pio run -e kxkm-v3-16MB
+      # Build ESP32 non inclus en CI : dépendances locales (K32-lib) + libs Arduino-ESP32 3.x
+      # Valider localement avec : pio run -e kxkm-v3-16MB
