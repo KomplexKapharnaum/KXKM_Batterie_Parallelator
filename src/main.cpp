@@ -1,16 +1,8 @@
-#define I2C_Speed 50                // I2C speed in KHz
-#define alert_bat_min_voltage 24000 // Battery undervoltage threshold in mV
-#define alert_bat_max_voltage 30000 // Battery overvoltage threshold in mV
-#define alert_bat_max_current 1     // Battery overcurrent threshold in A
+#include "config.h"   // Tous les seuils et paramètres — à modifier ici uniquement
 
 bool print_message = true;
 
 long reconnect_time[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-
-
-const int reconnect_delay = 10000;
-const int voltage_diff =1;
-const int current_diff =1;
 
 int TCA_num = 0;
 int OUT_num = 0;
