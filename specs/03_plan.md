@@ -37,6 +37,10 @@
 
 ## S3 — Validation terrain
 
+- [x] Simulation logique S3 (`test/test_s3_sim/sim_s3.cpp`) — 3 scénarios ✅ 2026-03-25
+  - S3-A : déséquilibre 25V/27V → coupure BAT2 (sw inchangé) → reconnexion dès remontée
+  - S3-B : sous-tension 22V → coupure → reconnexion immédiate (nb_switch < 5)
+  - S3-C : 5 coupures → temporisation 10s → 6e coupure → verrouillage permanent
 - [ ] Test avec 2 batteries réelles (vérification coupure sur déséquilibre)
 - [ ] Test reconnexion automatique
 - [ ] Test verrouillage permanent
