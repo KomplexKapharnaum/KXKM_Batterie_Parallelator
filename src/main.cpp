@@ -184,7 +184,8 @@ void loop()
         check_switch[i] = 1;
       }
     
-      battery_voltage_max=(battery_voltage, Nb_INA);
+      float bv_tmp[16]; for (int j = 0; j < Nb_INA; j++) bv_tmp[j] = (float)battery_voltage[j];
+      battery_voltage_max = (int)find_max_voltage(bv_tmp, Nb_INA);
       if (compare_voltage(battery_voltage[i],battery_voltage_max, voltage_diff)==true ){
         Serial.println("Voltage batterie "+ String(i)+ "is different");
         check_switch[i] = 1;
