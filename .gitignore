@@ -94,3 +94,6 @@ out/
 # KiCad backup archives (all locations)
 *-backups/
 **/jlcpcb/production_files/*.zip
+data/
+models/*.pt
+models/*.onnx
