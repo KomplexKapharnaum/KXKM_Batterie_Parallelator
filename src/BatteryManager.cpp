@@ -25,6 +25,9 @@
 #include <DebugLogger.h>
 #include "INA_NRJ_lib.h" // Inclure le fichier où inaHandler est déclaré
 #include "BatteryParallelator.h" // Inclure l'en-tête où AmpereHourTaskParams est défini
+#include <cmath>
+#include <cstdio>
+#include <new>
 
 // Assurez-vous que `debugLogger` est déclaré et initialisé correctement
 extern DebugLogger debugLogger;
@@ -34,8 +37,9 @@ float BatteryManager::getMaxVoltageBattery() {
     maxVoltage = 0; // Réinitialiser la tension maximale
     int maxVoltageBattery = -1;
     for (int i = 0; i < inaHandler.getNbINA(); i++) {
-        
+
         float voltage = inaHandler.read_volt(i);
+        if (std::isnan(voltage)) continue; // Skip I2C errors
         if (voltage > maxVoltage) {
             maxVoltage = voltage;
             maxVoltageBattery = i;
@@ -50,6 +54,7 @@ float BatteryManager::getMinVoltageBattery() {
     int minVoltageBattery = -1;
     for (int i = 0; i < inaHandler.getNbINA(); i++) {
         float voltage = inaHandler.read_volt(i);
+        if (std::isnan(voltage)) continue; // Skip I2C errors
         if (voltage < minVoltage && voltage > 1) {
             minVoltage = voltage;
             minVoltageBattery = i;
@@ -64,6 +69,7 @@ float BatteryManager::getAverageVoltage() {
     int numBatteries = 0;
     for (int i = 0; i < inaHandler.getNbINA(); i++) {
         float voltage = inaHandler.read_volt(i);
+        if (std::isnan(voltage)) continue; // Skip I2C errors
         if (voltage > 1) {
             totalVoltage += voltage;
             numBatteries++;
@@ -76,6 +82,7 @@ float BatteryManager::getMaxVoltage() {
     maxVoltage = 0; // Réinitialiser la tension maximale
     for (int i = 0; i < inaHandler.getNbINA(); i++) {
         float voltage = inaHandler.read_volt(i);
+        if (std::isnan(voltage)) continue; // Skip I2C errors
         if (voltage > maxVoltage) {
             maxVoltage = voltage;
         }
@@ -89,6 +96,7 @@ float BatteryManager::getMinVoltage() {
     int batteryIndex = -1;
     for (int i = 0; i < inaHandler.getNbINA(); i++) {
         float voltage = inaHandler.read_volt(i);
+        if (std::isnan(voltage)) continue; // Skip I2C errors
         if (voltage < minVoltage && voltage > 1) {
             minVoltage = voltage;
             batteryIndex = i;
@@ -107,70 +115,104 @@ float BatteryManager::getMinVoltage() {
 float BatteryManager::getVoltageCurrentRatio(int batteryIndex) {
     float voltage = inaHandler.read_volt(batteryIndex);
     float current = inaHandler.read_current(batteryIndex);
+    if (std::isnan(voltage) || std::isnan(current)) return 0; // Skip I2C errors
     return current != 0 ? voltage / current : 0; // Éviter la division par zéro
 }
 
 void BatteryManager::startAmpereHourConsumptionTask(int batteryIndex, float durationHours, int numSamples) {
-    AmpereHourTaskParams* params = new AmpereHourTaskParams{batteryIndex, durationHours, numSamples, this}; // Passer this comme manager
-    ampereHourTaskRunning[batteryIndex] = true; // Marquer la tâche comme en cours
-    xTaskCreate(ampereHourConsumptionTask, "AmpereHourConsumptionTask", 8192, params, 1, NULL);
+    if (batteryIndex < 0 || batteryIndex >= 16) {
+        debugLogger.println(DebugLogger::WARNING, "startAmpereHourConsumptionTask: battery index invalide");
+        return;
+    }
+    if (durationHours <= 0.0f || numSamples <= 0) {
+        debugLogger.println(DebugLogger::WARNING, "startAmpereHourConsumptionTask: parametres invalides");
+        return;
+    }
+    if (ampereHourTaskRunning[batteryIndex] && ampereHourTaskHandles[batteryIndex] != nullptr) {
+        debugLogger.println(DebugLogger::INFO, "AmpereHour task deja active pour batterie " + String(batteryIndex));
+        return;
+    }
+
+    AmpereHourTaskParams* params =
+        new (std::nothrow) AmpereHourTaskParams{batteryIndex, durationHours, numSamples, this};
+    if (params == nullptr) {
+        debugLogger.println(DebugLogger::ERROR, "startAmpereHourConsumptionTask: allocation params impossible");
+        return;
+    }
+
+    char taskName[32];
+    snprintf(taskName, sizeof(taskName), "AhTask_%d", batteryIndex);
+    TaskHandle_t handle = nullptr;
+    const BaseType_t created = xTaskCreate(ampereHourConsumptionTask, taskName, 4096, params, 1, &handle);
+    if (created != pdPASS) {
+        delete params;
+        debugLogger.println(DebugLogger::ERROR, "startAmpereHourConsumptionTask: echec creation task");
+        return;
+    }
+
+    ampereHourTaskHandles[batteryIndex] = handle;
+    ampereHourTaskRunning[batteryIndex] = true;
 }
 
 void BatteryManager::ampereHourConsumptionTask(void* pvParameters) {
     AmpereHourTaskParams* params = static_cast<AmpereHourTaskParams*>(pvParameters);
-    int batteryIndex = params->batteryIndex;
-    float durationHours = params->durationHours;
-    int numSamples = params->numSamples;
+    const int batteryIndex = params->batteryIndex;
+    const float durationHours = params->durationHours;
+    const int numSamples = params->numSamples;
     BatteryManager* manager = static_cast<BatteryManager*>(params->manager);
-
-    // On peut libérer la mémoire des paramètres une fois qu'ils sont extraits
     delete params;
 
-    float totalDischarge = 0;  // Courant positif (décharge)
-    float totalCharge = 0;     // Courant négatif (charge)
-    int dischargeCount = 0;    // Nombre d'échantillons de décharge
-    int chargeCount = 0;       // Nombre d'échantillons de charge
-    
-    float sampleInterval = (durationHours * 3600000) / numSamples; // Convertir les heures en millisecondes
-    unsigned long startTime = millis();
+    if (manager == nullptr || batteryIndex < 0 || batteryIndex >= 16 || durationHours <= 0.0f || numSamples <= 0) {
+        vTaskDelete(nullptr);
+        return;
+    }
+
+    float totalDischarge = manager->ampereHourConsumptions[batteryIndex];
+    float totalCharge = manager->ampereHourCharges[batteryIndex];
     int sampleCount = 0;
-    
-    // Fonctionnement en continu - boucle infinie
-    while (true) {
+
+    const float sampleIntervalMsFloat = (durationHours * 3600000.0f) / static_cast<float>(numSamples);
+    uint32_t sampleIntervalMs = static_cast<uint32_t>(sampleIntervalMsFloat);
+    if (sampleIntervalMs < 250U) sampleIntervalMs = 250U;
+    if (sampleIntervalMs > 60000U) sampleIntervalMs = 60000U;
+    const TickType_t sampleDelayTicks = pdMS_TO_TICKS(sampleIntervalMs);
+
+    uint32_t lastSampleMs = millis();
+    for (;;) {
+        const uint32_t nowMs = millis();
+        const uint32_t elapsedMs = nowMs - lastSampleMs;
+        lastSampleMs = nowMs;
+        const float elapsedHours = static_cast<float>(elapsedMs) / 3600000.0f;
+
         float current = inaHandler.read_current(batteryIndex);
-        
-        // Décharge et charge sont des ampères-heures accumulés
-        // On convertit le courant (A) en ampères-heures en divisant par le nombre d'échantillons par heure
-        float ampereHourPerSample = durationHours / numSamples;
-        
-        if (current > 0) {  // Décharge
-            totalDischarge += current * ampereHourPerSample;
-            dischargeCount++;
-        } else if (current < 0) {  // Charge
-            totalCharge += -current * ampereHourPerSample;  // Valeur absolue
-            chargeCount++;
+        if (std::isnan(current)) {
+            // I2C error — skip this sample, don't accumulate garbage
+            vTaskDelay(sampleDelayTicks);
+            continue;
         }
-        
-        
-        // Mise à jour des valeurs d'ampères-heures dans le gestionnaire de batterie
+
+        if (elapsedHours > 0.0f) {
+            if (current > 0.0f) { // Décharge
+                totalDischarge += current * elapsedHours;
+            } else if (current < 0.0f) { // Charge
+                totalCharge += (-current) * elapsedHours;
+            }
+        }
+
         manager->ampereHourConsumptions[batteryIndex] = totalDischarge;
         manager->ampereHourCharges[batteryIndex] = totalCharge;
-        
-        // Loguer périodiquement les totaux
+
         if (sampleCount % 100 == 0) {
-            debugLogger.println(DebugLogger::INFO, "Battery " + String(batteryIndex) + 
-                " - Running Total Discharge: " + String(totalDischarge) + " Ah (" + String(dischargeCount) + " samples)" +
-                ", Running Total Charge: " + String(totalCharge) + " Ah (" + String(chargeCount) + " samples)");
+            debugLogger.println(
+                DebugLogger::INFO,
+                "Battery " + String(batteryIndex) +
+                    " - Running Total Discharge: " + String(totalDischarge) + " Ah" +
+                    ", Running Total Charge: " + String(totalCharge) + " Ah");
         }
-        
+
         sampleCount++;
-        
-        // Attendre l'intervalle d'échantillonnage
-        vTaskDelay(pdMS_TO_TICKS(sampleInterval));
+        vTaskDelay(sampleDelayTicks);
     }
-    
-    // Ce code n'est plus atteignable avec la boucle infinie
-    // vTaskDelete(NULL);
 }
 
 float BatteryManager::getAmpereHourConsumption(int batteryIndex) {
@@ -206,7 +248,9 @@ float BatteryManager::getTotalCharge() {
 float BatteryManager::getTotalCurrent() {
     float totalCurrent = 0;
     for (int i = 0; i < inaHandler.getNbINA(); i++) {
-        totalCurrent += inaHandler.read_current(i);
+        float current = inaHandler.read_current(i);
+        if (std::isnan(current)) continue; // Skip I2C errors
+        totalCurrent += current;
     }
     return totalCurrent;
 }

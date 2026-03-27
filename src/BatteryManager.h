@@ -4,6 +4,8 @@
 #include "INA_NRJ_lib.h"
 #include <DebugLogger.h>
 #include <cfloat>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
 class BatteryManager {
 public:
@@ -12,6 +14,7 @@ public:
       ampereHourConsumptions[i] = 0.0;
       ampereHourCharges[i] = 0.0;
       ampereHourTaskRunning[i] = false;
+      ampereHourTaskHandles[i] = nullptr;
     }
   }
 
@@ -45,6 +48,7 @@ private:
   float ampereHourConsumptions[16] = {0}; // Décharge (valeurs positives)
   float ampereHourCharges[16] = {0};      // Charge (valeurs négatives)
   bool ampereHourTaskRunning[16] = {false}; // Tableau pour suivre les tâches en cours
+  TaskHandle_t ampereHourTaskHandles[16] = {nullptr};
   float maxVoltage = 0;
   float minVoltage = FLT_MAX;
 };

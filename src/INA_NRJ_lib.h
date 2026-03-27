@@ -22,8 +22,9 @@
 #ifndef INA_NRJ_LIB_h
 #define INA_NRJ_LIB_h
 
-#include <INA.h> // Inclure la bibliothèque INA
 #include <DebugLogger.h>
+#include <INA226.h>
+#include <Wire.h>
 
 /**
  * @class INAHandler
@@ -33,6 +34,7 @@ class INAHandler
 {
 public:
     INAHandler();
+    ~INAHandler();
     void begin(const uint8_t amp, const uint16_t micro_ohm);
     void read(const uint8_t deviceNumber);
     float read_current(const uint8_t deviceNumber);
@@ -48,15 +50,15 @@ public:
     int detect_batteries();
 
 private:
-    void initialize_ina(const uint8_t deviceNumber);
+    void initialize_ina(const uint8_t deviceNumber, float amp, float shunt_ohm);
+    bool isValidIndex(uint8_t deviceNumber) const;
     const int INA_ADDR[16] = {0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4A, 0x4B, 0x4C, 0x4D, 0x4E, 0x4F}; ///< Adresses INA
-    INA_Class INA;                                                                                                             ///< Instanciation de la classe INA
-    volatile uint8_t deviceNumber;                                                                                             ///< Numéro de l'appareil à utiliser dans l'exemple
-    volatile uint64_t sumBusMillVolts[17];                                                                                     ///< Somme des lectures de tension de bus
-    volatile int64_t sumBusMicroAmp[17];                                                                                       ///< Somme des lectures de courant de bus
-    volatile uint8_t readings[17];                                                                                             ///< Nombre de mesures prises
-    portMUX_TYPE mux;                                                                                                          ///< Variable de synchronisation
-    byte INA_address_connected[8];                                                                                             // Adresse INA connectée
+    INA226* sensors[16];                                                                                                       ///< Capteurs INA226 connectes
+    volatile uint8_t deviceNumber;                                                                                             ///< Premier capteur detecte
+    volatile uint64_t sumBusMillVolts[17];                                                                                     ///< Compat: somme tension bus
+    volatile int64_t sumBusMicroAmp[17];                                                                                       ///< Compat: somme courant bus
+    volatile uint8_t readings[17];                                                                                             ///< Compat: nombre de mesures
+    byte INA_address_connected[16];                                                                                            // Adresses INA connectées
     uint8_t Nb_INA;                                                                                                            // Nombre d'INA connectés
     int max_voltage = 30000;                                                                                                   // Seuil de surtension de la batterie en mV (overvoltage)
     int min_voltage = 24000;                                                                                                   // Seuil de sous-tension de la batterie en mV (undervoltage)

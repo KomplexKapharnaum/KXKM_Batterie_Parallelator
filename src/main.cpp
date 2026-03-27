@@ -341,7 +341,7 @@ void debugBatteryTable() {
     float ah = batteryManager.getAmpereHourConsumption(i);
     int tcaNum = BattParallelator.TCA_num(i);
     int outNum = (inaHandler.getDeviceAddress(i) - 64) % 4;
-    total_current += current;
+    if (!std::isnan(current)) total_current += current;
     // Lire les états des E/S TCA
     int switchState = tcaHandler.read(tcaNum, outNum);           // switch pin
     int ledRedState = tcaHandler.read(tcaNum, outNum * 2 + 8);   // red LED pin
@@ -412,7 +412,8 @@ void checkBatteryTask(void *pvParameters) {
 
     // Remplir le tableau battery_voltages
     for (int i = 0; i < Nb_Batt; i++) {
-      BattParallelator.battery_voltages[i] = inaHandler.read_volt(i);
+      float v = inaHandler.read_volt(i);
+      BattParallelator.battery_voltages[i] = std::isnan(v) ? 0.0f : v;
     }
 
     // Calculer la tension maximale
@@ -514,12 +515,15 @@ void setup() {
       Nb_INA / 4) { // Vérifier si le nombre de TCA et de INA est correct
     debugLogger.println(
         DebugLogger::I2C,
-        "Erreur : Le nombre de TCA et de INA n'est pas correct");
+        "FATAL: Le nombre de TCA et de INA n'est pas correct");
     if (Nb_INA % 4 != 0) {
-      debugLogger.println(DebugLogger::I2C, "Erreur : INA manquant");
+      debugLogger.println(DebugLogger::I2C, "FATAL: INA manquant");
     } else {
-      debugLogger.println(DebugLogger::I2C, "Erreur : TCA manquant");
+      debugLogger.println(DebugLogger::I2C, "FATAL: TCA manquant");
     }
+    debugLogger.println(DebugLogger::I2C,
+                        "HALT: Protection controller cannot operate with invalid HW topology");
+    while (true) { delay(1000); } // Halt — do not operate with mismatched sensors
   } else {
     debugLogger.println(DebugLogger::I2C,
                         "Le nombre de TCA et de INA est correct");
