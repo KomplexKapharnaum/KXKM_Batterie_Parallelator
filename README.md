@@ -60,6 +60,12 @@ Modifiez le fichier `platformio.ini` pour configurer votre environnement de dév
 
 3. Accédez à l'interface web via l'adresse IP de votre ESP32 pour contrôler les batteries et visualiser les logs. 🌍
 
+### Guardrail mémoire firmware
+
+```sh
+scripts/check_memory_budget.sh --env kxkm-v3-16MB --ram-max 75 --flash-max 85
+```
+
 ## Dépendances
 
 - [Wire](https://github.com/arduino-libraries/Wire)

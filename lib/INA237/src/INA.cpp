@@ -126,9 +126,16 @@ int16_t INA_Class::readWord(const uint8_t addr,
       @return    integer value read from the I2C device */
   Wire.beginTransmission(deviceAddress);       // Address the I2C device
   Wire.write(addr);                            // Send register address to read
-  Wire.endTransmission();                      // Close transmission
+  uint8_t i2cErr = Wire.endTransmission();     // Close transmission
+  if (i2cErr != 0) {
+    return INT16_MIN;                          // I2C error indicator
+  } // if-then I2C error
   delayMicroseconds(I2C_DELAY);                // delay required for sync
-  Wire.requestFrom(deviceAddress, (uint8_t)2); // Request 2 consecutive bytes
+  uint8_t bytesReceived =
+      Wire.requestFrom(deviceAddress, (uint8_t)2); // Request 2 consecutive bytes
+  if (bytesReceived != 2) {
+    return INT16_MIN;                          // I2C error indicator
+  } // if-then not enough bytes
   return ((uint16_t)Wire.read() << 8) | Wire.read();
 } // of method readWord()
 void INA_Class::writeWord(const uint8_t addr, const uint16_t data,
@@ -144,7 +151,9 @@ void INA_Class::writeWord(const uint8_t addr, const uint16_t data,
   Wire.write(addr);                      // Send register address to write
   Wire.write((uint8_t)(data >> 8));      // Write the first (MSB) byte
   Wire.write((uint8_t)data);             // and then the second byte
-  Wire.endTransmission();       // Close transmission and actually send data
+  uint8_t i2cErr =
+      Wire.endTransmission();   // Close transmission and actually send data
+  (void)i2cErr;                 // Caller has no way to check yet (void return)
   delayMicroseconds(I2C_DELAY); // delay required for sync
 } // of method writeWord()
 void INA_Class::readInafromEEPROM(const uint8_t deviceNumber) {

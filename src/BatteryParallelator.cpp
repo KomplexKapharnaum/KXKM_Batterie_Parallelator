@@ -26,6 +26,7 @@
 
 #include "BatteryParallelator.h"
 #include <DebugLogger.h>
+#include <cmath>
 
 // Assurez-vous que `debugLogger` est déclaré et initialisé correctement
 extern DebugLogger debugLogger;
@@ -176,9 +177,10 @@ void BATTParallelator::switch_on_battery(int INA_num) {
  */
 bool BATTParallelator::check_voltage_offset(int INA_num, float offset) {
   float voltage = inaHandler.read_volt(INA_num);
+  if (std::isnan(voltage)) return false; // I2C error — treat as out of range
   float averageVoltage = batteryManager.getAverageVoltage();
 
-  if (abs(voltage - averageVoltage) > offset) {
+  if (fabs(voltage - averageVoltage) > offset) {
     if (voltage > 1) {
       //   debugLogger.println(DebugLogger::BATTERY, "Battery " + String(INA_num
       //   + 1) +
@@ -202,7 +204,9 @@ bool BATTParallelator::check_voltage_offset(int INA_num, float offset) {
  * @return true si la batterie est en charge (courant négatif), false sinon.
  */
 bool BATTParallelator::check_charge_status(int INA_num) {
-  return inaHandler.read_current(INA_num) < 0;
+  float current = inaHandler.read_current(INA_num);
+  if (std::isnan(current)) return false; // I2C error — assume not charging
+  return current < 0;
 }
 
 /**
@@ -241,6 +245,14 @@ void BATTParallelator::check_battery_connected_status(int INA_num) {
   const float voltageOffset = 0.5; // Offset de tension en volts
   float voltage = inaHandler.read_volt(INA_num);
   float current = inaHandler.read_current(INA_num);
+
+  // I2C error — don't make protection decisions on garbage data
+  if (std::isnan(voltage) || std::isnan(current)) {
+    debugLogger.println(DebugLogger::WARNING,
+        "I2C read error on battery " + String(INA_num + 1) +
+        " — skipping protection check");
+    return;
+  }
 
   BatteryState state;
 
@@ -314,11 +326,11 @@ void BATTParallelator::check_battery_connected_status(int INA_num) {
  */
 bool BATTParallelator::compare_voltage(float voltage, float voltage_max,
                                        float diff) {
-  if (voltage < max_voltage - diff || voltage > max_voltage + diff) {
+  if (voltage < voltage_max - diff || voltage > voltage_max + diff) {
     debugLogger.println(DebugLogger::BATTERY,
                         "Voltage out of range: " + String(voltage));
     debugLogger.println(DebugLogger::BATTERY,
-                        "Max voltage: " + String(max_voltage));
+                        "Max voltage: " + String(voltage_max));
     return false; // Si la tension est invalide, retourner false
   }
   return true;
@@ -375,7 +387,8 @@ void BATTParallelator::reset_switch_count(int INA_num) {
 int BATTParallelator::detect_batteries() {
   int count = 0;
   for (int i = 0; i < inaHandler.getNbINA(); i++) {
-    if (inaHandler.read_volt(i) > 5.0) {
+    float v = inaHandler.read_volt(i);
+    if (!std::isnan(v) && v > 5.0) {
       count++;
     }
   }
@@ -427,9 +440,8 @@ bool BATTParallelator::is_current_within_range(float current) {
  */
 bool BATTParallelator::is_difference_acceptable(float voltage, float current) {
   // mem_set_current_diff is in mA, current is in A — convert
-  return !(
-      compare_voltage(voltage, mem_set_max_voltage, mem_set_voltage_diff) ||
-      abs(current) > mem_set_current_diff / 1000.0f);
+  return compare_voltage(voltage, mem_set_max_voltage, mem_set_voltage_diff) &&
+         fabs(current) <= mem_set_current_diff / 1000.0f;
 }
 
 /**
@@ -440,6 +452,14 @@ bool BATTParallelator::is_difference_acceptable(float voltage, float current) {
 bool BATTParallelator::check_battery_status(int INA_num) {
   float voltage = inaHandler.read_volt(INA_num);
   float current = inaHandler.read_current(INA_num);
+
+  // I2C error — treat as bad status to prevent connecting on garbage
+  if (std::isnan(voltage) || std::isnan(current)) {
+    debugLogger.println(DebugLogger::WARNING,
+        "I2C read error in check_battery_status() for battery " +
+        String(INA_num + 1));
+    return false;
+  }
 
   // Vérifier si la tension est valide
   if (voltage <= 1) {

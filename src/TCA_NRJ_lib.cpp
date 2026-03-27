@@ -45,7 +45,7 @@ void TCAHandler::initialize_tca(TCA9535 &tca, const char *name) {
     tca.pinMode1(i, OUTPUT);
     tca.write1(i, LOW);
   }
-  for (int i = 5; i < 7; i++) {
+  for (int i = 4; i < 8; i++) {
     tca.pinMode1(i, INPUT);
   }
   for (int i = 8; i < 16; i++) {
