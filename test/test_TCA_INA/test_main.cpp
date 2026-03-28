@@ -1,7 +1,7 @@
 // test_TCA_INA.cpp
 
-#include "INA_NRJ_lib.h"
-#include "TCA_NRJ_lib.h"
+#include "../../src/INA_NRJ_lib.h"
+#include "../../src/TCA_NRJ_lib.h"
 #include <Arduino.h>
 #include <DebugLogger.h>
 #include <Wire.h>
@@ -41,7 +41,7 @@ void loop() {
   for (int tca = 0; tca < Nb_TCA; tca++) {
     for (int pin = 0; pin < 16; pin++) {
       const int nb_cycles = 5; // Nombre de cycles d'allumage/extinction
-      const int pwm_time = 50;   // Délai entre chaque cycle
+      const int pwm_time = 50; // Délai entre chaque cycle
       for (int i = 0; i < nb_cycles; i++) {
         tcaHandler.write(tca, pin, tca_set);
         delay(pwm_time);

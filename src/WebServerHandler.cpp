@@ -21,6 +21,8 @@
  */
 
 #include "WebServerHandler.h"
+#include "BatteryRouteValidation.h"
+#include "WebRouteSecurity.h"
 #include "SD_Logger.h"   // Ajouter cette ligne
 #include <ArduinoJson.h> // Ajouter cette ligne
 #include <SD.h>          // Inclure la bibliothèque SD
@@ -30,17 +32,132 @@
 #include <WiFi.h> // Ajouter cette ligne
 #include "WebServerFiles.h" // Inclure le fichier WebServerFiles.h
 #include <ESPAsyncWebServer.h> // Ajouter cette ligne
+#include <IPAddress.h>
 
 // Assurez-vous que `debugLogger` est déclaré et initialisé correctement
 extern DebugLogger debugLogger;
 extern INAHandler inaHandler;
 extern BATTParallelator BattParallelator;
+
+// Battery protection thresholds (defined in main.cpp)
+extern const float set_min_voltage;  // in mV
+extern const float set_max_voltage;  // in mV
 extern BatteryManager batteryManager;
 extern SDLogger sdLogger;
 extern String logFilename; // Ajouter une variable globale pour le nom du fichier de log
 
 WebSocketsServer webSocket = WebSocketsServer(81); // Ajouter cette ligne (80 ou 81 ?)
 AsyncWebServer server(80); // Remplacer WebServer par AsyncWebServer
+
+#ifndef BMU_WEB_ADMIN_TOKEN
+#define BMU_WEB_ADMIN_TOKEN ""
+#endif
+
+namespace {
+const char *kBmuWebAdminToken = BMU_WEB_ADMIN_TOKEN;
+constexpr uint8_t kMutationRateLimitMaxRequests = 10;
+constexpr uint32_t kMutationRateLimitWindowMs = 10000;
+
+struct MutationRateLimitSlot {
+  uint32_t ip = 0;
+  uint32_t windowStartMs = 0;
+  uint8_t requestCount = 0;
+};
+
+MutationRateLimitSlot g_rateLimitSlots[8];
+
+uint32_t ipToKey(const IPAddress &ip) {
+  return (static_cast<uint32_t>(ip[0]) << 24) |
+         (static_cast<uint32_t>(ip[1]) << 16) |
+         (static_cast<uint32_t>(ip[2]) << 8) |
+         static_cast<uint32_t>(ip[3]);
+}
+
+String requestSource(AsyncWebServerRequest *request) {
+  if (request != nullptr && request->client() != nullptr) {
+    return request->client()->remoteIP().toString();
+  }
+  return "unknown";
+}
+
+void logMutationAudit(const char *route, const String &batteryParam,
+                     const String &source, const char *outcome) {
+  debugLogger.println(DebugLogger::WEB,
+                      String("AUDIT route=") + route +
+                          " battery=" + batteryParam + " source=" + source +
+                          " outcome=" + outcome +
+                          " ts=" + String(millis()));
+}
+
+bool isMutationRateLimited(AsyncWebServerRequest *request) {
+  if (request == nullptr || request->client() == nullptr) {
+    return false;
+  }
+
+  const uint32_t key = ipToKey(request->client()->remoteIP());
+  const uint32_t now = millis();
+
+  int candidate = -1;
+  for (int i = 0; i < 8; ++i) {
+    if (g_rateLimitSlots[i].ip == key) {
+      candidate = i;
+      break;
+    }
+    if (candidate < 0 && g_rateLimitSlots[i].ip == 0) {
+      candidate = i;
+    }
+  }
+
+  if (candidate < 0) {
+    candidate = 0;
+  }
+
+  MutationRateLimitSlot &slot = g_rateLimitSlots[candidate];
+  if (slot.ip != key || (now - slot.windowStartMs) > kMutationRateLimitWindowMs) {
+    slot.ip = key;
+    slot.windowStartMs = now;
+    slot.requestCount = 1;
+    return false;
+  }
+
+  if (slot.requestCount >= kMutationRateLimitMaxRequests) {
+    return true;
+  }
+
+  slot.requestCount++;
+  return false;
+}
+
+bool authorizeBatteryMutationRequest(AsyncWebServerRequest *request,
+                                     const char *route,
+                                     const String &batteryParam) {
+  const String source = requestSource(request);
+
+  if (isMutationRateLimited(request)) {
+    logMutationAudit(route, batteryParam, source, "rate_limited");
+    request->send(429, "text/plain", "Too many mutation requests");
+    return false;
+  }
+
+  if (!isMutationRouteEnabled(kBmuWebAdminToken)) {
+    logMutationAudit(route, batteryParam, source, "route_disabled");
+    request->send(403, "text/plain",
+                  "Battery write routes disabled: configure BMU_WEB_ADMIN_TOKEN");
+    return false;
+  }
+
+  if (!request->hasArg("token") ||
+      !isMutationTokenAuthorized(request->arg("token").c_str(),
+                                 kBmuWebAdminToken)) {
+    logMutationAudit(route, batteryParam, source, "unauthorized");
+    request->send(403, "text/plain", "Unauthorized battery mutation request");
+    return false;
+  }
+
+  logMutationAudit(route, batteryParam, source, "authorized");
+  return true;
+}
+} // namespace
 
 /**
  * @brief Constructeur de la classe WebServerHandler.
@@ -136,16 +253,50 @@ void WebServerHandler::handleLog(AsyncWebServerRequest *request) {
  * @brief Gérer la requête pour allumer une batterie.
  */
 void WebServerHandler::handleSwitchOn(AsyncWebServerRequest *request) {
-  if (request->hasArg("battery")) {
-    int battery = request->arg("battery").toInt();
-    bool success = BattParallelator.switch_battery(battery, true);
-    if (success) {
-      request->send(200, "text/plain", "Switched on battery " + String(battery));
-    } else {
-      request->send(500, "text/plain", "Failed to switch on battery " + String(battery));
-    }
-  } else {
+  const String batteryParam = request->hasArg("battery")
+                                  ? request->arg("battery")
+                                  : String("missing");
+  if (!authorizeBatteryMutationRequest(request, "/switch_on", batteryParam)) {
+    return;
+  }
+
+  if (!request->hasArg("battery")) {
+    logMutationAudit("/switch_on", "missing", requestSource(request),
+                     "missing_battery_param");
     request->send(400, "text/plain", "Battery parameter missing");
+    return;
+  }
+
+  const int nbBatteries = inaHandler.getNbINA();
+  int battery = -1;
+  if (!parseBatteryIndex(request->arg("battery").c_str(), nbBatteries,
+                         battery)) {
+    logMutationAudit("/switch_on", request->arg("battery"),
+                     requestSource(request), "invalid_battery_param");
+    request->send(400, "text/plain", "Invalid battery parameter");
+    return;
+  }
+
+  // TASK-007: Voltage precondition check — do not allow switching if voltage is unsafe
+  // Prevents switching during brownout, overvoltage, or sensor failure conditions
+  if (!validateBatteryVoltageForSwitch(battery, set_min_voltage, set_max_voltage)) {
+    logMutationAudit("/switch_on", String(battery), requestSource(request),
+                     "voltage_precondition_failed");
+    // Use HTTP 423 (Locked) to indicate operation blocked by condition
+    request->send(423, "text/plain", 
+                  "Cannot switch: battery voltage out of safe range");
+    return;
+  }
+
+  bool success = BattParallelator.switch_battery(battery, true);
+  if (success) {
+    logMutationAudit("/switch_on", String(battery), requestSource(request),
+                     "switch_success");
+    request->send(200, "text/plain", "Switched on battery " + String(battery));
+  } else {
+    logMutationAudit("/switch_on", String(battery), requestSource(request),
+                     "switch_failure");
+    request->send(500, "text/plain", "Failed to switch on battery " + String(battery));
   }
 }
 
@@ -153,16 +304,48 @@ void WebServerHandler::handleSwitchOn(AsyncWebServerRequest *request) {
  * @brief Gérer la requête pour éteindre une batterie.
  */
 void WebServerHandler::handleSwitchOff(AsyncWebServerRequest *request) {
-  if (request->hasArg("battery")) {
-    int battery = request->arg("battery").toInt();
-    bool success = BattParallelator.switch_battery(battery, false);
-    if (success) {
-      request->send(200, "text/plain", "Switched off battery " + String(battery));
-    } else {
-      request->send(500, "text/plain", "Failed to switch off battery " + String(battery));
-    }
-  } else {
+  const String batteryParam = request->hasArg("battery")
+                                  ? request->arg("battery")
+                                  : String("missing");
+  if (!authorizeBatteryMutationRequest(request, "/switch_off", batteryParam)) {
+    return;
+  }
+
+  if (!request->hasArg("battery")) {
+    logMutationAudit("/switch_off", "missing", requestSource(request),
+                     "missing_battery_param");
     request->send(400, "text/plain", "Battery parameter missing");
+    return;
+  }
+
+  const int nbBatteries = inaHandler.getNbINA();
+  int battery = -1;
+  if (!parseBatteryIndex(request->arg("battery").c_str(), nbBatteries,
+                         battery)) {
+    logMutationAudit("/switch_off", request->arg("battery"),
+                     requestSource(request), "invalid_battery_param");
+    request->send(400, "text/plain", "Invalid battery parameter");
+    return;
+  }
+
+  // TASK-007: Voltage validity check (for consistency, though switch_off is less critical)
+  // Still validate that sensor reading is possible and battery exists
+  if (!validateBatteryVoltageForSwitch(battery, set_min_voltage, set_max_voltage)) {
+    logMutationAudit("/switch_off", String(battery), requestSource(request),
+                     "voltage_check_failed");
+    // For off, we allow anyway since safe shutdown is often needed during faults
+    // Log the issue but continue
+  }
+
+  bool success = BattParallelator.switch_battery(battery, false);
+  if (success) {
+    logMutationAudit("/switch_off", String(battery), requestSource(request),
+                     "switch_success");
+    request->send(200, "text/plain", "Switched off battery " + String(battery));
+  } else {
+    logMutationAudit("/switch_off", String(battery), requestSource(request),
+                     "switch_failure");
+    request->send(500, "text/plain", "Failed to switch off battery " + String(battery));
   }
 }
 

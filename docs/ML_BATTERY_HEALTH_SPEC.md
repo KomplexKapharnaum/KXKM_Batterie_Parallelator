@@ -55,7 +55,7 @@ From raw voltage/current time series, extract per-channel features:
 
 ### 2.3 Processing Pipeline
 
-```
+```raw
 SD CSV files (43)
     |
     v
@@ -136,7 +136,7 @@ The intelligence layer is **MCU-agnostic**. The INA226 current/voltage sensors a
 **Deployment format**: TFLite Micro (portable) or platform-specific (ESP-DL, STM32Cube.AI, CMSIS-NN)
 
 **Memory budget** (same across all targets):
-```
+```raw
 Model weights (INT8):     ~10 KB
 Inference scratch buffer: ~15 KB
 Feature buffer (16 ch):   ~8 KB
@@ -162,7 +162,7 @@ Total ML footprint:       ~33 KB
 
 New files to add to `src/`:
 
-```
+```raw
 src/
   SOHEstimator.h        -- SOH inference wrapper (TFLite Micro or ESP-DL)
   SOHEstimator.cpp      -- Feature computation + model inference
@@ -231,7 +231,7 @@ New MCP tool registered in mascarade-core:
 ```
 
 **Data flow**:
-```
+```raw
 ESP32 Parallelator
     |-- WebSocket/MQTT --> mascarade P2P mesh
     |                          |
@@ -252,7 +252,7 @@ SD card logs              crazy_life dashboard
 
 New component in the cockpit:
 
-```
+```raw
 BatteryFleetHealth/
   FleetOverview.tsx       -- Grid of 16 cells with SOH color coding
   ChannelDetail.tsx       -- Time series chart for selected channel
@@ -386,7 +386,7 @@ Alternative path: ESP-DL (Espressif's framework) with `esp-dl` quantization tool
 
 ### Timeline Summary
 
-```
+```raw
 Week 1-2:   Phase 1 -- Data pipeline
 Week 3-4:   Phase 2 -- Model training
 Week 5-6:   Phase 3 -- Edge deployment
@@ -433,7 +433,7 @@ Week 7-8:   Phase 4 -- Cloud integration + dashboard
 
 From `datalog_{device}_{seq}.csv` (semicolon-separated):
 
-```
+```raw
 Temps;Volt_1;...;Volt_N;Current_1;...;Current_N;Switch_1;...;Switch_N;
 AhCons_1;...;AhCons_N;AhCharge_1;...;AhCharge_N;TotCurrent;TotCharge;TotCons
 ```
@@ -452,7 +452,7 @@ Channels vary by device: gocab uses 6-8 channels, k-led and tender use up to 8.
 
 ## Appendix B: ESP32 Memory Map (with ML)
 
-```
+```raw
 Flash (16 MB):
   Firmware:          ~1.5 MB
   SPIFFS:            ~1.0 MB
@@ -474,3 +474,51 @@ SRAM (520 KB):
 ```
 
 Note: Memory budget is tight on ESP32-WROVER. If ML inference exceeds 30 KB, consider offloading entirely to mascarade cloud. The `check_memory_budget.sh` script must pass with `--ram-max 75`.
+
+---
+
+## 11. ML Governance 2026 Addendum
+
+### 11.1 Reproducibility and Versioning
+- Every training run must record: dataset hash, feature extraction script commit, training script commit, hyperparameters, random seed, and produced model artifact name.
+- Use explicit model naming: `soh_<arch>_v<major>.<minor>_<YYYYMMDD>`.
+- Store a run metadata artifact (`training_metadata.json`) alongside each exported model.
+- Keep a feature schema version (`feature_schema_version`) and increment it on any feature definition change.
+
+### 11.2 In-Domain vs Out-of-Domain Evaluation
+- Report metrics separately for in-domain Parallelator field logs and out-of-domain public PHM datasets.
+- Do not merge in-domain and out-of-domain scores into a single headline metric.
+- Minimum reporting set: MAPE, MAE, calibration error, and confidence coverage by domain.
+- Track generalization gap explicitly: `OOD_MAPE - ID_MAPE`.
+
+### 11.3 Confidence, Uncertainty, and OOD Signals
+- Edge and cloud predictions must include confidence metadata (interval or calibrated score).
+- Add an `is_in_distribution` or equivalent OOD flag for each inference result.
+- If confidence is below threshold or OOD flag is active, classify prediction as advisory-low-confidence.
+- Prediction payloads must include both value and confidence context in dashboards/API outputs.
+
+### 11.4 Drift Monitoring and Retraining Triggers
+- Monitor feature drift in production (rolling statistics vs training baseline).
+- Define explicit thresholds for drift alerts and retraining triggers.
+- Log drift indicators to time-series storage and review periodically.
+- Retraining decisions must be based on measured degradation and drift evidence, not ad-hoc intuition.
+
+### 11.5 Safety Policy: Advisory-Only ML
+- ML outputs must never override hard protection logic (voltage/current thresholds, topology checks, reconnect protections).
+- On inference failure (timeout, NAN, model load error), system behavior falls back to deterministic protection logic only.
+- Safety-critical switching decisions remain firmware state-machine responsibilities.
+- Any future control-loop coupling with ML requires a dedicated safety review and test campaign.
+
+### 11.6 Governance Checklist Before Deployment
+- Reproducibility artifacts generated and archived.
+- In-domain and out-of-domain metrics reported separately.
+- Confidence/OOD outputs validated on representative scenarios.
+- Drift detection verified with synthetic and real replay traces.
+- Advisory-only safety fallback tested end-to-end.
+- Memory and latency budgets validated on target hardware.
+
+### 11.7 CI/Validation Recommendations
+- Add automated checks for metadata completeness in model artifacts.
+- Fail CI if domain-split metrics or confidence fields are missing in evaluation reports.
+- Keep a regression benchmark set derived from field logs to detect silent quality drift.
+- Version and review evaluation notebooks/scripts as part of model PRs.

@@ -95,7 +95,20 @@ void TCAHandler::begin() {
 
 bool TCAHandler::read(int TCA_num, int pin) {
   I2CLockGuard lock;
-  if (!lock.isAcquired()) return false;
+  if (!lock.isAcquired()) {
+    i2cRecordFailure();
+    if (i2cShouldRecover()) {
+      I2CLockGuard recoveryLock(pdMS_TO_TICKS(20));
+      if (recoveryLock.isAcquired()) {
+        i2cBusRecovery();
+        i2cResetFailureCounter();
+        debugLogger.println(DebugLogger::WARNING,
+                            "I2C recovery executed from TCA.read lock failure");
+      }
+    }
+    return false;
+  }
+  i2cResetFailureCounter();
   bool val;
   switch (TCA_num) {
   case 0:
@@ -130,7 +143,20 @@ bool TCAHandler::read(int TCA_num, int pin) {
 
 bool TCAHandler::write(int TCA_num, int pin, bool value) {
   I2CLockGuard lock;
-  if (!lock.isAcquired()) return false;
+  if (!lock.isAcquired()) {
+    i2cRecordFailure();
+    if (i2cShouldRecover()) {
+      I2CLockGuard recoveryLock(pdMS_TO_TICKS(20));
+      if (recoveryLock.isAcquired()) {
+        i2cBusRecovery();
+        i2cResetFailureCounter();
+        debugLogger.println(DebugLogger::WARNING,
+                            "I2C recovery executed from TCA.write lock failure");
+      }
+    }
+    return false;
+  }
+  i2cResetFailureCounter();
   switch (TCA_num) {
   case 0:
     TCA_0.write1(pin, value);

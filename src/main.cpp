@@ -87,11 +87,15 @@ const int log_time =
 
 #include "BatteryParallelator.h"
 #include "I2CMutex.h"
+#include "MQTTHandler.h"
 #include "SD_Logger.h"
 #include "WiFiHandler.h"
 #include "pin_mapppings.h"
 #include <Arduino.h>
+#include <ArduinoJson.h>
 #include <DebugLogger.h>
+#include <esp_system.h>
+#include <esp_task_wdt.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
@@ -109,6 +113,7 @@ WiFiHandler
 // #define ENABLE_WEBSERVER
 // #define ENABLE_TIME_AND_INFLUXDB
 #define ENABLE_SD_LOGGING
+// #define ENABLE_MQTT
 
 #ifdef ENABLE_WEBSERVER // necessaire pour le serveur web
 #include "WebServerHandler.h"
@@ -129,6 +134,12 @@ WebServerHandler
 
 InfluxDBHandler influxDBHandler(influxDBServerUrl, influxDBOrg, influxDBBucket,
                                 influxDBToken, influxDBInsecure);
+
+#ifdef ENABLE_MQTT
+MQTTHandler mqttHandler(mqttBrokerHost, mqttBrokerPort, mqttClientId,
+                        mqttUsername, mqttPassword);
+static constexpr uint32_t kMqttPublishIntervalMs = 30000;
+#endif
 /*
   NONE = 0,
     ERROR = 1 << 0,
@@ -158,6 +169,37 @@ WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "pool.ntp.org");
 
 bool isTimeSynced = false;
+
+enum class CloudIngestionMode {
+  NORMAL,
+  GAME,
+};
+
+#ifndef CLOUD_INGESTION_MODE_GAME
+#define CLOUD_INGESTION_MODE_GAME 0
+#endif
+
+static constexpr uint32_t kCloudSendIntervalNormalMs = 4UL * 60UL * 60UL * 1000UL;
+static constexpr uint32_t kCloudSendIntervalGameMs = 30UL * 1000UL;
+static volatile CloudIngestionMode g_cloudIngestionMode =
+    (CLOUD_INGESTION_MODE_GAME != 0) ? CloudIngestionMode::GAME
+                                     : CloudIngestionMode::NORMAL;
+
+static constexpr int kTaskWdtTimeoutSeconds = 15;
+static constexpr uint32_t kBrownoutSafeModeThreshold = 3;
+static constexpr uint32_t kBrownoutCounterClearUptimeMs = 120000;
+RTC_DATA_ATTR static uint32_t g_brownoutResetCount = 0;
+static bool g_safeModeActive = false;
+static bool g_brownoutCounterCleared = false;
+
+static void registerCurrentTaskToWdt(const char *taskName) {
+  const esp_err_t addErr = esp_task_wdt_add(nullptr);
+  if (addErr != ESP_OK) {
+    debugLogger.println(DebugLogger::WARNING,
+                        String("WDT add failed for ") + taskName +
+                            " err=" + String(static_cast<int>(addErr)));
+  }
+}
 
 /**
  * @brief Scanner les appareils I2C connectés.
@@ -202,13 +244,56 @@ void checkBatteryTask(void *pvParameters); // vérification des tensions
  * @param pvParameters Paramètres de la tâche.
  */
 void sendStoredDataTask(void *pvParameters) {
+  registerCurrentTaskToWdt("SendStoredDataTask");
   while (true) {
     influxDBHandler.sendStoredData();
+    esp_task_wdt_reset();
     vTaskDelay(5000 /
                portTICK_PERIOD_MS); // Attendre 1 seconde avant de réessayer
   }
   // vTaskDelete(NULL); // Supprimer la tâche après exécution
 }
+
+#ifdef ENABLE_MQTT
+/**
+ * @brief Tâche MQTT pour publier une télémétrie agrégée vers le broker.
+ * @param pvParameters Paramètres de la tâche.
+ */
+void mqttTelemetryTask(void *pvParameters) {
+  registerCurrentTaskToWdt("MqttTelemetryTask");
+  mqttHandler.begin();
+  uint32_t lastPublishMs = 0;
+
+  while (true) {
+    mqttHandler.loop();
+
+    const uint32_t nowMs = millis();
+    const bool shouldPublish =
+        (lastPublishMs == 0) || ((nowMs - lastPublishMs) >= kMqttPublishIntervalMs);
+    if (shouldPublish) {
+      DynamicJsonDocument doc(512);
+      doc["ts_ms"] = nowMs;
+      doc["battery_count"] = inaHandler.getNbINA();
+      doc["total_current"] = batteryManager.getTotalCurrent();
+      doc["total_charge"] = batteryManager.getTotalCharge();
+      doc["total_consumption"] = batteryManager.getTotalConsumption();
+      doc["safe_mode"] = g_safeModeActive;
+
+      String payload;
+      serializeJson(doc, payload);
+      const bool published = mqttHandler.publishJson(mqttTopicTelemetry, payload);
+      if (!published) {
+        debugLogger.println(DebugLogger::WARNING,
+                            "MQTT publish skipped/failed for aggregated telemetry");
+      }
+      lastPublishMs = nowMs;
+    }
+
+    esp_task_wdt_reset();
+    vTaskDelay(250 / portTICK_PERIOD_MS);
+  }
+}
+#endif
 
 #ifdef ENABLE_WEBSERVER
 /**
@@ -216,8 +301,10 @@ void sendStoredDataTask(void *pvParameters) {
  * @param pvParameters Paramètres de la tâche.
  */
 void webServerTask(void *pvParameters) {
+  registerCurrentTaskToWdt("WebServerTask");
   while (true) {
     webServerHandler.handleClient();
+    esp_task_wdt_reset();
     vTaskDelay(
         250 / portTICK_PERIOD_MS); // Attendre 10 ms avant de vérifier à nouveau
   }
@@ -258,6 +345,11 @@ String getCurrentTime() {
  * @param pvParameters Paramètres de la tâche.
  */
 void logDataTask(void *pvParameters) {
+  registerCurrentTaskToWdt("LogDataTask");
+#ifdef ENABLE_TIME_AND_INFLUXDB
+  uint32_t lastCloudAggregationMs = 0;
+  bool wasCritical[16] = {false};
+#endif
   while (true) {
     if (sdLogger.shouldLog()) {
       String currentTime = sdLogger.getCurrentTime(logFileBase); // Correction ici
@@ -282,6 +374,23 @@ void logDataTask(void *pvParameters) {
 
       int Nb_Batt = inaHandler.getNbINA();
       int logged = 0;
+    #ifdef ENABLE_TIME_AND_INFLUXDB
+        const uint32_t nowMs = millis();
+        const uint32_t activeIntervalMs =
+          (g_cloudIngestionMode == CloudIngestionMode::GAME)
+            ? kCloudSendIntervalGameMs
+            : kCloudSendIntervalNormalMs;
+        const bool shouldSendAggregated =
+          (lastCloudAggregationMs == 0) ||
+          ((nowMs - lastCloudAggregationMs) >= activeIntervalMs);
+
+        String aggregatedFields =
+          "total_consumption=" + String(totalConsumption, 6) +
+          ",total_charge=" + String(totalCharge, 6) +
+          ",total_current=" + String(totalCurrent, 6) +
+          ",battery_count=" + String(Nb_Batt) + "i";
+    #endif
+
       for (int i = 0; i < Nb_Batt; i++) {
           float voltage = inaHandler.read_volt(i);
           float current = inaHandler.read_current(i);
@@ -297,18 +406,55 @@ void logDataTask(void *pvParameters) {
                            totalConsumption, totalCharge, totalCurrent);
           logged++;
 #ifdef ENABLE_TIME_AND_INFLUXDB
-          influxDBHandler.writeBatteryData(
-              "battery_data", i, voltage, current, ampereHourConsumption,
-              ampereHourCharge, totalConsumption, totalCharge, totalCurrent);
+          const bool criticalVoltage =
+              (!std::isnan(voltage)) &&
+              ((voltage * 1000.0f < set_min_voltage) ||
+               (voltage * 1000.0f > set_max_voltage));
+          const bool criticalCurrent =
+              (!std::isnan(current)) &&
+              ((std::abs(current) * 1000.0f) > set_max_current);
+          const bool isCritical = criticalVoltage || criticalCurrent;
+
+          if (i >= 0 && i < 16) {
+            if (isCritical && !wasCritical[i]) {
+              influxDBHandler.writeBatteryData(
+                  "battery_critical_event", i, voltage, current,
+                  ampereHourConsumption, ampereHourCharge, totalConsumption,
+                  totalCharge, totalCurrent);
+            }
+            wasCritical[i] = isCritical;
+          }
+
+          if (shouldSendAggregated) {
+            aggregatedFields += ",b" + String(i) + "_v=" + String(voltage, 6);
+            aggregatedFields += ",b" + String(i) + "_i=" + String(current, 6);
+            aggregatedFields += ",b" + String(i) + "_sw=" +
+                               String(switchState ? 1 : 0) + "i";
+            aggregatedFields += ",b" + String(i) + "_crit=" +
+                               String(isCritical ? 1 : 0) + "i";
+          }
 #endif
         
       }
+
+#ifdef ENABLE_TIME_AND_INFLUXDB
+      if (shouldSendAggregated && logged > 0) {
+        influxDBHandler.writeAggregatedBatteryData(
+            "battery_data_aggregated",
+            (g_cloudIngestionMode == CloudIngestionMode::GAME) ? "game"
+                                                                : "normal",
+            aggregatedFields);
+        lastCloudAggregationMs = nowMs;
+      }
+#endif
+
       if (logged == 0) {
         debugLogger.println(DebugLogger::WARNING, "logDataTask: Aucune batterie loggée !");
       }
       debugLogger.println(DebugLogger::SD, "logDataTask: flushLine()");
       sdLogger.flushLine(); // après toutes les batteries
     }
+    esp_task_wdt_reset();
     vTaskDelay(log_time * 1000 / portTICK_PERIOD_MS);
   }
 }
@@ -401,6 +547,7 @@ void debugBatteryTable() {
  */
 void checkBatteryTask(void *pvParameters) {
   const float voltageOffset = 2.5; // Définir l'offset de tension en volts
+  registerCurrentTaskToWdt("CheckBatteryTask");
   while (true) {
     int Nb_Batt = inaHandler.getNbINA();
     debugLogger.println(DebugLogger::BATTERY,
@@ -413,12 +560,15 @@ void checkBatteryTask(void *pvParameters) {
     // Remplir le tableau battery_voltages
     for (int i = 0; i < Nb_Batt; i++) {
       float v = inaHandler.read_volt(i);
-      BattParallelator.battery_voltages[i] = std::isnan(v) ? 0.0f : v;
+      BattParallelator.set_battery_voltage(i, std::isnan(v) ? 0.0f : v);
     }
 
     // Calculer la tension maximale
+    float batterySnapshot[16] = {0.0f};
+    BattParallelator.copy_battery_voltages(batterySnapshot, Nb_Batt);
     float max_voltage = BattParallelator.find_max_voltage(
-        BattParallelator.battery_voltages, Nb_Batt);
+        batterySnapshot, Nb_Batt);
+    (void)max_voltage;
 
     // Battery protection: check voltage offset and connection status
     for (int i = 0; i < Nb_Batt; i++) {
@@ -430,6 +580,8 @@ void checkBatteryTask(void *pvParameters) {
     // Afficher les informations détaillées sur les batteries si le débogage est
     // activé
     debugBatteryTable();
+
+    esp_task_wdt_reset();
 
     // Attendre avant de vérifier à nouveau
     vTaskDelay(batt_check_period / portTICK_PERIOD_MS);
@@ -452,6 +604,31 @@ void setup() {
       {"WEB", true}};
 
   debugLogger.begin(debugLevels, NUM_DEBUG_LEVELS);
+
+  const esp_reset_reason_t resetReason = esp_reset_reason();
+  if (resetReason == ESP_RST_BROWNOUT) {
+    g_brownoutResetCount++;
+  } else if (resetReason == ESP_RST_POWERON) {
+    g_brownoutResetCount = 0;
+  }
+
+  if (g_brownoutResetCount >= kBrownoutSafeModeThreshold) {
+    g_safeModeActive = true;
+    debugLogger.println(DebugLogger::WARNING,
+                        "Safe mode enabled after repeated brownout resets");
+  }
+
+  const esp_err_t wdtInitErr =
+      esp_task_wdt_init(kTaskWdtTimeoutSeconds, true);
+  if (wdtInitErr != ESP_OK) {
+    debugLogger.println(DebugLogger::WARNING,
+                        "Task WDT init failed err=" +
+                            String(static_cast<int>(wdtInitErr)));
+  } else {
+    debugLogger.println(DebugLogger::INFO,
+                        "Task WDT initialized timeout=" +
+                            String(kTaskWdtTimeoutSeconds) + "s");
+  }
 
   tcaHandler.begin();
   debugLogger.println(DebugLogger::I2C, "Configuration TCA terminée");
@@ -545,7 +722,13 @@ void setup() {
 
 #ifdef ENABLE_SD_LOGGING
   // Créer une tâche pour enregistrer les données sur la carte SD
-  xTaskCreatePinnedToCore(logDataTask, "LogDataTask", 8192, NULL, 0, NULL, 1);
+  if (!g_safeModeActive) {
+    xTaskCreatePinnedToCore(logDataTask, "LogDataTask", 8192, NULL, 0, NULL,
+                            1);
+  } else {
+    debugLogger.println(DebugLogger::WARNING,
+                        "Safe mode: LogDataTask not started");
+  }
 #endif
   // Créer une tâche pour vérifier la tension des batteries
   xTaskCreatePinnedToCore(checkBatteryTask, "checkBatteryTask", 4096, NULL, 0,
@@ -554,14 +737,33 @@ void setup() {
 #ifdef ENABLE_TIME_AND_INFLUXDB
   // Créer une tâche pour envoyer les données stockées sur la carte SD à
   // InfluxDB
-  xTaskCreatePinnedToCore(sendStoredDataTask, "SendStoredDataTask", 65536, NULL,
-                          1, NULL, 0); // 32768
+  if (!g_safeModeActive) {
+    xTaskCreatePinnedToCore(sendStoredDataTask, "SendStoredDataTask", 65536,
+                            NULL, 1, NULL, 0); // 32768
+  }
 
   // Créer une tâche pour gérer le temps et InfluxDB
-  xTaskCreatePinnedToCore(timeAndInfluxTask, "TimeAndInfluxTask", 8192, NULL, 1,
-                          NULL, 0);
+  if (!g_safeModeActive) {
+    xTaskCreatePinnedToCore(timeAndInfluxTask, "TimeAndInfluxTask", 8192,
+                            NULL, 1, NULL, 0);
+  }
 
-  wifiHandler.begin(); // Démarrer la connexion WiFi
+#endif
+
+#if defined(ENABLE_TIME_AND_INFLUXDB) || defined(ENABLE_MQTT)
+  if (!g_safeModeActive) {
+    wifiHandler.begin(); // Démarrer la connexion WiFi pour cloud/MQTT
+  }
+#endif
+
+#ifdef ENABLE_MQTT
+  if (!g_safeModeActive) {
+    xTaskCreatePinnedToCore(mqttTelemetryTask, "MqttTelemetryTask", 8192,
+                            NULL, 1, NULL, 0);
+  } else {
+    debugLogger.println(DebugLogger::WARNING,
+                        "Safe mode: MqttTelemetryTask not started");
+  }
 #endif
 
 #ifdef ENABLE_WEBSERVER
@@ -573,12 +775,16 @@ void setup() {
     }
     debugLogger.println(DebugLogger::SPIFF, "SPIFFS mounted successfully");
     */
-  webServerHandler.begin(); // Démarrer le serveur web
+  if (!g_safeModeActive) {
+    webServerHandler.begin(); // Démarrer le serveur web
+  }
 
   // Créer une tâche pour gérer le serveur web
 
-  xTaskCreatePinnedToCore(webServerTask, "WebServerTask", 12288, NULL, 1, NULL,
-                          1);
+  if (!g_safeModeActive) {
+    xTaskCreatePinnedToCore(webServerTask, "WebServerTask", 12288, NULL, 1,
+                            NULL, 1);
+  }
 
 #endif
 
@@ -597,6 +803,28 @@ void setup() {
  * @brief Boucle principale du programme.
  */
 void loop() {
+  // TASK-005: Safe mode exit strategy after stability window
+  // After kBrownoutCounterClearUptimeMs (120s) without new brownout resets,
+  // automatically exit safe mode to allow normal operation retry.
+  // This prevents firmware from being permanently stuck in safe mode.
+  const uint32_t nowMs = millis();
+  if (nowMs > kBrownoutCounterClearUptimeMs) {
+    if (!g_brownoutCounterCleared) {
+      // Clear brownout counter — no new brownouts detected during stability window
+      g_brownoutResetCount = 0;
+      g_brownoutCounterCleared = true;
+      debugLogger.println(DebugLogger::INFO,
+                          "Brownout reset counter cleared after stable uptime");
+      
+      // Exit safe mode to allow task resumption (WiFi, logging, MQTT, etc.)
+      if (g_safeModeActive) {
+        g_safeModeActive = false;
+        debugLogger.println(DebugLogger::WARNING,
+                            "Safe mode disabled after 120s stability window — resuming normal operation");
+      }
+    }
+  }
+
   // Laisser les tâches FreeRTOS gérer les opérations
   vTaskDelay(1000 / portTICK_PERIOD_MS); // Ajouter un léger délai pour
   //  éviter une boucle serrée

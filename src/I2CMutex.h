@@ -15,6 +15,21 @@
  * Created in main.cpp setup(), used by INAHandler and TCAHandler.
  */
 extern SemaphoreHandle_t i2cMutex;
+extern volatile uint32_t g_i2cConsecutiveFailures;
+
+static constexpr uint32_t kI2CRecoveryThreshold = 5;
+
+inline void i2cRecordFailure() {
+  g_i2cConsecutiveFailures++;
+}
+
+inline void i2cResetFailureCounter() {
+  g_i2cConsecutiveFailures = 0;
+}
+
+inline bool i2cShouldRecover() {
+  return g_i2cConsecutiveFailures >= kI2CRecoveryThreshold;
+}
 
 /**
  * @brief Initialize the I2C mutex. Must be called before any task creation.

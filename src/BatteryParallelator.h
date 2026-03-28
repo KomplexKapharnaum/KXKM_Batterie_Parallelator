@@ -28,6 +28,7 @@
 #include <DebugLogger.h>
 #include <cfloat>
 #include <cmath>
+#include <freertos/semphr.h>
 #include "BatteryManager.h" // Inclure le nouvel en-tête
 
 extern TCAHandler tcaHandler;
@@ -42,8 +43,8 @@ class BatteryManager; // Garder uniquement cette déclaration si nécessaire
 class BATTParallelator {
 public:
   BATTParallelator();
-  void switch_off_battery(int INA_num);
-  void switch_on_battery(int INA_num);
+  bool switch_off_battery(int INA_num);
+  bool switch_on_battery(int INA_num);
   uint8_t TCA_num(int INA_num);
   bool check_battery_status(int INA_num);
   bool check_charge_status(int INA_num);
@@ -52,6 +53,8 @@ public:
   void reset_switch_count(int INA_num);
   int detect_batteries();
   float battery_voltages[16];
+  void set_battery_voltage(int INA_num, float voltage);
+  void copy_battery_voltages(float *dest, int count);
 
   // Setters
   void set_max_voltage(float voltage);
@@ -74,6 +77,8 @@ public:
   bool is_difference_acceptable(float voltage, float current);
 
 private:
+  bool isValidBatteryIndex(int INA_num) const;
+  SemaphoreHandle_t stateMutex = NULL;
   int mem_set_max_voltage = 30000;
   int mem_set_min_voltage = 24000;
   int mem_set_max_current = 1000;

@@ -1,3 +1,4 @@
+# Tests BMU
 
 This directory is intended for PlatformIO Test Runner and project tests.
 
@@ -8,4 +9,25 @@ determine whether they are fit for use. Unit testing finds problems early
 in the development cycle.
 
 More information about PlatformIO Unit Testing:
-- https://docs.platformio.org/en/latest/advanced/unit-testing/index.html
+
+- <https://docs.platformio.org/en/latest/advanced/unit-testing/index.html>
+
+## Environnement de simulation (MCU + hardware logique)
+
+1. Précharger l'environnement MCU (toolchain + libs):
+
+- `pio run -e kxkm-s3-16MB`
+
+1. Lancer la simulation logique hôte (sans carte physique):
+
+- `pio test -e sim-host`
+
+1. Compiler les tests pour cible MCU (quand le hardware est disponible):
+
+- `pio test -e kxkm-s3-16MB`
+
+Suites sim-host actuellement activées:
+
+- `test_battery_route_validation`
+- `test_web_route_security`
+- `test_emulation_bench`

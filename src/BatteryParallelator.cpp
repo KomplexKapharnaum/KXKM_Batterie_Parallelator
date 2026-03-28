@@ -47,8 +47,37 @@ BATTParallelator::BATTParallelator()
     : Nb_switch_max(5), max_discharge_current(1000),
       max_charge_current(1000) // Initialiser les courants max
 {
+  stateMutex = xSemaphoreCreateMutex();
+  configASSERT(stateMutex != NULL);
+
+  memset(battery_voltages, 0, sizeof(battery_voltages));
   memset(Nb_switch, 0, sizeof(Nb_switch));
   memset(reconnect_time, 0, sizeof(reconnect_time));
+}
+
+void BATTParallelator::set_battery_voltage(int INA_num, float voltage) {
+  if (INA_num < 0 || INA_num >= 16) {
+    return;
+  }
+
+  if (xSemaphoreTake(stateMutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+    battery_voltages[INA_num] = voltage;
+    xSemaphoreGive(stateMutex);
+  }
+}
+
+void BATTParallelator::copy_battery_voltages(float *dest, int count) {
+  if (dest == nullptr || count <= 0) {
+    return;
+  }
+
+  const int maxCopy = (count > 16) ? 16 : count;
+  if (xSemaphoreTake(stateMutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+    for (int i = 0; i < maxCopy; ++i) {
+      dest[i] = battery_voltages[i];
+    }
+    xSemaphoreGive(stateMutex);
+  }
 }
 
 /**
@@ -121,17 +150,25 @@ void BATTParallelator::set_max_charge_current(float current) {
   mem_set_max_charge_current = current;
 }
 
+bool BATTParallelator::isValidBatteryIndex(int INA_num) const {
+  return INA_num >= 0 && INA_num < inaHandler.getNbINA();
+}
+
 /**
  * @brief Obtenir le numéro du TCA à partir du numéro de l'INA.
  * @param INA_num Numéro de l'INA.
  * @return Numéro du TCA.
  */
 uint8_t BATTParallelator::TCA_num(int INA_num) {
+  if (!isValidBatteryIndex(INA_num)) {
+    return 0xFF;
+  }
+
   int address = inaHandler.getDeviceAddress(INA_num);
   if (address >= 64 && address <= 79) {
     return (address - 64) / 4;
   } else {
-    return 10; // return 10 if the address is not in the range
+    return 0xFF;
   }
 }
 
@@ -139,34 +176,64 @@ uint8_t BATTParallelator::TCA_num(int INA_num) {
  * @brief Éteindre une batterie.
  * @param batt_number Numéro de la batterie.
  */
-void BATTParallelator::switch_off_battery(int INA_num) {
-  int TCA_num = BATTParallelator::TCA_num(INA_num);
-  int OUT_num = (inaHandler.getDeviceAddress(INA_num) - 64) % 4;
+bool BATTParallelator::switch_off_battery(int INA_num) {
+  if (!isValidBatteryIndex(INA_num)) {
+    debugLogger.println(DebugLogger::WARNING,
+                        "Invalid battery index for switch_off_battery: " +
+                            String(INA_num));
+    return false;
+  }
+
+  const uint8_t tcaNum = BATTParallelator::TCA_num(INA_num);
+  if (tcaNum == 0xFF) {
+    debugLogger.println(DebugLogger::WARNING,
+                        "Invalid TCA mapping for battery " +
+                            String(INA_num + 1));
+    return false;
+  }
+
+  const int OUT_num = (inaHandler.getDeviceAddress(INA_num) - 64) % 4;
   debugLogger.println(debugLogger.BATTERY, "Switching off battery " +
                                                String(INA_num + 1) +
-                                               " on TCA " + String(TCA_num) +
+                                               " on TCA " + String(tcaNum) +
                                                " OUT " + String(OUT_num));
-  tcaHandler.write(TCA_num, OUT_num, 0);     // switch off the battery
-  tcaHandler.write(TCA_num, OUT_num * 2 + 8, 1); // set red led on
-  tcaHandler.write(TCA_num, OUT_num * 2 + 9, 0); // set green led off
+  const bool switchWriteOk = tcaHandler.write(tcaNum, OUT_num, 0);
+  const bool redLedOk = tcaHandler.write(tcaNum, OUT_num * 2 + 8, 1);
+  const bool greenLedOk = tcaHandler.write(tcaNum, OUT_num * 2 + 9, 0);
   vTaskDelay(pdMS_TO_TICKS(50)); // wait for the battery to switch off
+  return switchWriteOk && redLedOk && greenLedOk;
 }
 
 /**
  * @brief Allumer une batterie.
  * @param batt_number Numéro de la batterie.
  */
-void BATTParallelator::switch_on_battery(int INA_num) {
-  int TCA_num = BATTParallelator::TCA_num(INA_num);
-  int OUT_num = (inaHandler.getDeviceAddress(INA_num) - 64) % 4;
+bool BATTParallelator::switch_on_battery(int INA_num) {
+  if (!isValidBatteryIndex(INA_num)) {
+    debugLogger.println(DebugLogger::WARNING,
+                        "Invalid battery index for switch_on_battery: " +
+                            String(INA_num));
+    return false;
+  }
+
+  const uint8_t tcaNum = BATTParallelator::TCA_num(INA_num);
+  if (tcaNum == 0xFF) {
+    debugLogger.println(DebugLogger::WARNING,
+                        "Invalid TCA mapping for battery " +
+                            String(INA_num + 1));
+    return false;
+  }
+
+  const int OUT_num = (inaHandler.getDeviceAddress(INA_num) - 64) % 4;
 
   debugLogger.println(DebugLogger::BATTERY, "Switching on battery " +
                                                 String(INA_num + 1) +
-                                                " on TCA " + String(TCA_num));
-  tcaHandler.write(TCA_num, OUT_num, 1);         // switch on the battery
-  tcaHandler.write(TCA_num, OUT_num * 2 + 8, 0); // set red led off
-  tcaHandler.write(TCA_num, OUT_num * 2 + 9, 1); // set green led on
+                                                " on TCA " + String(tcaNum));
+  const bool switchWriteOk = tcaHandler.write(tcaNum, OUT_num, 1);
+  const bool redLedOk = tcaHandler.write(tcaNum, OUT_num * 2 + 8, 0);
+  const bool greenLedOk = tcaHandler.write(tcaNum, OUT_num * 2 + 9, 1);
   vTaskDelay(pdMS_TO_TICKS(100)); // MOSFET dead-time protection
+  return switchWriteOk && redLedOk && greenLedOk;
 }
 
 /**
@@ -216,8 +283,22 @@ bool BATTParallelator::check_charge_status(int INA_num) {
  * @return true si la batterie est allumée, false sinon.
  */
 bool BATTParallelator::switch_battery(int INA_num, bool switch_on) {
-  int TCA_number = TCA_num(INA_num);
-  int OUT_number = (inaHandler.getDeviceAddress(INA_num) - 64) % 4;
+  if (!isValidBatteryIndex(INA_num)) {
+    debugLogger.println(DebugLogger::WARNING,
+                        "switch_battery called with invalid index: " +
+                            String(INA_num));
+    return false;
+  }
+
+  const uint8_t TCA_number = TCA_num(INA_num);
+  if (TCA_number == 0xFF) {
+    debugLogger.println(DebugLogger::WARNING,
+                        "switch_battery failed: invalid TCA mapping for battery " +
+                            String(INA_num + 1));
+    return false;
+  }
+
+  const int OUT_number = (inaHandler.getDeviceAddress(INA_num) - 64) % 4;
 
   debugLogger.print(DebugLogger::BATTERY, "Switching ");
   if (switch_on)
@@ -229,12 +310,10 @@ bool BATTParallelator::switch_battery(int INA_num, bool switch_on) {
                                               " OUT " + String(OUT_number));
 
   if (switch_on) {
-    switch_on_battery(INA_num);
-    return true;
-  } else {
-    switch_off_battery(INA_num);
-    return false;
+    return switch_on_battery(INA_num);
   }
+
+  return switch_off_battery(INA_num);
 }
 
 /**
@@ -255,6 +334,14 @@ void BATTParallelator::check_battery_connected_status(int INA_num) {
   }
 
   BatteryState state;
+  int localNbSwitch = 0;
+  long localReconnectTime = 0;
+
+  if (xSemaphoreTake(stateMutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+    localNbSwitch = Nb_switch[INA_num];
+    localReconnectTime = reconnect_time[INA_num];
+    xSemaphoreGive(stateMutex);
+  }
 
   // Vérifier l'état de la batterie
   // mem_set_max_current is in mA, current is in A — convert for comparison
@@ -267,9 +354,9 @@ void BATTParallelator::check_battery_connected_status(int INA_num) {
   } else if (!check_battery_status(INA_num) ||
              !check_voltage_offset(INA_num, voltageOffset)) {
     state = DISCONNECTED;
-  } else if (Nb_switch[INA_num] == 0 || // Première connexion
-             (Nb_switch[INA_num] < Nb_switch_max &&
-              (millis() - reconnect_time[INA_num] > reconnect_delay))) {
+  } else if (localNbSwitch == 0 || // Première connexion
+             (localNbSwitch < Nb_switch_max &&
+              (millis() - localReconnectTime > reconnect_delay))) {
     state = RECONNECTING;
   } else {
     state = CONNECTED;
@@ -291,8 +378,11 @@ void BATTParallelator::check_battery_connected_status(int INA_num) {
       debugLogger.println(DebugLogger::BATTERY, "Battery " +
                                                     String(INA_num + 1) +
                                                     " is now connected.");
-      Nb_switch[INA_num]++;
-      reconnect_time[INA_num] = millis();
+      if (xSemaphoreTake(stateMutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+        Nb_switch[INA_num]++;
+        reconnect_time[INA_num] = millis();
+        xSemaphoreGive(stateMutex);
+      }
     } else {
       debugLogger.println(DebugLogger::BATTERY,
                           "Battery " + String(INA_num + 1) +
@@ -376,8 +466,14 @@ float BATTParallelator::find_min_voltage(float *battery_voltages,
  * @param INA_num Numéro de l'INA.
  */
 void BATTParallelator::reset_switch_count(int INA_num) {
-  Nb_switch[INA_num] = 0;
-  reconnect_time[INA_num] = 0;
+  if (INA_num < 0 || INA_num >= 16) {
+    return;
+  }
+  if (xSemaphoreTake(stateMutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+    Nb_switch[INA_num] = 0;
+    reconnect_time[INA_num] = 0;
+    xSemaphoreGive(stateMutex);
+  }
 }
 
 /**
