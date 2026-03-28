@@ -1,0 +1,27 @@
+name: sim-host-tests
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+      - object-orriented
+
+jobs:
+  sim-host:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      - name: Run sim-host suites
+        run: pio test -e sim-host -vv

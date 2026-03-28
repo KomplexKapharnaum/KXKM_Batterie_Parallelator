@@ -27,6 +27,23 @@
 #include <new>
 
 extern DebugLogger debugLogger;
+volatile uint32_t g_i2cConsecutiveFailures = 0;
+
+static void tryI2CRecoveryIfNeeded(const char *origin) {
+    if (!i2cShouldRecover()) {
+        return;
+    }
+
+    I2CLockGuard recoveryLock(pdMS_TO_TICKS(20));
+    if (!recoveryLock.isAcquired()) {
+        return;
+    }
+
+    i2cBusRecovery();
+    i2cResetFailureCounter();
+    debugLogger.println(DebugLogger::WARNING,
+                        String("I2C recovery executed from ") + origin);
+}
 
 INAHandler::INAHandler()
     : deviceNumber(UINT8_MAX), Nb_INA(0)
@@ -120,15 +137,25 @@ void INAHandler::read(const uint8_t sensorIndex)
 
     I2CLockGuard lock;
     if (!lock.isAcquired()) {
+        i2cRecordFailure();
+        tryI2CRecoveryIfNeeded("INA.read");
         return;
     }
 
     const float busV = sensors[sensorIndex]->getBusVoltage();
-    if (sensors[sensorIndex]->getError() != 0) {
+    if (sensors[sensorIndex]->getLastError() != 0) {
+        i2cRecordFailure();
+        if (i2cShouldRecover()) {
+            i2cBusRecovery();
+            i2cResetFailureCounter();
+            debugLogger.println(DebugLogger::WARNING,
+                "I2C recovery executed from INA.read sensor error");
+        }
         debugLogger.println(DebugLogger::WARNING,
             "INA226 I2C error on read() slot " + String(sensorIndex));
         return;
     }
+    i2cResetFailureCounter();
     const float currentA = sensors[sensorIndex]->getCurrent();
     const float powerW = sensors[sensorIndex]->getPower();
     (void)busV;
@@ -140,13 +167,25 @@ float INAHandler::read_current(const uint8_t sensorIndex)
 {
     if (!isValidIndex(sensorIndex)) return NAN;
     I2CLockGuard lock;
-    if (!lock.isAcquired()) return NAN;
+    if (!lock.isAcquired()) {
+        i2cRecordFailure();
+        tryI2CRecoveryIfNeeded("INA.read_current");
+        return NAN;
+    }
     float val = sensors[sensorIndex]->getCurrent();
-    if (sensors[sensorIndex]->getError() != 0) {
+    if (sensors[sensorIndex]->getLastError() != 0) {
+        i2cRecordFailure();
+        if (i2cShouldRecover()) {
+            i2cBusRecovery();
+            i2cResetFailureCounter();
+            debugLogger.println(DebugLogger::WARNING,
+                "I2C recovery executed from INA.read_current sensor error");
+        }
         debugLogger.println(DebugLogger::WARNING,
             "INA226 I2C error on read_current() slot " + String(sensorIndex));
         return NAN;
     }
+    i2cResetFailureCounter();
     return val;
 }
 
@@ -154,13 +193,25 @@ float INAHandler::read_volt(const uint8_t sensorIndex)
 {
     if (!isValidIndex(sensorIndex)) return NAN;
     I2CLockGuard lock;
-    if (!lock.isAcquired()) return NAN;
+    if (!lock.isAcquired()) {
+        i2cRecordFailure();
+        tryI2CRecoveryIfNeeded("INA.read_volt");
+        return NAN;
+    }
     float val = sensors[sensorIndex]->getBusVoltage();
-    if (sensors[sensorIndex]->getError() != 0) {
+    if (sensors[sensorIndex]->getLastError() != 0) {
+        i2cRecordFailure();
+        if (i2cShouldRecover()) {
+            i2cBusRecovery();
+            i2cResetFailureCounter();
+            debugLogger.println(DebugLogger::WARNING,
+                "I2C recovery executed from INA.read_volt sensor error");
+        }
         debugLogger.println(DebugLogger::WARNING,
             "INA226 I2C error on read_volt() slot " + String(sensorIndex));
         return NAN;
     }
+    i2cResetFailureCounter();
     return val;
 }
 
@@ -168,13 +219,25 @@ float INAHandler::read_power(const uint8_t sensorIndex)
 {
     if (!isValidIndex(sensorIndex)) return NAN;
     I2CLockGuard lock;
-    if (!lock.isAcquired()) return NAN;
+    if (!lock.isAcquired()) {
+        i2cRecordFailure();
+        tryI2CRecoveryIfNeeded("INA.read_power");
+        return NAN;
+    }
     float val = sensors[sensorIndex]->getPower();
-    if (sensors[sensorIndex]->getError() != 0) {
+    if (sensors[sensorIndex]->getLastError() != 0) {
+        i2cRecordFailure();
+        if (i2cShouldRecover()) {
+            i2cBusRecovery();
+            i2cResetFailureCounter();
+            debugLogger.println(DebugLogger::WARNING,
+                "I2C recovery executed from INA.read_power sensor error");
+        }
         debugLogger.println(DebugLogger::WARNING,
             "INA226 I2C error on read_power() slot " + String(sensorIndex));
         return NAN;
     }
+    i2cResetFailureCounter();
     return val;
 }
 

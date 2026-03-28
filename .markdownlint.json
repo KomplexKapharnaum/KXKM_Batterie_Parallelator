@@ -1,0 +1,12 @@
+{
+  "default": true,
+  "overrides": [
+    {
+      "files": [
+        "plan/*.md"
+      ],
+      "MD060": false,
+      "MD047": false
+    }
+  ]
+}
