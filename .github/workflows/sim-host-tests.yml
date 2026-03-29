@@ -24,8 +24,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
+
+      - name: Bootstrap DebugLogger
+        run: |
+          if [ ! -f lib/DebugLogger/DebugLogger.h ]; then
+            rm -rf lib/DebugLogger
+            git clone --depth 1 https://github.com/electron-rare/Debug-Logger.git lib/DebugLogger
+          fi
 
       - name: Setup Python
         uses: actions/setup-python@v5
