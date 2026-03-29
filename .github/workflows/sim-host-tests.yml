@@ -1,6 +1,7 @@
-name: sim-host-tests
+name: qa-cicd-environments
 
 on:
+  workflow_dispatch:
   pull_request:
   push:
     branches:
@@ -8,8 +9,17 @@ on:
       - object-orriented
 
 jobs:
-  sim-host:
+  qa-by-environment:
     runs-on: ubuntu-latest
+    name: qa-${{ matrix.id }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: sim-host
+          - id: kxkm-s3-build
+          - id: kxkm-v3-build
+          - id: kxkm-s3-memory-budget
 
     steps:
       - name: Checkout
@@ -20,8 +30,19 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install PlatformIO
-        run: pip install platformio
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio/.cache
+            ~/.platformio/packages
+            ~/.platformio/platforms
+          key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
+          restore-keys: |
+            pio-${{ runner.os }}-
 
-      - name: Run sim-host suites
-        run: pio test -e sim-host -vv
+      - name: Install Tooling
+        run: scripts/ci/install_tooling.sh
+
+      - name: Run QA for target environment
+        run: scripts/ci/run_qa_env.sh ${{ matrix.id }}
