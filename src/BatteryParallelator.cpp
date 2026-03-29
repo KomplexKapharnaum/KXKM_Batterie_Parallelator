@@ -25,11 +25,11 @@
  */
 
 #include "BatteryParallelator.h"
-#include <DebugLogger.h>
+#include <KxLogger.h>
 #include <cmath>
 
 // Assurez-vous que `debugLogger` est déclaré et initialisé correctement
-extern DebugLogger debugLogger;
+extern KxLogger debugLogger;
 extern BatteryManager batteryManager; // Ajouter cette ligne
 
 // Définition des états des batteries
@@ -44,8 +44,7 @@ enum BatteryState {
  * @brief Constructeur de la classe BATTParallelator.
  */
 BATTParallelator::BATTParallelator()
-    : Nb_switch_max(5), max_discharge_current(1000),
-      max_charge_current(1000) // Initialiser les courants max
+  : Nb_switch_max(5), max_discharge_current(1000)
 {
   stateMutex = xSemaphoreCreateMutex();
   configASSERT(stateMutex != NULL);
@@ -55,12 +54,19 @@ BATTParallelator::BATTParallelator()
   memset(reconnect_time, 0, sizeof(reconnect_time));
 }
 
+bool BATTParallelator::lockState(TickType_t timeout) {
+  if (stateMutex == NULL) {
+    return false;
+  }
+  return xSemaphoreTake(stateMutex, timeout) == pdTRUE;
+}
+
 void BATTParallelator::set_battery_voltage(int INA_num, float voltage) {
   if (INA_num < 0 || INA_num >= 16) {
     return;
   }
 
-  if (xSemaphoreTake(stateMutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+  if (lockState()) {
     battery_voltages[INA_num] = voltage;
     xSemaphoreGive(stateMutex);
   }
@@ -72,7 +78,7 @@ void BATTParallelator::copy_battery_voltages(float *dest, int count) {
   }
 
   const int maxCopy = (count > 16) ? 16 : count;
-  if (xSemaphoreTake(stateMutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+  if (lockState()) {
     for (int i = 0; i < maxCopy; ++i) {
       dest[i] = battery_voltages[i];
     }
@@ -91,7 +97,10 @@ void BATTParallelator::set_nb_switch_on(int nb) { Nb_switch_max = nb; }
  * @param delay Délai de reconnexion en millisecondes.
  */
 void BATTParallelator::set_reconnect_delay(int delay) {
-  reconnect_delay = delay;
+  if (lockState()) {
+    reconnect_delay = delay;
+    xSemaphoreGive(stateMutex);
+  }
 }
 
 /**
@@ -99,7 +108,10 @@ void BATTParallelator::set_reconnect_delay(int delay) {
  * @param voltage Tension maximale en volts.
  */
 void BATTParallelator::set_max_voltage(float voltage) {
-  mem_set_max_voltage = voltage;
+  if (lockState()) {
+    mem_set_max_voltage = voltage;
+    xSemaphoreGive(stateMutex);
+  }
 }
 
 /**
@@ -107,7 +119,10 @@ void BATTParallelator::set_max_voltage(float voltage) {
  * @param voltage Tension minimale en volts.
  */
 void BATTParallelator::set_min_voltage(float voltage) {
-  mem_set_min_voltage = voltage;
+  if (lockState()) {
+    mem_set_min_voltage = voltage;
+    xSemaphoreGive(stateMutex);
+  }
 }
 
 /**
@@ -115,7 +130,10 @@ void BATTParallelator::set_min_voltage(float voltage) {
  * @param diff Différence de tension maximale en volts.
  */
 void BATTParallelator::set_max_diff_voltage(float diff) {
-  mem_set_voltage_diff = diff;
+  if (lockState()) {
+    mem_set_voltage_diff = diff;
+    xSemaphoreGive(stateMutex);
+  }
 }
 
 /**
@@ -123,7 +141,10 @@ void BATTParallelator::set_max_diff_voltage(float diff) {
  * @param diff Différence de courant maximale en ampères.
  */
 void BATTParallelator::set_max_diff_current(float diff) {
-  mem_set_current_diff = diff;
+  if (lockState()) {
+    mem_set_current_diff = diff;
+    xSemaphoreGive(stateMutex);
+  }
 }
 
 /**
@@ -131,7 +152,10 @@ void BATTParallelator::set_max_diff_current(float diff) {
  * @param current Courant maximal en ampères.
  */
 void BATTParallelator::set_max_current(float current) {
-  mem_set_max_current = current;
+  if (lockState()) {
+    mem_set_max_current = current;
+    xSemaphoreGive(stateMutex);
+  }
 }
 
 /**
@@ -139,7 +163,10 @@ void BATTParallelator::set_max_current(float current) {
  * @param current Courant de décharge maximal en ampères.
  */
 void BATTParallelator::set_max_discharge_current(float current) {
-  mem_set_max_discharge_current = current;
+  if (lockState()) {
+    mem_set_max_discharge_current = current;
+    xSemaphoreGive(stateMutex);
+  }
 }
 
 /**
@@ -147,7 +174,10 @@ void BATTParallelator::set_max_discharge_current(float current) {
  * @param current Courant de charge maximal en ampères.
  */
 void BATTParallelator::set_max_charge_current(float current) {
-  mem_set_max_charge_current = current;
+  if (lockState()) {
+    mem_set_max_charge_current = current;
+    xSemaphoreGive(stateMutex);
+  }
 }
 
 bool BATTParallelator::isValidBatteryIndex(int INA_num) const {
@@ -178,7 +208,7 @@ uint8_t BATTParallelator::TCA_num(int INA_num) {
  */
 bool BATTParallelator::switch_off_battery(int INA_num) {
   if (!isValidBatteryIndex(INA_num)) {
-    debugLogger.println(DebugLogger::WARNING,
+    debugLogger.println(KxLogger::WARNING,
                         "Invalid battery index for switch_off_battery: " +
                             String(INA_num));
     return false;
@@ -186,7 +216,7 @@ bool BATTParallelator::switch_off_battery(int INA_num) {
 
   const uint8_t tcaNum = BATTParallelator::TCA_num(INA_num);
   if (tcaNum == 0xFF) {
-    debugLogger.println(DebugLogger::WARNING,
+    debugLogger.println(KxLogger::WARNING,
                         "Invalid TCA mapping for battery " +
                             String(INA_num + 1));
     return false;
@@ -210,7 +240,7 @@ bool BATTParallelator::switch_off_battery(int INA_num) {
  */
 bool BATTParallelator::switch_on_battery(int INA_num) {
   if (!isValidBatteryIndex(INA_num)) {
-    debugLogger.println(DebugLogger::WARNING,
+    debugLogger.println(KxLogger::WARNING,
                         "Invalid battery index for switch_on_battery: " +
                             String(INA_num));
     return false;
@@ -218,7 +248,7 @@ bool BATTParallelator::switch_on_battery(int INA_num) {
 
   const uint8_t tcaNum = BATTParallelator::TCA_num(INA_num);
   if (tcaNum == 0xFF) {
-    debugLogger.println(DebugLogger::WARNING,
+    debugLogger.println(KxLogger::WARNING,
                         "Invalid TCA mapping for battery " +
                             String(INA_num + 1));
     return false;
@@ -226,7 +256,7 @@ bool BATTParallelator::switch_on_battery(int INA_num) {
 
   const int OUT_num = (inaHandler.getDeviceAddress(INA_num) - 64) % 4;
 
-  debugLogger.println(DebugLogger::BATTERY, "Switching on battery " +
+  debugLogger.println(KxLogger::BATTERY, "Switching on battery " +
                                                 String(INA_num + 1) +
                                                 " on TCA " + String(tcaNum));
   const bool switchWriteOk = tcaHandler.write(tcaNum, OUT_num, 1);
@@ -249,7 +279,7 @@ bool BATTParallelator::check_voltage_offset(int INA_num, float offset) {
 
   if (fabs(voltage - averageVoltage) > offset) {
     if (voltage > 1) {
-      //   debugLogger.println(DebugLogger::BATTERY, "Battery " + String(INA_num
+      //   debugLogger.println(KxLogger::BATTERY, "Battery " + String(INA_num
       //   + 1) +
       //                                      " voltage is out of offset range:
       //                                      " + String(voltage));
@@ -257,7 +287,7 @@ bool BATTParallelator::check_voltage_offset(int INA_num, float offset) {
     return false;
   }
   if (voltage > 1) {
-    //  debugLogger.println(DebugLogger::BATTERY, "Battery " + String(INA_num +
+    //  debugLogger.println(KxLogger::BATTERY, "Battery " + String(INA_num +
     //  1) +
     //                                     " voltage is in offset range ! :D " +
     //                                     String(voltage));
@@ -284,7 +314,7 @@ bool BATTParallelator::check_charge_status(int INA_num) {
  */
 bool BATTParallelator::switch_battery(int INA_num, bool switch_on) {
   if (!isValidBatteryIndex(INA_num)) {
-    debugLogger.println(DebugLogger::WARNING,
+    debugLogger.println(KxLogger::WARNING,
                         "switch_battery called with invalid index: " +
                             String(INA_num));
     return false;
@@ -292,7 +322,7 @@ bool BATTParallelator::switch_battery(int INA_num, bool switch_on) {
 
   const uint8_t TCA_number = TCA_num(INA_num);
   if (TCA_number == 0xFF) {
-    debugLogger.println(DebugLogger::WARNING,
+    debugLogger.println(KxLogger::WARNING,
                         "switch_battery failed: invalid TCA mapping for battery " +
                             String(INA_num + 1));
     return false;
@@ -300,12 +330,12 @@ bool BATTParallelator::switch_battery(int INA_num, bool switch_on) {
 
   const int OUT_number = (inaHandler.getDeviceAddress(INA_num) - 64) % 4;
 
-  debugLogger.print(DebugLogger::BATTERY, "Switching ");
+  debugLogger.print(KxLogger::BATTERY, "Switching ");
   if (switch_on)
-    debugLogger.print(DebugLogger::BATTERY, "on ");
+    debugLogger.print(KxLogger::BATTERY, "on ");
   else
-    debugLogger.print(DebugLogger::BATTERY, "off ");
-  debugLogger.print(DebugLogger::BATTERY, " battery " + String(INA_num + 1) +
+    debugLogger.print(KxLogger::BATTERY, "off ");
+  debugLogger.print(KxLogger::BATTERY, " battery " + String(INA_num + 1) +
                                               " on TCA " + String(TCA_number) +
                                               " OUT " + String(OUT_number));
 
@@ -321,13 +351,20 @@ bool BATTParallelator::switch_battery(int INA_num, bool switch_on) {
  * @param INA_num Numéro de l'INA.
  */
 void BATTParallelator::check_battery_connected_status(int INA_num) {
+  if (!isValidBatteryIndex(INA_num)) {
+    debugLogger.println(KxLogger::WARNING,
+                        "check_battery_connected_status: index invalide " +
+                            String(INA_num));
+    return;
+  }
+
   const float voltageOffset = 0.5; // Offset de tension en volts
   float voltage = inaHandler.read_volt(INA_num);
   float current = inaHandler.read_current(INA_num);
 
   // I2C error — don't make protection decisions on garbage data
   if (std::isnan(voltage) || std::isnan(current)) {
-    debugLogger.println(DebugLogger::WARNING,
+    debugLogger.println(KxLogger::WARNING,
         "I2C read error on battery " + String(INA_num + 1) +
         " — skipping protection check");
     return;
@@ -337,7 +374,7 @@ void BATTParallelator::check_battery_connected_status(int INA_num) {
   int localNbSwitch = 0;
   long localReconnectTime = 0;
 
-  if (xSemaphoreTake(stateMutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+  if (lockState()) {
     localNbSwitch = Nb_switch[INA_num];
     localReconnectTime = reconnect_time[INA_num];
     xSemaphoreGive(stateMutex);
@@ -365,39 +402,39 @@ void BATTParallelator::check_battery_connected_status(int INA_num) {
   // Gérer l'état de la batterie
   switch (state) {
   case CONNECTED:
-    debugLogger.println(DebugLogger::BATTERY,
+    debugLogger.println(KxLogger::BATTERY,
                         "Battery " + String(INA_num + 1) + " is connected.");
     break;
 
   case RECONNECTING:
     if (is_voltage_within_range(voltage) && is_current_within_range(current)) {
-      debugLogger.println(DebugLogger::BATTERY,
+      debugLogger.println(KxLogger::BATTERY,
                           "Connecting/Reconnecting battery " +
                               String(INA_num + 1));
       switch_battery(INA_num, 1); // Allumer la batterie
-      debugLogger.println(DebugLogger::BATTERY, "Battery " +
+      debugLogger.println(KxLogger::BATTERY, "Battery " +
                                                     String(INA_num + 1) +
                                                     " is now connected.");
-      if (xSemaphoreTake(stateMutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+      if (lockState()) {
         Nb_switch[INA_num]++;
         reconnect_time[INA_num] = millis();
         xSemaphoreGive(stateMutex);
       }
     } else {
-      debugLogger.println(DebugLogger::BATTERY,
+      debugLogger.println(KxLogger::BATTERY,
                           "Battery " + String(INA_num + 1) +
                               " does not meet connection criteria.");
     }
     break;
 
   case DISCONNECTED:
-    debugLogger.println(DebugLogger::BATTERY,
+    debugLogger.println(KxLogger::BATTERY,
                         "Battery " + String(INA_num + 1) + " is disconnected.");
     switch_battery(INA_num, 0); // Eteindre la batterie
     break;
 
   case ERROR:
-    debugLogger.println(DebugLogger::BATTERY,
+    debugLogger.println(KxLogger::BATTERY,
                         "Critical error on battery " + String(INA_num + 1) +
                             ". Immediate action required!");
     switch_battery(INA_num, 0); //  Eteindre la batterie
@@ -417,9 +454,9 @@ void BATTParallelator::check_battery_connected_status(int INA_num) {
 bool BATTParallelator::compare_voltage(float voltage, float voltage_max,
                                        float diff) {
   if (voltage < voltage_max - diff || voltage > voltage_max + diff) {
-    debugLogger.println(DebugLogger::BATTERY,
+    debugLogger.println(KxLogger::BATTERY,
                         "Voltage out of range: " + String(voltage));
-    debugLogger.println(DebugLogger::BATTERY,
+    debugLogger.println(KxLogger::BATTERY,
                         "Max voltage: " + String(voltage_max));
     return false; // Si la tension est invalide, retourner false
   }
@@ -434,13 +471,13 @@ bool BATTParallelator::compare_voltage(float voltage, float voltage_max,
  */
 float BATTParallelator::find_max_voltage(float *battery_voltages, int Nb_Batt) {
   if (Nb_Batt <= 0) return 0.0f;
-  max_voltage = battery_voltages[0];
+  float maxVoltage = battery_voltages[0];
   for (int i = 1; i < Nb_Batt; i++) {
-    if (battery_voltages[i] > max_voltage) {
-      max_voltage = battery_voltages[i];
+    if (battery_voltages[i] > maxVoltage) {
+      maxVoltage = battery_voltages[i];
     }
   }
-  return max_voltage;
+  return maxVoltage;
 }
 
 /**
@@ -469,7 +506,7 @@ void BATTParallelator::reset_switch_count(int INA_num) {
   if (INA_num < 0 || INA_num >= 16) {
     return;
   }
-  if (xSemaphoreTake(stateMutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+  if (lockState()) {
     Nb_switch[INA_num] = 0;
     reconnect_time[INA_num] = 0;
     xSemaphoreGive(stateMutex);
@@ -500,12 +537,12 @@ bool BATTParallelator::is_voltage_within_range(float voltage) {
   voltage = voltage * 1000; // Convertir en mV
   // Vérifier si la tension est dans les limites définies
   if (voltage < mem_set_min_voltage || voltage > mem_set_max_voltage) {
-    debugLogger.println(DebugLogger::BATTERY, "voltage : " + String(voltage));
-    debugLogger.println(DebugLogger::BATTERY,
+    debugLogger.println(KxLogger::BATTERY, "voltage : " + String(voltage));
+    debugLogger.println(KxLogger::BATTERY,
                         "Min voltage : " + String(mem_set_min_voltage));
-    debugLogger.println(DebugLogger::BATTERY,
+    debugLogger.println(KxLogger::BATTERY,
                         "Max voltage : " + String(mem_set_max_voltage));
-    debugLogger.println(DebugLogger::BATTERY,
+    debugLogger.println(KxLogger::BATTERY,
                         "Voltage out of range: " + String(voltage));
     return false;
   }
@@ -521,7 +558,7 @@ bool BATTParallelator::is_current_within_range(float current) {
   // mem_set_max_current/charge are in mA, current is in A — convert
   if (abs(current) > mem_set_max_current / 1000.0f ||
       current < -(mem_set_max_charge_current / 1000.0f)) {
-    debugLogger.println(DebugLogger::BATTERY,
+    debugLogger.println(KxLogger::BATTERY,
                         "Current out of range: " + String(current));
     return false;
   }
@@ -551,7 +588,7 @@ bool BATTParallelator::check_battery_status(int INA_num) {
 
   // I2C error — treat as bad status to prevent connecting on garbage
   if (std::isnan(voltage) || std::isnan(current)) {
-    debugLogger.println(DebugLogger::WARNING,
+    debugLogger.println(KxLogger::WARNING,
         "I2C read error in check_battery_status() for battery " +
         String(INA_num + 1));
     return false;
@@ -559,7 +596,7 @@ bool BATTParallelator::check_battery_status(int INA_num) {
 
   // Vérifier si la tension est valide
   if (voltage <= 1) {
-    debugLogger.println(DebugLogger::BATTERY, "Battery " + String(INA_num + 1) +
+    debugLogger.println(KxLogger::BATTERY, "Battery " + String(INA_num + 1) +
                                                   " voltage is invalid.");
     return false;
   }
@@ -567,11 +604,11 @@ bool BATTParallelator::check_battery_status(int INA_num) {
   // Vérifier les seuils de tension, de courant et les différences
   if (is_voltage_within_range(voltage) && is_current_within_range(current) &&
       is_difference_acceptable(voltage, current)) {
-    debugLogger.println(DebugLogger::BATTERY, "Battery " + String(INA_num + 1) +
+    debugLogger.println(KxLogger::BATTERY, "Battery " + String(INA_num + 1) +
                                                   " is in good condition.");
     return true;
   } else {
-    debugLogger.println(DebugLogger::BATTERY, "Battery " + String(INA_num + 1) +
+    debugLogger.println(KxLogger::BATTERY, "Battery " + String(INA_num + 1) +
                                                   " is not in good condition.");
     return false;
   }

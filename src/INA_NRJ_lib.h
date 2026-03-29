@@ -22,7 +22,7 @@
 #ifndef INA_NRJ_LIB_h
 #define INA_NRJ_LIB_h
 
-#include <DebugLogger.h>
+#include <KxLogger.h>
 #include <INA226.h>
 #include <Wire.h>
 

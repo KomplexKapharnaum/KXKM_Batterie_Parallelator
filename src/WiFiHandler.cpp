@@ -20,10 +20,10 @@
  */
 
 #include "WiFiHandler.h"
-#include <DebugLogger.h>
+#include <KxLogger.h>
 
 // Assurez-vous que `debugLogger` est déclaré et initialisé correctement
-extern DebugLogger debugLogger;
+extern KxLogger debugLogger;
 
 /**
  * @brief Constructeur de la classe WiFiHandler.
@@ -57,14 +57,14 @@ void WiFiHandler::begin() {
   while (WiFi.status() != WL_CONNECTED && elapsed < kWifiTimeoutMs) {
     vTaskDelay(1000 / portTICK_PERIOD_MS);
     elapsed += 1000;
-    debugLogger.println(DebugLogger::WIFI,"Connecting to WiFi...");
+    debugLogger.println(KxLogger::WIFI,"Connecting to WiFi...");
   }
   if (WiFi.status() != WL_CONNECTED) {
-    debugLogger.println(DebugLogger::WIFI,"WiFi connection timeout after 30s");
+    debugLogger.println(KxLogger::WIFI,"WiFi connection timeout after 30s");
     return;
   }
-  debugLogger.println(DebugLogger::WIFI,"=======================> Connected to WiFi");
-  debugLogger.println(DebugLogger::WIFI,WiFi.localIP().toString());
+  debugLogger.println(KxLogger::WIFI,"=======================> Connected to WiFi");
+  debugLogger.println(KxLogger::WIFI,WiFi.localIP().toString());
 }
 
 WiFiHandler::WiFiHandler() {}

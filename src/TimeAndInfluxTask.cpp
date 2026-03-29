@@ -6,10 +6,10 @@
 #include <ESP_SSLClient.h>
 #include <SD.h>
 #include <time.h>
-#include <DebugLogger.h>
+#include <KxLogger.h>
 
 // Assurez-vous que `debugLogger` est déclaré et initialisé correctement
-extern DebugLogger debugLogger;
+extern KxLogger debugLogger;
 extern NTPClient timeClient;
 extern InfluxDBHandler influxDBHandler;
 extern bool isTimeSynced;
@@ -24,7 +24,7 @@ void updateRTCWithCompileTime() {
   time_t t = mktime(&compileTime);
   struct timeval now = { .tv_sec = t };
   settimeofday(&now, NULL);
-  debugLogger.println(DebugLogger::TIME, "RTC updated with compile time");
+  debugLogger.println(KxLogger::TIME, "RTC updated with compile time");
 }
 
 /**
@@ -34,61 +34,61 @@ void updateRTCWithCompileTime() {
 void timeAndInfluxTask(void *pvParameters) {
   // Mettre à jour la RTC avec la date et l'heure de compilation
   updateRTCWithCompileTime();
-  debugLogger.println(DebugLogger::TIME, "RTC updated with compile time");
+  debugLogger.println(KxLogger::TIME, "RTC updated with compile time");
 
   while (true) {
     if (WiFi.status() == WL_CONNECTED) {
       if (!isTimeSynced) {
         timeClient.begin();
         timeClient.setTimeOffset(3600); // Définir le décalage horaire en secondes (ex: 3600 pour GMT+1)
-        debugLogger.println(DebugLogger::TIME, "NTP client started");
+        debugLogger.println(KxLogger::TIME, "NTP client started");
 
         // Synchroniser l'heure avec NTP
         timeClient.update();
         struct tm timeinfo;
         if (getLocalTime(&timeinfo)) {
           isTimeSynced = true;
-          debugLogger.println(DebugLogger::TIME, "Time synchronized with NTP");
+          debugLogger.println(KxLogger::TIME, "Time synchronized with NTP");
 
           // Mettre à jour la RTC avec l'heure NTP
           time_t t = timeClient.getEpochTime();
           struct timeval now = { .tv_sec = t };
           settimeofday(&now, NULL);
-          debugLogger.println(DebugLogger::TIME, "RTC updated with NTP time");
+          debugLogger.println(KxLogger::TIME, "RTC updated with NTP time");
 
           // Désactiver la demande de mise à jour NTP du temps
           timeClient.end();
         } else {
-          debugLogger.println(DebugLogger::WARNING, "Failed to synchronize time with NTP, using RTC");
+          debugLogger.println(KxLogger::WARNING, "Failed to synchronize time with NTP, using RTC");
         }
       }
 
       if (!SD.begin()) {
-        debugLogger.println(DebugLogger::ERROR, "Card Mount Failed");
+        debugLogger.println(KxLogger::ERROR, "Card Mount Failed");
         return;
       }
-      debugLogger.println(DebugLogger::INFO, "SD card initialized");
+      debugLogger.println(KxLogger::INFO, "SD card initialized");
 
       influxDBHandler.begin();
-      debugLogger.println(DebugLogger::INFO, "InfluxDB handler initialized");
+      debugLogger.println(KxLogger::INFO, "InfluxDB handler initialized");
 
     } else {
-      debugLogger.println(DebugLogger::WARNING, "WiFi not connected, unable to synchronize time with NTP or connect to InfluxDB");
+      debugLogger.println(KxLogger::WARNING, "WiFi not connected, unable to synchronize time with NTP or connect to InfluxDB");
       isTimeSynced = false; // Reset time sync status
     }
 
     // Afficher la date et l'heure actuelles
     if (isTimeSynced) {
       timeClient.update();
-      debugLogger.println(DebugLogger::TIME, "Current Date and Time: " + timeClient.getFormattedTime());
+      debugLogger.println(KxLogger::TIME, "Current Date and Time: " + timeClient.getFormattedTime());
     } else {
       struct tm timeinfo;
       if (getLocalTime(&timeinfo)) {
         char buffer[20];
         strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &timeinfo);
-        debugLogger.println(DebugLogger::TIME, "=================================== > Current Date and Time: " + String(buffer));
+        debugLogger.println(KxLogger::TIME, "=================================== > Current Date and Time: " + String(buffer));
       } else {
-        debugLogger.println(DebugLogger::ERROR, "RTC time not available, unable to display date and time");
+        debugLogger.println(KxLogger::ERROR, "RTC time not available, unable to display date and time");
       }
     }
 

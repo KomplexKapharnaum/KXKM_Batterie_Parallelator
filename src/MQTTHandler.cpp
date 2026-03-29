@@ -1,8 +1,8 @@
 #include "MQTTHandler.h"
 
-#include <DebugLogger.h>
+#include <KxLogger.h>
 
-extern DebugLogger debugLogger;
+extern KxLogger debugLogger;
 
 MQTTHandler::MQTTHandler(const char *brokerHost, uint16_t brokerPort,
                          const char *clientId, const char *username,
@@ -39,13 +39,13 @@ bool MQTTHandler::ensureConnected() {
                       : client.connect(clientId);
 
   if (!ok) {
-    debugLogger.println(DebugLogger::WARNING,
+    debugLogger.println(KxLogger::WARNING,
                         "MQTT reconnect failed rc=" +
                             String(static_cast<int>(client.state())));
     return false;
   }
 
-  debugLogger.println(DebugLogger::INFO, "MQTT connected");
+  debugLogger.println(KxLogger::INFO, "MQTT connected");
   return true;
 }
 

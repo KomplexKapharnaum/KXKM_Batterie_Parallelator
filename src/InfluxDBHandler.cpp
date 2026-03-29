@@ -7,10 +7,10 @@
 #else
 #define KXKM_HAS_INFLUX_LIB 0
 #endif
-#if __has_include(<DebugLogger.h>)
-#include <DebugLogger.h>
-#elif __has_include("../lib/DebugLogger/src/DebugLogger.h")
-#include "../lib/DebugLogger/src/DebugLogger.h"
+#if __has_include(<KxLogger.h>)
+#include <KxLogger.h>
+#elif __has_include("../lib/KxLogger/src/KxLogger.h")
+#include "../lib/KxLogger/src/KxLogger.h"
 #endif
 #include <FS.h>
 #include <SPI.h>
@@ -114,7 +114,7 @@ bool replayStoredFile(const char *filePath, InfluxDBClient &clientRef) {
 #define WRITE_BUFFER_SIZE 50
 
 // Assurez-vous que `debugLogger` est déclaré et initialisé correctement
-extern DebugLogger debugLogger;
+extern KxLogger debugLogger;
 
 InfluxDBHandler::InfluxDBHandler(const char *serverUrl, const char *org,
                                  const char *bucket, const char *token,
@@ -126,7 +126,7 @@ InfluxDBHandler::InfluxDBHandler(const char *serverUrl, const char *org,
     // Even if insecure flag is passed, TLS verification is enforced.
     // Cloud telemetry contains battery state, switch history, and operational secrets.
     if (insecure) {
-        debugLogger.println(DebugLogger::WARNING,
+        debugLogger.println(KxLogger::WARNING,
                             "InfluxDB insecure mode requested but REJECTED — TLS mandatory");
         // Do NOT call setInsecure() — TLS verification stays active
     }
@@ -149,13 +149,13 @@ InfluxDBHandler::~InfluxDBHandler() {
 
 void InfluxDBHandler::begin() {
     if (WiFi.status() != WL_CONNECTED) {
-        debugLogger.println(DebugLogger::WIFI, "WiFi not connected. Cannot connect to InfluxDB.");
+        debugLogger.println(KxLogger::WIFI, "WiFi not connected. Cannot connect to InfluxDB.");
         return;
     }
     if (!client->validateConnection()) {
-        debugLogger.println(DebugLogger::INFLUXDB, "InfluxDB connection failed: " + client->getLastErrorMessage());
+        debugLogger.println(KxLogger::INFLUXDB, "InfluxDB connection failed: " + client->getLastErrorMessage());
     } else {
-        debugLogger.println(DebugLogger::INFLUXDB, "Connected to InfluxDB");
+        debugLogger.println(KxLogger::INFLUXDB, "Connected to InfluxDB");
     }
 }
 
@@ -167,7 +167,7 @@ void InfluxDBHandler::writeBatteryData(const char *measurement, int batteryId,
                                        float totalCharge,
                                        float totalCurrent) {
     if (WiFi.status() != WL_CONNECTED) {
-        debugLogger.println(DebugLogger::WIFI, "WiFi not connected. Cannot write to InfluxDB.");
+        debugLogger.println(KxLogger::WIFI, "WiFi not connected. Cannot write to InfluxDB.");
         storeData(measurement, ("battery=" + String(batteryId)).c_str(),
                   ("voltage=" + String(voltage, 6) +
                    ",current=" + String(current, 6) +
@@ -180,7 +180,7 @@ void InfluxDBHandler::writeBatteryData(const char *measurement, int batteryId,
         return;
     }
     if (!client->validateConnection()) {
-        debugLogger.println(DebugLogger::INFLUXDB, "InfluxDB connection failed: " + client->getLastErrorMessage());
+        debugLogger.println(KxLogger::INFLUXDB, "InfluxDB connection failed: " + client->getLastErrorMessage());
         storeData(measurement, ("battery=" + String(batteryId)).c_str(),
                   ("voltage=" + String(voltage, 6) +
                    ",current=" + String(current, 6) +
@@ -206,9 +206,9 @@ void InfluxDBHandler::writeBatteryData(const char *measurement, int batteryId,
     point.addField("total_current", totalCurrent);
     if (!client->writePoint(point)) {
         String errorMessage = client->getLastErrorMessage();
-        debugLogger.println(DebugLogger::INFLUXDB, "InfluxDB write failed: " + errorMessage);
+        debugLogger.println(KxLogger::INFLUXDB, "InfluxDB write failed: " + errorMessage);
         if (errorMessage.indexOf("SSL - Internal error") != -1) {
-            debugLogger.println(DebugLogger::INFLUXDB, "Attempting to re-establish connection...");
+            debugLogger.println(KxLogger::INFLUXDB, "Attempting to re-establish connection...");
         }
         storeData(measurement, ("battery=" + String(batteryId)).c_str(),
                   ("voltage=" + String(voltage, 6) +
@@ -220,7 +220,7 @@ void InfluxDBHandler::writeBatteryData(const char *measurement, int batteryId,
                    ",total_current=" + String(totalCurrent, 6))
                       .c_str());
     } else {
-        debugLogger.println(DebugLogger::INFLUXDB, "Data written to InfluxDB");
+        debugLogger.println(KxLogger::INFLUXDB, "Data written to InfluxDB");
     }
 }
 
@@ -232,7 +232,7 @@ void InfluxDBHandler::writeAggregatedBatteryData(const char *measurement,
     }
 
     if (WiFi.status() != WL_CONNECTED) {
-        debugLogger.println(DebugLogger::WIFI,
+        debugLogger.println(KxLogger::WIFI,
                             "WiFi not connected. Aggregated data buffered.");
         storeData(measurement,
                   ("profile=" + String(profileTag == nullptr ? "normal"
@@ -243,7 +243,7 @@ void InfluxDBHandler::writeAggregatedBatteryData(const char *measurement,
     }
 
     if (!client->validateConnection()) {
-        debugLogger.println(DebugLogger::INFLUXDB,
+        debugLogger.println(KxLogger::INFLUXDB,
                             "InfluxDB connection failed: " +
                                 client->getLastErrorMessage());
         storeData(measurement,
@@ -286,7 +286,7 @@ void InfluxDBHandler::writeAggregatedBatteryData(const char *measurement,
     }
 
     if (!client->writePoint(point)) {
-        debugLogger.println(DebugLogger::INFLUXDB,
+        debugLogger.println(KxLogger::INFLUXDB,
                             "InfluxDB aggregated write failed: " +
                                 client->getLastErrorMessage());
         storeData(measurement,
@@ -297,7 +297,7 @@ void InfluxDBHandler::writeAggregatedBatteryData(const char *measurement,
         return;
     }
 
-    debugLogger.println(DebugLogger::INFLUXDB,
+    debugLogger.println(KxLogger::INFLUXDB,
                         "Aggregated data written to InfluxDB");
 }
 
@@ -306,26 +306,26 @@ void InfluxDBHandler::storeData(const char *measurement, const char *tags,
     const String Filename = String(kInfluxTempFile);
 
     if (ESP.getFreeHeap() < 5000) {
-        debugLogger.println(DebugLogger::ERROR, "Pas assez de mémoire pour initialiser SPIFFS !");
+        debugLogger.println(KxLogger::ERROR, "Pas assez de mémoire pour initialiser SPIFFS !");
         return;
     }
 
     if (!SPIFFS.begin(true)) {
-        debugLogger.println(DebugLogger::ERROR, "Échec de l'initialisation de SPIFFS !");
+        debugLogger.println(KxLogger::ERROR, "Échec de l'initialisation de SPIFFS !");
         return;
     }
 
     if (!SPIFFS.exists(Filename.c_str())) {
         File file = SPIFFS.open(Filename.c_str(), FILE_WRITE);
         if (!file) {
-            debugLogger.println(DebugLogger::INFLUXDB, "Failed to create file");
+            debugLogger.println(KxLogger::INFLUXDB, "Failed to create file");
             return;
         }
         file.close();
     }
 
     if (!rotateInfluxTempIfNeeded()) {
-        debugLogger.println(DebugLogger::INFLUXDB,
+        debugLogger.println(KxLogger::INFLUXDB,
                             "Failed to rotate Influx temp file");
     }
 
@@ -337,59 +337,59 @@ void InfluxDBHandler::storeData(const char *measurement, const char *tags,
         file.print(",");
         file.println(fields);
         file.close();
-        debugLogger.println(DebugLogger::INFLUXDB, "Data stored temporarily on SPIFFS");
+        debugLogger.println(KxLogger::INFLUXDB, "Data stored temporarily on SPIFFS");
     } else {
-        debugLogger.println(DebugLogger::INFLUXDB, "Failed to open file for writing");
+        debugLogger.println(KxLogger::INFLUXDB, "Failed to open file for writing");
     }
 }
 
 void InfluxDBHandler::sendStoredData() {
     if (ESP.getFreeHeap() < 5000) {
-        debugLogger.println(DebugLogger::ERROR, "Pas assez de mémoire pour initialiser SPIFFS !");
+        debugLogger.println(KxLogger::ERROR, "Pas assez de mémoire pour initialiser SPIFFS !");
         return;
     }
 
     if (!SPIFFS.begin(true)) {
-        debugLogger.println(DebugLogger::ERROR, "Échec de l'initialisation de SPIFFS !");
+        debugLogger.println(KxLogger::ERROR, "Échec de l'initialisation de SPIFFS !");
         return;
     }
 
     if (WiFi.status() != WL_CONNECTED) {
-        debugLogger.println(DebugLogger::WIFI, "WiFi not connected. Cannot send stored data to InfluxDB.");
+        debugLogger.println(KxLogger::WIFI, "WiFi not connected. Cannot send stored data to InfluxDB.");
         return;
     }
     if (!client->validateConnection()) {
-        debugLogger.println(DebugLogger::INFLUXDB, "InfluxDB connection failed: " + client->getLastErrorMessage());
+        debugLogger.println(KxLogger::INFLUXDB, "InfluxDB connection failed: " + client->getLastErrorMessage());
         return;
     }
 
     const bool hasCurrent = SPIFFS.exists(kInfluxTempFile);
     const bool hasRotated = SPIFFS.exists(kInfluxTempFileRotated);
     if (!hasCurrent && !hasRotated) {
-        debugLogger.println(DebugLogger::INFLUXDB, "No stored data to send");
+        debugLogger.println(KxLogger::INFLUXDB, "No stored data to send");
         return;
     }
 
     if (!replayStoredFile(kInfluxTempFileRotated, *client)) {
-        debugLogger.println(DebugLogger::INFLUXDB,
+        debugLogger.println(KxLogger::INFLUXDB,
                             "InfluxDB replay failed on rotated file: " +
                                 client->getLastErrorMessage());
         return;
     }
 
     if (!replayStoredFile(kInfluxTempFile, *client)) {
-        debugLogger.println(DebugLogger::INFLUXDB,
+        debugLogger.println(KxLogger::INFLUXDB,
                             "InfluxDB replay failed on current file: " +
                                 client->getLastErrorMessage());
         return;
     }
 
-    debugLogger.println(DebugLogger::INFLUXDB, "Stored data sent to InfluxDB");
+    debugLogger.println(KxLogger::INFLUXDB, "Stored data sent to InfluxDB");
 }
 
 #else
 
-extern DebugLogger debugLogger;
+extern KxLogger debugLogger;
 
 InfluxDBHandler::InfluxDBHandler(const char *serverUrl, const char *org,
                                  const char *bucket, const char *token,
@@ -402,7 +402,7 @@ InfluxDBHandler::InfluxDBHandler(const char *serverUrl, const char *org,
 InfluxDBHandler::~InfluxDBHandler() {}
 
 void InfluxDBHandler::begin() {
-    debugLogger.println(DebugLogger::WARNING,
+    debugLogger.println(KxLogger::WARNING,
                         "InfluxDB lib unavailable in this analysis context");
 }
 
