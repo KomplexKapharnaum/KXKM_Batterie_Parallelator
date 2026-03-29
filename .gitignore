@@ -60,6 +60,7 @@ _autosave-*
 # Exported BOM files
 *.xml
 *.csv
+!partitions_16MB.csv
 
 ### KiCad Patch ###
 rescue-backup/
