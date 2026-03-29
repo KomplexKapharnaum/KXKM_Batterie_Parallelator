@@ -1,21 +1,10 @@
 #include "WebMutationRateLimit.h"
 
-void initMutationRateLimitSlots(MutationRateLimitSlot *slots, int slotCount) {
-  if (slots == nullptr || slotCount <= 0) {
-    return;
-  }
-
-  for (int i = 0; i < slotCount; ++i) {
-    slots[i].key = 0;
-    slots[i].windowStartMs = 0;
-    slots[i].requestCount = 0;
-  }
-}
-
-bool allowMutationRequest(MutationRateLimitSlot *slots, int slotCount,
-                          uint32_t key, uint32_t nowMs,
-                          uint32_t windowMs, uint8_t maxRequests) {
-  if (slots == nullptr || slotCount <= 0 || key == 0 || maxRequests == 0) {
+bool mutationRateLimitExceeded(MutationRateLimitSlot *slots, int slotCount,
+                               uint32_t key, uint32_t nowMs,
+                               uint8_t maxRequests,
+                               uint32_t windowMs) {
+  if (slots == nullptr || slotCount <= 0 || maxRequests == 0 || windowMs == 0) {
     return false;
   }
 
@@ -35,20 +24,20 @@ bool allowMutationRequest(MutationRateLimitSlot *slots, int slotCount,
   }
 
   MutationRateLimitSlot &slot = slots[candidate];
-  const bool resetWindow =
+  const bool newWindow =
       (slot.key != key) || ((nowMs - slot.windowStartMs) > windowMs);
 
-  if (resetWindow) {
+  if (newWindow) {
     slot.key = key;
     slot.windowStartMs = nowMs;
     slot.requestCount = 1;
-    return true;
-  }
-
-  if (slot.requestCount >= maxRequests) {
     return false;
   }
 
+  if (slot.requestCount >= maxRequests) {
+    return true;
+  }
+
   slot.requestCount++;
-  return true;
+  return false;
 }

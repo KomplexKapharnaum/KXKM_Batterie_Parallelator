@@ -4,14 +4,14 @@
 #include <stdint.h>
 
 struct MutationRateLimitSlot {
-  uint32_t key;
-  uint32_t windowStartMs;
-  uint8_t requestCount;
+  uint32_t key = 0;
+  uint32_t windowStartMs = 0;
+  uint8_t requestCount = 0;
 };
 
-void initMutationRateLimitSlots(MutationRateLimitSlot *slots, int slotCount);
-bool allowMutationRequest(MutationRateLimitSlot *slots, int slotCount,
-                          uint32_t key, uint32_t nowMs,
-                          uint32_t windowMs, uint8_t maxRequests);
+bool mutationRateLimitExceeded(MutationRateLimitSlot *slots, int slotCount,
+                               uint32_t key, uint32_t nowMs,
+                               uint8_t maxRequests,
+                               uint32_t windowMs);
 
 #endif // WEB_MUTATION_RATE_LIMIT_H
