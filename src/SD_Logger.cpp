@@ -20,13 +20,13 @@
  */
 
 #include "SD_Logger.h"
-#include <DebugLogger.h>
+#include <KxLogger.h>
 #include <SPI.h>
 #include <SD.h>
 #include <Arduino.h>
 #include <time.h>
 
-extern DebugLogger debugLogger;
+extern KxLogger debugLogger;
 
 SDLogger::SDLogger() : csvConfig{';'}, filename(nullptr) {
   batteryCount = 4;
@@ -49,7 +49,7 @@ void SDLogger::begin(const char *baseFilename, CSVConfig config) {
   SPI.begin(18, 5, 19);
 
   if (!SD.begin(chipSelect)) {
-    debugLogger.println(DebugLogger::ERROR, "Échec de l'initialisation de la carte SD !");
+    debugLogger.println(KxLogger::ERROR, "Échec de l'initialisation de la carte SD !");
     return;
   }
 
@@ -78,9 +78,9 @@ void SDLogger::begin(const char *baseFilename, CSVConfig config) {
     dataFile.print(csvConfig.separator); dataFile.print("TotCons");
     dataFile.println();
     dataFile.flush();
-    debugLogger.println(DebugLogger::INFO, "Fichier de log créé: " + String(this->filename));
+    debugLogger.println(KxLogger::INFO, "Fichier de log créé: " + String(this->filename));
   } else {
-    debugLogger.println(DebugLogger::ERROR, "Échec de l'ouverture de " + String(this->filename) + " pour l'écriture !");
+    debugLogger.println(KxLogger::ERROR, "Échec de l'ouverture de " + String(this->filename) + " pour l'écriture !");
   }
 }
 
@@ -88,7 +88,7 @@ int SDLogger::findNextFileNumber(const char *baseFilename) {
   int maxNumber = 0;
   File root = SD.open("/");
   if (!root) {
-    debugLogger.println(DebugLogger::ERROR, "Impossible d'ouvrir le répertoire racine");
+    debugLogger.println(KxLogger::ERROR, "Impossible d'ouvrir le répertoire racine");
     return 1;
   }
   while (true) {
@@ -108,7 +108,7 @@ int SDLogger::findNextFileNumber(const char *baseFilename) {
     }
   }
   root.close();
-  debugLogger.println(DebugLogger::INFO, "Prochain numéro de fichier: " + String(maxNumber + 1));
+  debugLogger.println(KxLogger::INFO, "Prochain numéro de fichier: " + String(maxNumber + 1));
   return maxNumber + 1;
 }
 
@@ -132,7 +132,7 @@ void SDLogger::logData(const char *time, int bat_nb, float volt, float current,
 void SDLogger::flushLine() {
   for (int i = 0; i < batteryCount; ++i) {
     if (!batteryBuffer[i].valid) {
-      debugLogger.println(DebugLogger::ERROR, "flushLine: Données batterie manquantes, ligne non écrite.");
+      debugLogger.println(KxLogger::ERROR, "flushLine: Données batterie manquantes, ligne non écrite.");
       return;
     }
   }
@@ -151,25 +151,25 @@ void SDLogger::flushLine() {
     dataFile.flush();
     dataFile.close();
 
-    debugLogger.print(DebugLogger::SD, "Données ligne CSV: ");
-    debugLogger.print(DebugLogger::SD, String(lastTime));
-    debugLogger.print(DebugLogger::SD, " | Voltages: ");
-    for (int i = 0; i < batteryCount; ++i) debugLogger.print(DebugLogger::SD, String(batteryBuffer[i].volt) + "V; ");
-    debugLogger.print(DebugLogger::SD, "| Currents: ");
-    for (int i = 0; i < batteryCount; ++i) debugLogger.print(DebugLogger::SD, String(batteryBuffer[i].current) + "A; ");
-    debugLogger.print(DebugLogger::SD, "| Switches: ");
-    for (int i = 0; i < batteryCount; ++i) debugLogger.print(DebugLogger::SD, String(batteryBuffer[i].switchState ? "ON" : "OFF") + "; ");
-    debugLogger.print(DebugLogger::SD, "| AhCons: ");
-    for (int i = 0; i < batteryCount; ++i) debugLogger.print(DebugLogger::SD, String(batteryBuffer[i].ampereHourConsumption, 2) + "Ah; ");
-    debugLogger.print(DebugLogger::SD, "| AhCharge: ");
-    for (int i = 0; i < batteryCount; ++i) debugLogger.print(DebugLogger::SD, String(batteryBuffer[i].ampereHourCharge, 2) + "Ah; ");
-    debugLogger.print(DebugLogger::SD, "| TotCurrent: " + String(totalCurrent, 1) + "A; ");
-    debugLogger.print(DebugLogger::SD, "TotCharge: " + String(totalCharge, 1) + "Ah; ");
-    debugLogger.println(DebugLogger::SD, "TotCons: " + String(totalConsumption, 1) + "Ah");
-    debugLogger.println(DebugLogger::SD, "");
+    debugLogger.print(KxLogger::SD, "Données ligne CSV: ");
+    debugLogger.print(KxLogger::SD, String(lastTime));
+    debugLogger.print(KxLogger::SD, " | Voltages: ");
+    for (int i = 0; i < batteryCount; ++i) debugLogger.print(KxLogger::SD, String(batteryBuffer[i].volt) + "V; ");
+    debugLogger.print(KxLogger::SD, "| Currents: ");
+    for (int i = 0; i < batteryCount; ++i) debugLogger.print(KxLogger::SD, String(batteryBuffer[i].current) + "A; ");
+    debugLogger.print(KxLogger::SD, "| Switches: ");
+    for (int i = 0; i < batteryCount; ++i) debugLogger.print(KxLogger::SD, String(batteryBuffer[i].switchState ? "ON" : "OFF") + "; ");
+    debugLogger.print(KxLogger::SD, "| AhCons: ");
+    for (int i = 0; i < batteryCount; ++i) debugLogger.print(KxLogger::SD, String(batteryBuffer[i].ampereHourConsumption, 2) + "Ah; ");
+    debugLogger.print(KxLogger::SD, "| AhCharge: ");
+    for (int i = 0; i < batteryCount; ++i) debugLogger.print(KxLogger::SD, String(batteryBuffer[i].ampereHourCharge, 2) + "Ah; ");
+    debugLogger.print(KxLogger::SD, "| TotCurrent: " + String(totalCurrent, 1) + "A; ");
+    debugLogger.print(KxLogger::SD, "TotCharge: " + String(totalCharge, 1) + "Ah; ");
+    debugLogger.println(KxLogger::SD, "TotCons: " + String(totalConsumption, 1) + "Ah");
+    debugLogger.println(KxLogger::SD, "");
     for (int i = 0; i < batteryCount; ++i) batteryBuffer[i].valid = false;
   } else {
-    debugLogger.println(DebugLogger::ERROR, "flushLine: Impossible d'ouvrir le fichier pour écriture !");
+    debugLogger.println(KxLogger::ERROR, "flushLine: Impossible d'ouvrir le fichier pour écriture !");
   }
 }
 
@@ -193,12 +193,12 @@ void SDLogger::setLogTime(int time) {
 time_t SDLogger::getLastLogTimeFromSD(const char* logFileBase) {
   File root = SD.open("/");
   if (!root) {
-    debugLogger.println(DebugLogger::SD, "Impossible d'ouvrir le répertoire racine SD !");
+    debugLogger.println(KxLogger::SD, "Impossible d'ouvrir le répertoire racine SD !");
     return 0;
   }
   String lastFileName = "";
   int maxNum = 0;
-  debugLogger.println(DebugLogger::SD, "Recherche du dernier fichier log sur la SD...");
+  debugLogger.println(KxLogger::SD, "Recherche du dernier fichier log sur la SD...");
   while (true) {
     File entry = root.openNextFile();
     if (!entry) break;
@@ -209,10 +209,10 @@ time_t SDLogger::getLastLogTimeFromSD(const char* logFileBase) {
       int dot = name.lastIndexOf('.');
       if (underscore > 0 && dot > underscore) {
         int num = name.substring(underscore + 1, dot).toInt();
-        debugLogger.print(DebugLogger::SD, "Fichier trouvé : ");
-        debugLogger.print(DebugLogger::SD, name);
-        debugLogger.print(DebugLogger::SD, " numéro : ");
-        debugLogger.println(DebugLogger::SD, String(num));
+        debugLogger.print(KxLogger::SD, "Fichier trouvé : ");
+        debugLogger.print(KxLogger::SD, name);
+        debugLogger.print(KxLogger::SD, " numéro : ");
+        debugLogger.println(KxLogger::SD, String(num));
         if (num > maxNum) {
           maxNum = num;
           lastFileName = "/" + name;
@@ -223,15 +223,15 @@ time_t SDLogger::getLastLogTimeFromSD(const char* logFileBase) {
   }
   root.close();
   if (lastFileName == "") {
-    debugLogger.println(DebugLogger::SD, "Aucun fichier log trouvé sur la SD.");
+    debugLogger.println(KxLogger::SD, "Aucun fichier log trouvé sur la SD.");
     return 0;
   }
-  debugLogger.print(DebugLogger::SD, "Dernier fichier log détecté : ");
-  debugLogger.println(DebugLogger::SD, lastFileName);
+  debugLogger.print(KxLogger::SD, "Dernier fichier log détecté : ");
+  debugLogger.println(KxLogger::SD, lastFileName);
 
   File lastFile = SD.open(lastFileName.c_str(), FILE_READ);
   if (!lastFile) {
-    debugLogger.println(DebugLogger::SD, "Impossible d'ouvrir le dernier fichier log !");
+    debugLogger.println(KxLogger::SD, "Impossible d'ouvrir le dernier fichier log !");
     return 0;
   }
   String lastLine;
@@ -239,13 +239,13 @@ time_t SDLogger::getLastLogTimeFromSD(const char* logFileBase) {
     lastLine = lastFile.readStringUntil('\n');
   }
   lastFile.close();
-  debugLogger.print(DebugLogger::SD, "Dernière ligne lue : ");
-  debugLogger.println(DebugLogger::SD, lastLine);
+  debugLogger.print(KxLogger::SD, "Dernière ligne lue : ");
+  debugLogger.println(KxLogger::SD, lastLine);
 
   int sep = lastLine.indexOf(';');
   String dateStr = (sep > 0) ? lastLine.substring(0, sep) : lastLine;
-  debugLogger.print(DebugLogger::SD, "Extraction de la date : ");
-  debugLogger.println(DebugLogger::SD, dateStr);
+  debugLogger.print(KxLogger::SD, "Extraction de la date : ");
+  debugLogger.println(KxLogger::SD, dateStr);
 
   struct tm timeinfo;
   memset(&timeinfo, 0, sizeof(struct tm));
@@ -254,7 +254,7 @@ time_t SDLogger::getLastLogTimeFromSD(const char* logFileBase) {
              &timeinfo.tm_hour, &timeinfo.tm_min, &timeinfo.tm_sec) == 6) {
     timeinfo.tm_year -= 1900;
     timeinfo.tm_mon -= 1;
-    debugLogger.println(DebugLogger::SD, "Format date log reconnu (YYYY-MM-DD HH:MM:SS)");
+    debugLogger.println(KxLogger::SD, "Format date log reconnu (YYYY-MM-DD HH:MM:SS)");
     return mktime(&timeinfo);
   }
   char month[4];
@@ -276,10 +276,10 @@ time_t SDLogger::getLastLogTimeFromSD(const char* logFileBase) {
     timeinfo.tm_hour = hour;
     timeinfo.tm_min = minute;
     timeinfo.tm_sec = second;
-    debugLogger.println(DebugLogger::SD, "Format date compilation reconnu (MMM DD YYYY HH:MM:SS)");
+    debugLogger.println(KxLogger::SD, "Format date compilation reconnu (MMM DD YYYY HH:MM:SS)");
     return mktime(&timeinfo);
   }
-  debugLogger.println(DebugLogger::SD, "Aucun format de date reconnu dans la dernière ligne.");
+  debugLogger.println(KxLogger::SD, "Aucun format de date reconnu dans la dernière ligne.");
   return 0;
 }
 
@@ -291,8 +291,8 @@ String SDLogger::getCurrentTime(const char* logFileBase) {
     time_t lastLogTime = getLastLogTimeFromSD(logFileBase);
     if (lastLogTime > 0) {
       baseTime = lastLogTime;
-      debugLogger.print(DebugLogger::SD, "Base temporelle initialisée à la dernière date du log SD : ");
-      debugLogger.println(DebugLogger::SD, String(ctime(&baseTime)));
+      debugLogger.print(KxLogger::SD, "Base temporelle initialisée à la dernière date du log SD : ");
+      debugLogger.println(KxLogger::SD, String(ctime(&baseTime)));
     } else {
       const char *compileDate = __DATE__;
       const char *compileTime = __TIME__;
@@ -318,8 +318,8 @@ String SDLogger::getCurrentTime(const char* logFileBase) {
       timeinfo.tm_min = minute;
       timeinfo.tm_sec = second;
       baseTime = mktime(&timeinfo);
-      debugLogger.print(DebugLogger::SD, "Base temporelle initialisée à la date de compilation : ");
-      debugLogger.println(DebugLogger::SD, String(ctime(&baseTime)));
+      debugLogger.print(KxLogger::SD, "Base temporelle initialisée à la date de compilation : ");
+      debugLogger.println(KxLogger::SD, String(ctime(&baseTime)));
     }
     initialized = true;
   }

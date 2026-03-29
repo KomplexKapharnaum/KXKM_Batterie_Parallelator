@@ -21,12 +21,12 @@
 
 #include "INA_NRJ_lib.h"
 #include "I2CMutex.h"
-#include <DebugLogger.h>
+#include <KxLogger.h>
 #include <cmath>
 #include <cstring>
 #include <new>
 
-extern DebugLogger debugLogger;
+extern KxLogger debugLogger;
 volatile uint32_t g_i2cConsecutiveFailures = 0;
 
 static void tryI2CRecoveryIfNeeded(const char *origin) {
@@ -41,7 +41,7 @@ static void tryI2CRecoveryIfNeeded(const char *origin) {
 
     i2cBusRecovery();
     i2cResetFailureCounter();
-    debugLogger.println(DebugLogger::WARNING,
+    debugLogger.println(KxLogger::WARNING,
                         String("I2C recovery executed from ") + origin);
 }
 
@@ -84,7 +84,7 @@ void INAHandler::begin(const uint8_t amp, const uint16_t micro_ohm)
     for (uint8_t i = 0; i < 16; i++) {
         INA226* sensor = new (std::nothrow) INA226(static_cast<uint8_t>(INA_ADDR[i]), &Wire);
         if (sensor == nullptr) {
-            debugLogger.println(DebugLogger::ERROR, "INAHandler: allocation INA226 impossible");
+            debugLogger.println(KxLogger::ERROR, "INAHandler: allocation INA226 impossible");
             continue;
         }
 
@@ -101,14 +101,14 @@ void INAHandler::begin(const uint8_t amp, const uint16_t micro_ohm)
             deviceNumber = Nb_INA;
         }
 
-        debugLogger.println(DebugLogger::INFO,
+        debugLogger.println(KxLogger::INFO,
                             "Trouvé INA226 à l'adresse " + String(INA_ADDR[i]) +
                                 " (slot " + String(Nb_INA) + ")");
         Nb_INA++;
     }
 
     if (Nb_INA == 0) {
-        debugLogger.println(DebugLogger::ERROR, "Aucun INA226 détecté.");
+        debugLogger.println(KxLogger::ERROR, "Aucun INA226 détecté.");
         return;
     }
 
@@ -123,7 +123,7 @@ void INAHandler::initialize_ina(const uint8_t sensorIndex, float amp, float shun
 
     const int calibState = sensors[sensorIndex]->setMaxCurrentShunt(amp, shunt_ohm, true);
     if (calibState != 0) {
-        debugLogger.println(DebugLogger::WARNING,
+        debugLogger.println(KxLogger::WARNING,
                             "INA226 calibration state=" + String(calibState) +
                                 " pour slot " + String(sensorIndex));
     }
@@ -148,10 +148,10 @@ void INAHandler::read(const uint8_t sensorIndex)
         if (i2cShouldRecover()) {
             i2cBusRecovery();
             i2cResetFailureCounter();
-            debugLogger.println(DebugLogger::WARNING,
+            debugLogger.println(KxLogger::WARNING,
                 "I2C recovery executed from INA.read sensor error");
         }
-        debugLogger.println(DebugLogger::WARNING,
+        debugLogger.println(KxLogger::WARNING,
             "INA226 I2C error on read() slot " + String(sensorIndex));
         return;
     }
@@ -178,10 +178,10 @@ float INAHandler::read_current(const uint8_t sensorIndex)
         if (i2cShouldRecover()) {
             i2cBusRecovery();
             i2cResetFailureCounter();
-            debugLogger.println(DebugLogger::WARNING,
+            debugLogger.println(KxLogger::WARNING,
                 "I2C recovery executed from INA.read_current sensor error");
         }
-        debugLogger.println(DebugLogger::WARNING,
+        debugLogger.println(KxLogger::WARNING,
             "INA226 I2C error on read_current() slot " + String(sensorIndex));
         return NAN;
     }
@@ -204,10 +204,10 @@ float INAHandler::read_volt(const uint8_t sensorIndex)
         if (i2cShouldRecover()) {
             i2cBusRecovery();
             i2cResetFailureCounter();
-            debugLogger.println(DebugLogger::WARNING,
+            debugLogger.println(KxLogger::WARNING,
                 "I2C recovery executed from INA.read_volt sensor error");
         }
-        debugLogger.println(DebugLogger::WARNING,
+        debugLogger.println(KxLogger::WARNING,
             "INA226 I2C error on read_volt() slot " + String(sensorIndex));
         return NAN;
     }
@@ -230,10 +230,10 @@ float INAHandler::read_power(const uint8_t sensorIndex)
         if (i2cShouldRecover()) {
             i2cBusRecovery();
             i2cResetFailureCounter();
-            debugLogger.println(DebugLogger::WARNING,
+            debugLogger.println(KxLogger::WARNING,
                 "I2C recovery executed from INA.read_power sensor error");
         }
-        debugLogger.println(DebugLogger::WARNING,
+        debugLogger.println(KxLogger::WARNING,
             "INA226 I2C error on read_power() slot " + String(sensorIndex));
         return NAN;
     }

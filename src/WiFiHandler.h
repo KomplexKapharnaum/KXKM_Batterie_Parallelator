@@ -23,7 +23,7 @@
 #define WIFIHANDLER_H
 
 #include <WiFi.h>
-#include <DebugLogger.h>
+#include <KxLogger.h>
 
 /**
  * @class WiFiHandler

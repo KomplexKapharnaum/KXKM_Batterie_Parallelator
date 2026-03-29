@@ -93,7 +93,7 @@ const int log_time =
 #include "pin_mapppings.h"
 #include <Arduino.h>
 #include <ArduinoJson.h>
-#include <DebugLogger.h>
+#include <KxLogger.h>
 #include <esp_system.h>
 #include <esp_task_wdt.h>
 #include <freertos/FreeRTOS.h>
@@ -152,7 +152,7 @@ static constexpr uint32_t kMqttPublishIntervalMs = 30000;
     TIME = 1 << 7
     */
 
-DebugLogger debugLogger; // Créer une instance de la classe DebugLogger
+KxLogger debugLogger; // Créer une instance de la classe KxLogger
 INAHandler inaHandler;   // Créer une instance de la classe INAHandler
 TCAHandler tcaHandler;   // Créer une instance de la classe TCAHandler
 BATTParallelator
@@ -187,15 +187,59 @@ static volatile CloudIngestionMode g_cloudIngestionMode =
 
 static constexpr int kTaskWdtTimeoutSeconds = 15;
 static constexpr uint32_t kBrownoutSafeModeThreshold = 3;
+static constexpr uint32_t kCriticalResetSafeModeThreshold = 4;
 static constexpr uint32_t kBrownoutCounterClearUptimeMs = 120000;
 RTC_DATA_ATTR static uint32_t g_brownoutResetCount = 0;
+RTC_DATA_ATTR static uint32_t g_criticalResetCount = 0;
 static bool g_safeModeActive = false;
 static bool g_brownoutCounterCleared = false;
+
+static const char *resetReasonToString(esp_reset_reason_t reason) {
+  switch (reason) {
+  case ESP_RST_UNKNOWN:
+    return "UNKNOWN";
+  case ESP_RST_POWERON:
+    return "POWERON";
+  case ESP_RST_EXT:
+    return "EXT";
+  case ESP_RST_SW:
+    return "SW";
+  case ESP_RST_PANIC:
+    return "PANIC";
+  case ESP_RST_INT_WDT:
+    return "INT_WDT";
+  case ESP_RST_TASK_WDT:
+    return "TASK_WDT";
+  case ESP_RST_WDT:
+    return "WDT";
+  case ESP_RST_DEEPSLEEP:
+    return "DEEPSLEEP";
+  case ESP_RST_BROWNOUT:
+    return "BROWNOUT";
+  case ESP_RST_SDIO:
+    return "SDIO";
+  default:
+    return "OTHER";
+  }
+}
+
+static bool isCriticalResetReason(const esp_reset_reason_t reason) {
+  switch (reason) {
+  case ESP_RST_PANIC:
+  case ESP_RST_INT_WDT:
+  case ESP_RST_TASK_WDT:
+  case ESP_RST_WDT:
+  case ESP_RST_BROWNOUT:
+    return true;
+  default:
+    return false;
+  }
+}
 
 static void registerCurrentTaskToWdt(const char *taskName) {
   const esp_err_t addErr = esp_task_wdt_add(nullptr);
   if (addErr != ESP_OK) {
-    debugLogger.println(DebugLogger::WARNING,
+    debugLogger.println(KxLogger::WARNING,
                         String("WDT add failed for ") + taskName +
                             " err=" + String(static_cast<int>(addErr)));
   }
@@ -210,19 +254,19 @@ void I2C_scanner() { // Trouver tous les appareils I2C
     Wire.beginTransmission(i);
     delay(1);
     if (Wire.endTransmission() == 0) {
-      debugLogger.print(DebugLogger::I2C, "Adresse trouvée : ");
-      debugLogger.print(DebugLogger::I2C, String(i, DEC));
-      debugLogger.print(DebugLogger::I2C, " (0x");
-      debugLogger.print(DebugLogger::I2C, String(i, HEX));
-      debugLogger.print(DebugLogger::I2C, ")");
+      debugLogger.print(KxLogger::I2C, "Adresse trouvée : ");
+      debugLogger.print(KxLogger::I2C, String(i, DEC));
+      debugLogger.print(KxLogger::I2C, " (0x");
+      debugLogger.print(KxLogger::I2C, String(i, HEX));
+      debugLogger.print(KxLogger::I2C, ")");
       count++;
       delay(1); // peut-être inutile ?
     } // fin de bonne réponse
   } // fin de la boucle for
-  debugLogger.print(DebugLogger::I2C, "Terminé.");
-  debugLogger.print(DebugLogger::I2C, "Trouvé ");
-  debugLogger.print(DebugLogger::I2C, String(count, DEC));
-  debugLogger.println(DebugLogger::I2C, " appareil(s).");
+  debugLogger.print(KxLogger::I2C, "Terminé.");
+  debugLogger.print(KxLogger::I2C, "Trouvé ");
+  debugLogger.print(KxLogger::I2C, String(count, DEC));
+  debugLogger.println(KxLogger::I2C, " appareil(s).");
 } // fin de I2C_scanner
 
 #ifdef ENABLE_SD_LOGGING
@@ -283,7 +327,7 @@ void mqttTelemetryTask(void *pvParameters) {
       serializeJson(doc, payload);
       const bool published = mqttHandler.publishJson(mqttTopicTelemetry, payload);
       if (!published) {
-        debugLogger.println(DebugLogger::WARNING,
+        debugLogger.println(KxLogger::WARNING,
                             "MQTT publish skipped/failed for aggregated telemetry");
       }
       lastPublishMs = nowMs;
@@ -313,24 +357,24 @@ void webServerTask(void *pvParameters) {
 
 // Définir le nombre de niveaux de débogage explicitement
 const int NUM_DEBUG_LEVELS =
-    13; // Correspond au nombre de niveaux dans DebugLogger::DebugLevel
+    13; // Correspond au nombre de niveaux dans KxLogger::DebugLevel
 
 #ifdef ENABLE_TIME_AND_INFLUXDB
 // Fonction pour obtenir l'heure actuelle
 String getCurrentTime() {
   if (isTimeSynced) {
     timeClient.update();
-    debugLogger.print(DebugLogger::TIME, "Time synchronized with NTP");
+    debugLogger.print(KxLogger::TIME, "Time synchronized with NTP");
     return timeClient.getFormattedTime();
   } else {
     struct tm timeinfo;
     if (getLocalTime(&timeinfo)) {
       char buffer[20];
       strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &timeinfo);
-      debugLogger.print(DebugLogger::TIME, "RTC time available");
+      debugLogger.print(KxLogger::TIME, "RTC time available");
       return String(buffer);
     } else {
-      debugLogger.print(DebugLogger::TIME,
+      debugLogger.print(KxLogger::TIME,
                         "RTC time not available, returning default time");
       return "1970-01-01 00:00:00"; // Valeur par défaut si l'heure n'est pas
                                     // disponible
@@ -353,22 +397,22 @@ void logDataTask(void *pvParameters) {
   while (true) {
     if (sdLogger.shouldLog()) {
       String currentTime = sdLogger.getCurrentTime(logFileBase); // Correction ici
-      debugLogger.print(DebugLogger::TIME, "Current Time is : ");
-      debugLogger.println(DebugLogger::TIME, currentTime);
+      debugLogger.print(KxLogger::TIME, "Current Time is : ");
+      debugLogger.println(KxLogger::TIME, currentTime);
 
       float totalConsumption = batteryManager.getTotalConsumption();
       float totalCharge = batteryManager.getTotalCharge();
       float totalCurrent = batteryManager.getTotalCurrent();
 
-      debugLogger.print(DebugLogger::SD, "Totaux - Décharge: ");
-      debugLogger.print(DebugLogger::SD, String(totalConsumption));
-      debugLogger.print(DebugLogger::SD, " Ah, Charge: ");
-      debugLogger.print(DebugLogger::SD, String(totalCharge));
-      debugLogger.print(DebugLogger::SD, " Ah, Courant: ");
-      debugLogger.print(DebugLogger::SD, String(totalCurrent));
-      debugLogger.println(DebugLogger::SD, " A");
+      debugLogger.print(KxLogger::SD, "Totaux - Décharge: ");
+      debugLogger.print(KxLogger::SD, String(totalConsumption));
+      debugLogger.print(KxLogger::SD, " Ah, Charge: ");
+      debugLogger.print(KxLogger::SD, String(totalCharge));
+      debugLogger.print(KxLogger::SD, " Ah, Courant: ");
+      debugLogger.print(KxLogger::SD, String(totalCurrent));
+      debugLogger.println(KxLogger::SD, " A");
       debugLogger.println(
-          DebugLogger::SD,
+          KxLogger::SD,
           "--------------------------------------------------------"
           "-----------------------------------------------");
 
@@ -399,8 +443,8 @@ void logDataTask(void *pvParameters) {
               batteryManager.getAmpereHourConsumption(i);
           float ampereHourCharge = batteryManager.getAmpereHourCharge(i);
 
-          debugLogger.print(DebugLogger::SD, "logDataTask: Logging battery ");
-          debugLogger.println(DebugLogger::SD, String(i));
+          debugLogger.print(KxLogger::SD, "logDataTask: Logging battery ");
+          debugLogger.println(KxLogger::SD, String(i));
           sdLogger.logData(currentTime.c_str(), i, voltage, current,
                            switchState, ampereHourConsumption, ampereHourCharge,
                            totalConsumption, totalCharge, totalCurrent);
@@ -449,9 +493,9 @@ void logDataTask(void *pvParameters) {
 #endif
 
       if (logged == 0) {
-        debugLogger.println(DebugLogger::WARNING, "logDataTask: Aucune batterie loggée !");
+        debugLogger.println(KxLogger::WARNING, "logDataTask: Aucune batterie loggée !");
       }
-      debugLogger.println(DebugLogger::SD, "logDataTask: flushLine()");
+      debugLogger.println(KxLogger::SD, "logDataTask: flushLine()");
       sdLogger.flushLine(); // après toutes les batteries
     }
     esp_task_wdt_reset();
@@ -469,15 +513,15 @@ void debugBatteryTable() {
   float averageVoltage = batteryManager.getAverageVoltage();
   float total_current = 0.0;
 
-  debugLogger.println(DebugLogger::BATTERY,
+  debugLogger.println(KxLogger::BATTERY,
                       "--------------------------------------------------------"
                       "----------------------------------"
                       "-----------------------------------------------");
   debugLogger.println(
-      DebugLogger::BATTERY,
+      KxLogger::BATTERY,
       "| Batterie | Tension (V) | Courant (A) | Ah      | TCA | OUT | LED "
       "Rouge | LED Verte | Etat Switch | Analyse             |");
-  debugLogger.println(DebugLogger::BATTERY,
+  debugLogger.println(KxLogger::BATTERY,
                       "--------------------------------------------------------"
                       "----------------------------------"
                       "-----------------------------------------------");
@@ -510,31 +554,31 @@ void debugBatteryTable() {
       analysis += "different; ";
     }
     */
-    debugLogger.print(DebugLogger::BATTERY, "| ");
-    debugLogger.print(DebugLogger::BATTERY, String(i + 1));
-    debugLogger.print(DebugLogger::BATTERY, "        | ");
-    debugLogger.print(DebugLogger::BATTERY, String(voltage, 2));
-    debugLogger.print(DebugLogger::BATTERY, "       | ");
-    debugLogger.print(DebugLogger::BATTERY, String(current, 2));
-    debugLogger.print(DebugLogger::BATTERY, "       | ");
-    debugLogger.print(DebugLogger::BATTERY, String(ah, 3));
-    debugLogger.print(DebugLogger::BATTERY, "  | ");
-    debugLogger.print(DebugLogger::BATTERY, String(tcaNum));
-    debugLogger.print(DebugLogger::BATTERY, "   | ");
-    debugLogger.print(DebugLogger::BATTERY, String(outNum));
-    debugLogger.print(DebugLogger::BATTERY, "   | ");
-    debugLogger.print(DebugLogger::BATTERY, String(ledRedState));
-    debugLogger.print(DebugLogger::BATTERY, "         | ");
-    debugLogger.print(DebugLogger::BATTERY, String(ledGreenState));
-    debugLogger.print(DebugLogger::BATTERY, "         | ");
-    debugLogger.print(DebugLogger::BATTERY, String(switchState));
-    debugLogger.print(DebugLogger::BATTERY, "          | ");
-    debugLogger.print(DebugLogger::BATTERY, analysis);
-    debugLogger.println(DebugLogger::BATTERY, " |");
+    debugLogger.print(KxLogger::BATTERY, "| ");
+    debugLogger.print(KxLogger::BATTERY, String(i + 1));
+    debugLogger.print(KxLogger::BATTERY, "        | ");
+    debugLogger.print(KxLogger::BATTERY, String(voltage, 2));
+    debugLogger.print(KxLogger::BATTERY, "       | ");
+    debugLogger.print(KxLogger::BATTERY, String(current, 2));
+    debugLogger.print(KxLogger::BATTERY, "       | ");
+    debugLogger.print(KxLogger::BATTERY, String(ah, 3));
+    debugLogger.print(KxLogger::BATTERY, "  | ");
+    debugLogger.print(KxLogger::BATTERY, String(tcaNum));
+    debugLogger.print(KxLogger::BATTERY, "   | ");
+    debugLogger.print(KxLogger::BATTERY, String(outNum));
+    debugLogger.print(KxLogger::BATTERY, "   | ");
+    debugLogger.print(KxLogger::BATTERY, String(ledRedState));
+    debugLogger.print(KxLogger::BATTERY, "         | ");
+    debugLogger.print(KxLogger::BATTERY, String(ledGreenState));
+    debugLogger.print(KxLogger::BATTERY, "         | ");
+    debugLogger.print(KxLogger::BATTERY, String(switchState));
+    debugLogger.print(KxLogger::BATTERY, "          | ");
+    debugLogger.print(KxLogger::BATTERY, analysis);
+    debugLogger.println(KxLogger::BATTERY, " |");
   }
-  debugLogger.println(DebugLogger::BATTERY,
+  debugLogger.println(KxLogger::BATTERY,
                       "Total Current: " + String(total_current, 2) + " A");
-  debugLogger.println(DebugLogger::BATTERY,
+  debugLogger.println(KxLogger::BATTERY,
                       "--------------------------------------------------------"
                       "----------------------------------"
                       "-----------------------------------------------");
@@ -550,10 +594,10 @@ void checkBatteryTask(void *pvParameters) {
   registerCurrentTaskToWdt("CheckBatteryTask");
   while (true) {
     int Nb_Batt = inaHandler.getNbINA();
-    debugLogger.println(DebugLogger::BATTERY,
+    debugLogger.println(KxLogger::BATTERY,
                         "Vérification de la tension des batteries...");
     debugLogger.println(
-        DebugLogger::BATTERY,
+        KxLogger::BATTERY,
         "--------------------------------------------------------"
         "-----------------------------------------------------");
 
@@ -596,7 +640,7 @@ void setup() {
   Wire.begin(SDA_pin, SCL_pin); // sda= GPIO_32 /scl= GPIO_33
   // Wire.setClock(I2C_Speed * 1000); // définir I2C
 
-  const DebugLogger::DebugLevelInfo debugLevels[NUM_DEBUG_LEVELS] = {
+  const KxLogger::DebugLevelInfo debugLevels[NUM_DEBUG_LEVELS] = {
       {"NONE", true}, {"ERROR", true},    {"WARNING", true},
       {"INFO", true}, {"DEBUG", true},    {"BATTERY", false},
       {"I2C", true},  {"INFLUXDB", true}, {"TIME", true},
@@ -606,32 +650,49 @@ void setup() {
   debugLogger.begin(debugLevels, NUM_DEBUG_LEVELS);
 
   const esp_reset_reason_t resetReason = esp_reset_reason();
-  if (resetReason == ESP_RST_BROWNOUT) {
-    g_brownoutResetCount++;
-  } else if (resetReason == ESP_RST_POWERON) {
+  debugLogger.println(KxLogger::WARNING,
+                      String("Derniere raison de reset: ") +
+                          resetReasonToString(resetReason));
+
+  if (resetReason == ESP_RST_POWERON) {
     g_brownoutResetCount = 0;
+    g_criticalResetCount = 0;
+  } else {
+    if (resetReason == ESP_RST_BROWNOUT) {
+      g_brownoutResetCount++;
+    }
+    if (isCriticalResetReason(resetReason)) {
+      g_criticalResetCount++;
+    }
   }
 
-  if (g_brownoutResetCount >= kBrownoutSafeModeThreshold) {
+  debugLogger.println(KxLogger::WARNING,
+                      String("Compteurs reset brownout=") +
+                          String(g_brownoutResetCount) +
+                          String(" critical=") +
+                          String(g_criticalResetCount));
+
+  if ((g_brownoutResetCount >= kBrownoutSafeModeThreshold) ||
+      (g_criticalResetCount >= kCriticalResetSafeModeThreshold)) {
     g_safeModeActive = true;
-    debugLogger.println(DebugLogger::WARNING,
-                        "Safe mode enabled after repeated brownout resets");
+    debugLogger.println(KxLogger::WARNING,
+                        "Safe mode enabled after repeated critical resets");
   }
 
   const esp_err_t wdtInitErr =
       esp_task_wdt_init(kTaskWdtTimeoutSeconds, true);
   if (wdtInitErr != ESP_OK) {
-    debugLogger.println(DebugLogger::WARNING,
+    debugLogger.println(KxLogger::WARNING,
                         "Task WDT init failed err=" +
                             String(static_cast<int>(wdtInitErr)));
   } else {
-    debugLogger.println(DebugLogger::INFO,
+    debugLogger.println(KxLogger::INFO,
                         "Task WDT initialized timeout=" +
                             String(kTaskWdtTimeoutSeconds) + "s");
   }
 
   tcaHandler.begin();
-  debugLogger.println(DebugLogger::I2C, "Configuration TCA terminée");
+  debugLogger.println(KxLogger::I2C, "Configuration TCA terminée");
   inaHandler.set_max_voltage(
       set_max_voltage); // définir la tension maximale en mV
   inaHandler.set_min_voltage(
@@ -641,7 +702,7 @@ void setup() {
   inaHandler.set_max_charge_current(
       set_max_charge_current); // définir le courant de charge maximal en mA
   inaHandler.begin(max_INA_current, INA_micro_ohm_shunt); // Initialiser les INA
-  debugLogger.println(DebugLogger::I2C, "Configuration INA terminée");
+  debugLogger.println(KxLogger::I2C, "Configuration INA terminée");
 
   int Nb_Batt = inaHandler.getNbINA();
   for (int i = 0; i < Nb_Batt; i++) {
@@ -650,12 +711,12 @@ void setup() {
 
 #ifdef ENABLE_SD_LOGGING
   sdLogger.setBatteryCount(Nb_Batt);
-  debugLogger.print(DebugLogger::SD, "Nombre de batteries : ");
-  debugLogger.println(DebugLogger::SD, String(Nb_Batt));
+  debugLogger.print(KxLogger::SD, "Nombre de batteries : ");
+  debugLogger.println(KxLogger::SD, String(Nb_Batt));
   CSVConfig csvConfig = {';'};
   sdLogger.begin(logFileBase, csvConfig);
   sdLogger.setLogTime(log_time);
-  debugLogger.println(DebugLogger::I2C, "Configuration du logger SD terminée");
+  debugLogger.println(KxLogger::I2C, "Configuration du logger SD terminée");
 #endif
 
   BattParallelator.set_max_voltage(
@@ -676,39 +737,39 @@ void setup() {
                      // la batterie
   BattParallelator.set_max_diff_voltage(
       voltage_offset); // Définir l'offset de différence de tension
-  debugLogger.println(DebugLogger::I2C,
+  debugLogger.println(KxLogger::I2C,
                       "Configuration de la gestion des batteries terminée");
 
   int Nb_TCA = tcaHandler.getNbTCA(); // récupérer le nombre de TCA
   int Nb_INA = inaHandler.getNbINA(); // récupérer le nombre de INA
-  debugLogger.println(DebugLogger::I2C, "");
-  debugLogger.print(DebugLogger::I2C, "trouvé : ");
-  debugLogger.print(DebugLogger::I2C, String(Nb_TCA));
-  debugLogger.print(DebugLogger::I2C, " INA et ");
-  debugLogger.print(DebugLogger::I2C, String(Nb_INA));
-  debugLogger.println(DebugLogger::I2C, " TCA");
+  debugLogger.println(KxLogger::I2C, "");
+  debugLogger.print(KxLogger::I2C, "trouvé : ");
+  debugLogger.print(KxLogger::I2C, String(Nb_TCA));
+  debugLogger.print(KxLogger::I2C, " INA et ");
+  debugLogger.print(KxLogger::I2C, String(Nb_INA));
+  debugLogger.println(KxLogger::I2C, " TCA");
 
   if (Nb_TCA !=
       Nb_INA / 4) { // Vérifier si le nombre de TCA et de INA est correct
     debugLogger.println(
-        DebugLogger::I2C,
+        KxLogger::I2C,
         "FATAL: Le nombre de TCA et de INA n'est pas correct");
     if (Nb_INA % 4 != 0) {
-      debugLogger.println(DebugLogger::I2C, "FATAL: INA manquant");
+      debugLogger.println(KxLogger::I2C, "FATAL: INA manquant");
     } else {
-      debugLogger.println(DebugLogger::I2C, "FATAL: TCA manquant");
+      debugLogger.println(KxLogger::I2C, "FATAL: TCA manquant");
     }
-    debugLogger.println(DebugLogger::I2C,
+    debugLogger.println(KxLogger::I2C,
                         "HALT: Protection controller cannot operate with invalid HW topology");
     while (true) { delay(1000); } // Halt — do not operate with mismatched sensors
   } else {
-    debugLogger.println(DebugLogger::I2C,
+    debugLogger.println(KxLogger::I2C,
                         "Le nombre de TCA et de INA est correct");
   }
 
   int detected_batteries = BattParallelator.detect_batteries();
-  debugLogger.print(DebugLogger::BATTERY, "Nombre de batteries détectées: ");
-  debugLogger.println(DebugLogger::BATTERY, String(detected_batteries));
+  debugLogger.print(KxLogger::BATTERY, "Nombre de batteries détectées: ");
+  debugLogger.println(KxLogger::BATTERY, String(detected_batteries));
 
   // Démarrer la tâche de consommation en ampère-heure pour chaque batterie
   for (int i = 0; i < Nb_INA; i++) {
@@ -726,7 +787,7 @@ void setup() {
     xTaskCreatePinnedToCore(logDataTask, "LogDataTask", 8192, NULL, 0, NULL,
                             1);
   } else {
-    debugLogger.println(DebugLogger::WARNING,
+    debugLogger.println(KxLogger::WARNING,
                         "Safe mode: LogDataTask not started");
   }
 #endif
@@ -761,7 +822,7 @@ void setup() {
     xTaskCreatePinnedToCore(mqttTelemetryTask, "MqttTelemetryTask", 8192,
                             NULL, 1, NULL, 0);
   } else {
-    debugLogger.println(DebugLogger::WARNING,
+    debugLogger.println(KxLogger::WARNING,
                         "Safe mode: MqttTelemetryTask not started");
   }
 #endif
@@ -769,11 +830,11 @@ void setup() {
 #ifdef ENABLE_WEBSERVER
   /*
     if (!SPIFFS.begin(true)) {
-      debugLogger.println(DebugLogger::SPIFF,
+      debugLogger.println(KxLogger::SPIFF,
                                "An error has occurred while mounting SPIFFS");
       return;
     }
-    debugLogger.println(DebugLogger::SPIFF, "SPIFFS mounted successfully");
+    debugLogger.println(KxLogger::SPIFF, "SPIFFS mounted successfully");
     */
   if (!g_safeModeActive) {
     webServerHandler.begin(); // Démarrer le serveur web
@@ -790,10 +851,10 @@ void setup() {
 
 #ifdef ENABLE_SD_LOGGING
   if (!SD.begin()) {
-    debugLogger.println(DebugLogger::SD, "Card Mount Failed");
+    debugLogger.println(KxLogger::SD, "Card Mount Failed");
     return;
   }
-  debugLogger.println(DebugLogger::SD, "SD card initialized");
+  debugLogger.println(KxLogger::SD, "SD card initialized");
 #endif
 
   // NOTE: timeAndInfluxTask already created above — removed duplicate
@@ -803,25 +864,17 @@ void setup() {
  * @brief Boucle principale du programme.
  */
 void loop() {
-  // TASK-005: Safe mode exit strategy after stability window
-  // After kBrownoutCounterClearUptimeMs (120s) without new brownout resets,
-  // automatically exit safe mode to allow normal operation retry.
-  // This prevents firmware from being permanently stuck in safe mode.
+  // TASK-005: Runtime validation of restart-loop policy.
+  // After a stable uptime window, reset persistence counters used for
+  // restart-loop detection. Safe mode remains latched until next reboot.
   const uint32_t nowMs = millis();
   if (nowMs > kBrownoutCounterClearUptimeMs) {
     if (!g_brownoutCounterCleared) {
-      // Clear brownout counter — no new brownouts detected during stability window
       g_brownoutResetCount = 0;
+      g_criticalResetCount = 0;
       g_brownoutCounterCleared = true;
-      debugLogger.println(DebugLogger::INFO,
-                          "Brownout reset counter cleared after stable uptime");
-      
-      // Exit safe mode to allow task resumption (WiFi, logging, MQTT, etc.)
-      if (g_safeModeActive) {
-        g_safeModeActive = false;
-        debugLogger.println(DebugLogger::WARNING,
-                            "Safe mode disabled after 120s stability window — resuming normal operation");
-      }
+      debugLogger.println(KxLogger::INFO,
+                          "Reset counters cleared after stable uptime");
     }
   }
 

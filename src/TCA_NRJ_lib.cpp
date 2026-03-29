@@ -20,10 +20,10 @@
 
 #include "TCA_NRJ_lib.h"
 #include "I2CMutex.h"
-#include <DebugLogger.h>
+#include <KxLogger.h>
 
 // Assurez-vous que `debugLogger` est déclaré et initialisé correctement
-extern DebugLogger debugLogger;
+extern KxLogger debugLogger;
 
 TCAHandler::TCAHandler()
     : TCA_0(TCA_address[0]), 
@@ -40,7 +40,7 @@ TCAHandler::TCAHandler()
 
 void TCAHandler::initialize_tca(TCA9535 &tca, const char *name) {
   tca.begin();
-  debugLogger.println(DebugLogger::INFO, String(name) + " est connecté");
+  debugLogger.println(KxLogger::INFO, String(name) + " est connecté");
   for (int i = 0; i < 4; i++) {
     tca.pinMode1(i, OUTPUT);
     tca.write1(i, LOW);
@@ -90,7 +90,7 @@ void TCAHandler::begin() {
       }
     }
   }
-  debugLogger.println(DebugLogger::INFO, "trouvé " + String(Nb_TCA) + " appareils");
+  debugLogger.println(KxLogger::INFO, "trouvé " + String(Nb_TCA) + " appareils");
 }
 
 bool TCAHandler::read(int TCA_num, int pin) {
@@ -102,7 +102,7 @@ bool TCAHandler::read(int TCA_num, int pin) {
       if (recoveryLock.isAcquired()) {
         i2cBusRecovery();
         i2cResetFailureCounter();
-        debugLogger.println(DebugLogger::WARNING,
+        debugLogger.println(KxLogger::WARNING,
                             "I2C recovery executed from TCA.read lock failure");
       }
     }
@@ -150,7 +150,7 @@ bool TCAHandler::write(int TCA_num, int pin, bool value) {
       if (recoveryLock.isAcquired()) {
         i2cBusRecovery();
         i2cResetFailureCounter();
-        debugLogger.println(DebugLogger::WARNING,
+        debugLogger.println(KxLogger::WARNING,
                             "I2C recovery executed from TCA.write lock failure");
       }
     }

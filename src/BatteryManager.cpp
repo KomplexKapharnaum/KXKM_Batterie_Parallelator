@@ -22,7 +22,7 @@
  */
 
 #include "BatteryManager.h" // Remplacer l'ancien include par le nouveau
-#include <DebugLogger.h>
+#include <KxLogger.h>
 #include "INA_NRJ_lib.h" // Inclure le fichier où inaHandler est déclaré
 #include "BatteryParallelator.h" // Inclure l'en-tête où AmpereHourTaskParams est défini
 #include <cmath>
@@ -30,8 +30,15 @@
 #include <new>
 
 // Assurez-vous que `debugLogger` est déclaré et initialisé correctement
-extern DebugLogger debugLogger;
+extern KxLogger debugLogger;
 extern INAHandler inaHandler; // Déclarer inaHandler comme externe
+
+bool BatteryManager::lockState(TickType_t timeout) {
+    if (stateMutex == NULL) {
+        return false;
+    }
+    return xSemaphoreTake(stateMutex, timeout) == pdTRUE;
+}
 
 float BatteryManager::getMaxVoltageBattery() {
     maxVoltage = 0; // Réinitialiser la tension maximale
@@ -45,7 +52,7 @@ float BatteryManager::getMaxVoltageBattery() {
             maxVoltageBattery = i;
         }
     }
-    debugLogger.println(DebugLogger::BATTERY, "Max voltage battery index: " + String(maxVoltageBattery));
+    debugLogger.println(KxLogger::BATTERY, "Max voltage battery index: " + String(maxVoltageBattery));
     return maxVoltageBattery;
 }
 
@@ -60,7 +67,7 @@ float BatteryManager::getMinVoltageBattery() {
             minVoltageBattery = i;
         }
     }
-    debugLogger.println(DebugLogger::BATTERY, "Min voltage battery index: " + String(minVoltageBattery));
+    debugLogger.println(KxLogger::BATTERY, "Min voltage battery index: " + String(minVoltageBattery));
     return minVoltageBattery;
 }
 
@@ -87,7 +94,7 @@ float BatteryManager::getMaxVoltage() {
             maxVoltage = voltage;
         }
     }
-    debugLogger.println(DebugLogger::BATTERY, "Max voltage battery : " + String(maxVoltage));
+    debugLogger.println(KxLogger::BATTERY, "Max voltage battery : " + String(maxVoltage));
     return maxVoltage;
 }
 
@@ -103,11 +110,11 @@ float BatteryManager::getMinVoltage() {
         }
     }
     if (batteryIndex != -1) {
-        debugLogger.print(DebugLogger::BATTERY, "Min voltage  : " + String(minVoltage));
-        debugLogger.println(DebugLogger::BATTERY, "v, battery index: " + String(batteryIndex));
+        debugLogger.print(KxLogger::BATTERY, "Min voltage  : " + String(minVoltage));
+        debugLogger.println(KxLogger::BATTERY, "v, battery index: " + String(batteryIndex));
     } else {
-        debugLogger.println(DebugLogger::BATTERY, "Min voltage  : " + String(minVoltage));
-        debugLogger.println(DebugLogger::BATTERY, "No valid battery found for min voltage.");
+        debugLogger.println(KxLogger::BATTERY, "Min voltage  : " + String(minVoltage));
+        debugLogger.println(KxLogger::BATTERY, "No valid battery found for min voltage.");
     }
     return minVoltage;
 }
@@ -121,22 +128,29 @@ float BatteryManager::getVoltageCurrentRatio(int batteryIndex) {
 
 void BatteryManager::startAmpereHourConsumptionTask(int batteryIndex, float durationHours, int numSamples) {
     if (batteryIndex < 0 || batteryIndex >= 16) {
-        debugLogger.println(DebugLogger::WARNING, "startAmpereHourConsumptionTask: battery index invalide");
+        debugLogger.println(KxLogger::WARNING, "startAmpereHourConsumptionTask: battery index invalide");
         return;
     }
     if (durationHours <= 0.0f || numSamples <= 0) {
-        debugLogger.println(DebugLogger::WARNING, "startAmpereHourConsumptionTask: parametres invalides");
+        debugLogger.println(KxLogger::WARNING, "startAmpereHourConsumptionTask: parametres invalides");
         return;
     }
-    if (ampereHourTaskRunning[batteryIndex] && ampereHourTaskHandles[batteryIndex] != nullptr) {
-        debugLogger.println(DebugLogger::INFO, "AmpereHour task deja active pour batterie " + String(batteryIndex));
+    bool alreadyRunning = false;
+    if (lockState()) {
+        alreadyRunning = ampereHourTaskRunning[batteryIndex] &&
+                         ampereHourTaskHandles[batteryIndex] != nullptr;
+        xSemaphoreGive(stateMutex);
+    }
+
+    if (alreadyRunning) {
+        debugLogger.println(KxLogger::INFO, "AmpereHour task deja active pour batterie " + String(batteryIndex));
         return;
     }
 
     AmpereHourTaskParams* params =
         new (std::nothrow) AmpereHourTaskParams{batteryIndex, durationHours, numSamples, this};
     if (params == nullptr) {
-        debugLogger.println(DebugLogger::ERROR, "startAmpereHourConsumptionTask: allocation params impossible");
+        debugLogger.println(KxLogger::ERROR, "startAmpereHourConsumptionTask: allocation params impossible");
         return;
     }
 
@@ -146,12 +160,18 @@ void BatteryManager::startAmpereHourConsumptionTask(int batteryIndex, float dura
     const BaseType_t created = xTaskCreate(ampereHourConsumptionTask, taskName, 4096, params, 1, &handle);
     if (created != pdPASS) {
         delete params;
-        debugLogger.println(DebugLogger::ERROR, "startAmpereHourConsumptionTask: echec creation task");
+        debugLogger.println(KxLogger::ERROR, "startAmpereHourConsumptionTask: echec creation task");
         return;
     }
 
-    ampereHourTaskHandles[batteryIndex] = handle;
-    ampereHourTaskRunning[batteryIndex] = true;
+    if (lockState()) {
+        ampereHourTaskHandles[batteryIndex] = handle;
+        ampereHourTaskRunning[batteryIndex] = true;
+        xSemaphoreGive(stateMutex);
+    } else {
+        debugLogger.println(KxLogger::WARNING,
+                            "startAmpereHourConsumptionTask: mutex indisponible");
+    }
 }
 
 void BatteryManager::ampereHourConsumptionTask(void* pvParameters) {
@@ -167,8 +187,13 @@ void BatteryManager::ampereHourConsumptionTask(void* pvParameters) {
         return;
     }
 
-    float totalDischarge = manager->ampereHourConsumptions[batteryIndex];
-    float totalCharge = manager->ampereHourCharges[batteryIndex];
+    float totalDischarge = 0.0f;
+    float totalCharge = 0.0f;
+    if (manager->lockState()) {
+        totalDischarge = manager->ampereHourConsumptions[batteryIndex];
+        totalCharge = manager->ampereHourCharges[batteryIndex];
+        xSemaphoreGive(manager->stateMutex);
+    }
     int sampleCount = 0;
 
     const float sampleIntervalMsFloat = (durationHours * 3600000.0f) / static_cast<float>(numSamples);
@@ -199,12 +224,15 @@ void BatteryManager::ampereHourConsumptionTask(void* pvParameters) {
             }
         }
 
-        manager->ampereHourConsumptions[batteryIndex] = totalDischarge;
-        manager->ampereHourCharges[batteryIndex] = totalCharge;
+        if (manager->lockState()) {
+            manager->ampereHourConsumptions[batteryIndex] = totalDischarge;
+            manager->ampereHourCharges[batteryIndex] = totalCharge;
+            xSemaphoreGive(manager->stateMutex);
+        }
 
         if (sampleCount % 100 == 0) {
             debugLogger.println(
-                DebugLogger::INFO,
+                KxLogger::INFO,
                 "Battery " + String(batteryIndex) +
                     " - Running Total Discharge: " + String(totalDischarge) + " Ah" +
                     ", Running Total Charge: " + String(totalCharge) + " Ah");
@@ -216,31 +244,67 @@ void BatteryManager::ampereHourConsumptionTask(void* pvParameters) {
 }
 
 float BatteryManager::getAmpereHourConsumption(int batteryIndex) {
-    debugLogger.println(DebugLogger::BATTERY, "Getting Ampere Hour Consumption for battery " + 
-        String(batteryIndex+1) + ": " + String(ampereHourConsumptions[batteryIndex]) + " Ah");
-    return ampereHourConsumptions[batteryIndex];
+    if (batteryIndex < 0 || batteryIndex >= 16) {
+        return 0.0f;
+    }
+
+    float value = 0.0f;
+    if (lockState()) {
+        value = ampereHourConsumptions[batteryIndex];
+        xSemaphoreGive(stateMutex);
+    }
+
+    debugLogger.println(KxLogger::BATTERY, "Getting Ampere Hour Consumption for battery " +
+        String(batteryIndex + 1) + ": " + String(value) + " Ah");
+    return value;
 }
 
 bool BatteryManager::isAmpereHourConsumptionTaskRunning(int batteryIndex) {
-    return ampereHourTaskRunning[batteryIndex];
+    if (batteryIndex < 0 || batteryIndex >= 16) {
+        return false;
+    }
+
+    bool running = false;
+    if (lockState()) {
+        running = ampereHourTaskRunning[batteryIndex];
+        xSemaphoreGive(stateMutex);
+    }
+    return running;
 }
 
 float BatteryManager::getTotalConsumption() {
     float totalConsumption = 0;
-    for (int i = 0; i < inaHandler.getNbINA(); i++) {
-        totalConsumption += ampereHourConsumptions[i];
+    const int nbIna = inaHandler.getNbINA();
+    if (lockState()) {
+        for (int i = 0; i < nbIna; i++) {
+            totalConsumption += ampereHourConsumptions[i];
+        }
+        xSemaphoreGive(stateMutex);
     }
     return totalConsumption;
 }
 
 float BatteryManager::getAmpereHourCharge(int batteryIndex) {
-    return ampereHourCharges[batteryIndex];
+    if (batteryIndex < 0 || batteryIndex >= 16) {
+        return 0.0f;
+    }
+
+    float value = 0.0f;
+    if (lockState()) {
+        value = ampereHourCharges[batteryIndex];
+        xSemaphoreGive(stateMutex);
+    }
+    return value;
 }
 
 float BatteryManager::getTotalCharge() {
     float totalCharge = 0;
-    for (int i = 0; i < inaHandler.getNbINA(); i++) {
-        totalCharge += ampereHourCharges[i];
+    const int nbIna = inaHandler.getNbINA();
+    if (lockState()) {
+        for (int i = 0; i < nbIna; i++) {
+            totalCharge += ampereHourCharges[i];
+        }
+        xSemaphoreGive(stateMutex);
     }
     return totalCharge;
 }

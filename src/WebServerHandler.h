@@ -27,7 +27,7 @@
 #include <WebSocketsServer.h> // Ajout de cette ligne pour déclarer WStype_t
 #include <ESPAsyncWebServer.h> // Ajouter cette ligne
 #include "BatteryParallelator.h"
-#include <DebugLogger.h> // Ajouter cette ligne
+#include <KxLogger.h> // Ajouter cette ligne
 
 /**
  * @class WebServerHandler

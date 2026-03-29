@@ -25,7 +25,7 @@
 
 #include "INA_NRJ_lib.h"
 #include "TCA_NRJ_lib.h"
-#include <DebugLogger.h>
+#include <KxLogger.h>
 #include <cfloat>
 #include <cmath>
 #include <freertos/semphr.h>
@@ -78,6 +78,7 @@ public:
 
 private:
   bool isValidBatteryIndex(int INA_num) const;
+  bool lockState(TickType_t timeout = pdMS_TO_TICKS(20));
   SemaphoreHandle_t stateMutex = NULL;
   int mem_set_max_voltage = 30000;
   int mem_set_min_voltage = 24000;
@@ -86,13 +87,6 @@ private:
   int mem_set_current_diff = 1000;
   int mem_set_max_charge_current = 0;
   int mem_set_max_discharge_current = 0;
-
-  float max_voltage = 0;
-  float min_voltage = 0;
-  float max_current = 0;
-  float voltage_dif = 0;
-  float current_dif = 0;
-  float max_charge_current = 0;
 
   int reconnect_delay = 0;
   int Nb_switch_max = 5;

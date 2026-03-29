@@ -22,20 +22,21 @@
 
 #include "WebServerHandler.h"
 #include "BatteryRouteValidation.h"
+#include "WebMutationRateLimit.h"
 #include "WebRouteSecurity.h"
 #include "SD_Logger.h"   // Ajouter cette ligne
 #include <ArduinoJson.h> // Ajouter cette ligne
 #include <SD.h>          // Inclure la bibliothèque SD
 #include <SPIFFS.h>      // Ajouter cette ligne
 #include <WebSocketsServer.h> // Ajouter cette ligne
-#include <DebugLogger.h>
+#include <KxLogger.h>
 #include <WiFi.h> // Ajouter cette ligne
 #include "WebServerFiles.h" // Inclure le fichier WebServerFiles.h
 #include <ESPAsyncWebServer.h> // Ajouter cette ligne
 #include <IPAddress.h>
 
 // Assurez-vous que `debugLogger` est déclaré et initialisé correctement
-extern DebugLogger debugLogger;
+extern KxLogger debugLogger;
 extern INAHandler inaHandler;
 extern BATTParallelator BattParallelator;
 
@@ -58,13 +59,7 @@ const char *kBmuWebAdminToken = BMU_WEB_ADMIN_TOKEN;
 constexpr uint8_t kMutationRateLimitMaxRequests = 10;
 constexpr uint32_t kMutationRateLimitWindowMs = 10000;
 
-struct MutationRateLimitSlot {
-  uint32_t ip = 0;
-  uint32_t windowStartMs = 0;
-  uint8_t requestCount = 0;
-};
-
-MutationRateLimitSlot g_rateLimitSlots[8];
+::MutationRateLimitSlot g_rateLimitSlots[8];
 
 uint32_t ipToKey(const IPAddress &ip) {
   return (static_cast<uint32_t>(ip[0]) << 24) |
@@ -82,7 +77,7 @@ String requestSource(AsyncWebServerRequest *request) {
 
 void logMutationAudit(const char *route, const String &batteryParam,
                      const String &source, const char *outcome) {
-  debugLogger.println(DebugLogger::WEB,
+  debugLogger.println(KxLogger::WEB,
                       String("AUDIT route=") + route +
                           " battery=" + batteryParam + " source=" + source +
                           " outcome=" + outcome +
@@ -97,35 +92,9 @@ bool isMutationRateLimited(AsyncWebServerRequest *request) {
   const uint32_t key = ipToKey(request->client()->remoteIP());
   const uint32_t now = millis();
 
-  int candidate = -1;
-  for (int i = 0; i < 8; ++i) {
-    if (g_rateLimitSlots[i].ip == key) {
-      candidate = i;
-      break;
-    }
-    if (candidate < 0 && g_rateLimitSlots[i].ip == 0) {
-      candidate = i;
-    }
-  }
-
-  if (candidate < 0) {
-    candidate = 0;
-  }
-
-  MutationRateLimitSlot &slot = g_rateLimitSlots[candidate];
-  if (slot.ip != key || (now - slot.windowStartMs) > kMutationRateLimitWindowMs) {
-    slot.ip = key;
-    slot.windowStartMs = now;
-    slot.requestCount = 1;
-    return false;
-  }
-
-  if (slot.requestCount >= kMutationRateLimitMaxRequests) {
-    return true;
-  }
-
-  slot.requestCount++;
-  return false;
+  return mutationRateLimitExceeded(g_rateLimitSlots, 8, key, now,
+                                   kMutationRateLimitMaxRequests,
+                                   kMutationRateLimitWindowMs);
 }
 
 bool authorizeBatteryMutationRequest(AsyncWebServerRequest *request,
@@ -184,16 +153,16 @@ void WebServerHandler::begin() {
         request->send_P(200, "application/javascript", script_js);
       });
       server.onNotFound([](AsyncWebServerRequest *request) { // Corriger la déclaration de la fonction lambda
-        debugLogger.println(DebugLogger::SPIFF,("File Not Found"));
+        debugLogger.println(KxLogger::SPIFF,("File Not Found"));
         request->send(404, "text/plain", "File Not Found");
       });
       server.begin();
-      debugLogger.println(DebugLogger::WEB,"HTTP server started");
+      debugLogger.println(KxLogger::WEB,"HTTP server started");
       // Ajouter cette ligne pour envoyer les valeurs automatiquement via WebSocket
       webSocket.begin(); // Initialiser le serveur WebSocket
       webSocket.onEvent(std::bind(&WebServerHandler::onWebSocketEvent, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4)); // Ajouter cette ligne
     } else {
-      debugLogger.println(DebugLogger::WIFI, "WiFi not connected, cannot start server");
+      debugLogger.println(KxLogger::WIFI, "WiFi not connected, cannot start server");
     }
   } catch (const std::exception& e) {
     Serial.print("Exception caught in WebServerHandler::begin: ");
@@ -211,7 +180,7 @@ void WebServerHandler::handleClient() {
   } else {
     if (WiFi.status() != WL_CONNECTED) { // Vérifier si le serveur est en cours d'exécution
       webSocket.close(); // Fermer le WebSocket
-      debugLogger.println(DebugLogger::WIFI, "WiFi disconnected, server stopped");
+      debugLogger.println(KxLogger::WIFI, "WiFi disconnected, server stopped");
     }
   }
 }
@@ -361,7 +330,7 @@ void WebServerHandler::setVoltageOffset(float offset) {
  * @brief Gérer les requêtes WebSocket pour envoyer les valeurs automatiquement.
  */
 void WebServerHandler::handleWebSocket(AsyncWebServerRequest *request) {
-  debugLogger.println(DebugLogger::INFO, "WebSocket request received");
+  debugLogger.println(KxLogger::INFO, "WebSocket request received");
 
   // Utiliser ArduinoJson pour générer le JSON
   StaticJsonDocument<1024> doc;
@@ -378,13 +347,13 @@ void WebServerHandler::handleWebSocket(AsyncWebServerRequest *request) {
 
   String json;
   serializeJson(doc, json);
-  debugLogger.println(DebugLogger::INFO, "Sending JSON data: " + json);
+  debugLogger.println(KxLogger::INFO, "Sending JSON data: " + json);
   request->send(200, "application/json", json); // Utiliser request->send au lieu de server.send
 }
 
 void WebServerHandler::onWebSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length) {
   if (type == WStype_TEXT) {
-    debugLogger.println(DebugLogger::INFO, "[" + String(num) + "] Received text: " + String((char*)payload));
+    debugLogger.println(KxLogger::INFO, "[" + String(num) + "] Received text: " + String((char*)payload));
 
     // Utiliser ArduinoJson pour générer le JSON
     StaticJsonDocument<1024> doc;
@@ -401,7 +370,7 @@ void WebServerHandler::onWebSocketEvent(uint8_t num, WStype_t type, uint8_t *pay
 
     String json;
     serializeJson(doc, json);
-    debugLogger.println(DebugLogger::INFO, "Sending JSON data: " + json);
+    debugLogger.println(KxLogger::INFO, "Sending JSON data: " + json);
     webSocket.sendTXT(num, json); // Envoyer les données via WebSocket
   }
 }
@@ -411,7 +380,7 @@ void WebServerHandler::onWebSocketEvent(uint8_t num, WStype_t type, uint8_t *pay
  */
 void WebServerHandler::handleNotFound(AsyncWebServerRequest *request) {
   String message = "404: Not Found - " + request->url(); // Utiliser request->url() au lieu de server.url()
-  debugLogger.println(DebugLogger::ERROR, message); // Utiliser DebugLogger pour le débogage
+  debugLogger.println(KxLogger::ERROR, message); // Utiliser KxLogger pour le débogage
   request->send(404, "text/plain", message); // Utiliser request->send au lieu de server.send
 }
 

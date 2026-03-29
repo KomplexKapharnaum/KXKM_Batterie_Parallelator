@@ -2,14 +2,18 @@
 #define BATTERY_MANAGER_H
 
 #include "INA_NRJ_lib.h"
-#include <DebugLogger.h>
+#include <KxLogger.h>
 #include <cfloat>
 #include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 #include <freertos/task.h>
 
 class BatteryManager {
 public:
   BatteryManager() : maxVoltage(0), minVoltage(FLT_MAX) {
+    stateMutex = xSemaphoreCreateMutex();
+    configASSERT(stateMutex != NULL);
+
     for (int i = 0; i < 16; i++) {
       ampereHourConsumptions[i] = 0.0;
       ampereHourCharges[i] = 0.0;
@@ -45,6 +49,9 @@ public:
   float getMinVoltage();
 
 private:
+  bool lockState(TickType_t timeout = pdMS_TO_TICKS(20));
+
+  SemaphoreHandle_t stateMutex = NULL;
   float ampereHourConsumptions[16] = {0}; // Décharge (valeurs positives)
   float ampereHourCharges[16] = {0};      // Charge (valeurs négatives)
   bool ampereHourTaskRunning[16] = {false}; // Tableau pour suivre les tâches en cours
