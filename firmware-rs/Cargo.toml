@@ -5,6 +5,7 @@ members = [
     "crates/bmu-ina237",
     "crates/bmu-tca9535",
     "crates/bmu-protection",
+    "crates/bmu-ffi",
 ]
 
 [workspace.dependencies]
