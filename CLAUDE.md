@@ -7,12 +7,12 @@
 
 ## Structure
 - `specs/` — intake (S0), spec (S1), arch (S2), plan (S3) — Kill_LIFE gates
-- `src/` — firmware Arduino/PlatformIO (main.cpp + headers)
-- `test/test_protection/` — tests Unity natifs (logique protection V/I/déséquilibre)
-- `PCB/BMU v1/` — schéma KiCad v1, gerbers JLCPCB (fabriqué)
-- `pcb-bmu-v2/` — schéma KiCad v2 (KiCad 8.0), ERC 0 violations, BOM 107 composants
-- `lib/INA237/` — driver INA237 local
-- `data/` — interface web embarquée (AsyncWebServer)
+- `firmware/src/` — firmware Arduino/PlatformIO (main.cpp + headers)
+- `firmware/test/test_protection/` — tests Unity natifs (logique protection V/I/déséquilibre)
+- `hardware/PCB/BMU v1/` — schéma KiCad v1, gerbers JLCPCB (fabriqué)
+- `hardware/pcb-bmu-v2/` — schéma KiCad v2 (KiCad 8.0), ERC 0 violations, BOM 107 composants
+- `firmware/lib/INA237/` — driver INA237 local
+- `firmware/data/` — interface web embarquée (AsyncWebServer)
 
 ## Firmware
 - Framework : Arduino / PlatformIO
@@ -27,8 +27,8 @@
   docker run --rm --user $(id -u):$(id -g) -e HOME=/tmp \
     -v "/home/clems/KXKM_Batterie_Parallelator:/project" \
     -w /project kicad/kicad:10.0 kicad-cli sch erc \
-    --format json --output "/project/pcb-bmu-v2/erc_report.json" \
-    "/project/pcb-bmu-v2/BMU v2.kicad_sch"
+    --format json --output "/project/hardware/pcb-bmu-v2/erc_report.json" \
+    "/project/hardware/pcb-bmu-v2/BMU v2.kicad_sch"
 ```raw
 
 ## ICs clés

@@ -9,13 +9,13 @@ fi
 env_id="$1"
 
 ensure_credentials_for_ci() {
-  if [[ -f src/credentials.h ]]; then
+  if [[ -f firmware/src/credentials.h ]]; then
     return 0
   fi
 
-  if [[ -f src/credentials.h.example ]]; then
+  if [[ -f firmware/src/credentials.h.example ]]; then
     echo "[qa] credentials.h absent -> generation depuis credentials.h.example"
-    cp src/credentials.h.example src/credentials.h
+    cp firmware/src/credentials.h.example firmware/src/credentials.h
     return 0
   fi
 

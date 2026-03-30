@@ -201,8 +201,8 @@ def main() -> None:
     parser.add_argument(
         "--input",
         type=Path,
-        default=Path("log-sd"),
-        help="Directory containing CSV log files (default: 'log-sd')",
+        default=Path("hardware/log-sd"),
+        help="Directory containing CSV log files (default: 'hardware/log-sd')",
     )
     parser.add_argument(
         "--output",

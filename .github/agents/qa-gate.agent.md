@@ -2,7 +2,7 @@
 description: "Use when running an AI QA gate focused only on tests, gates, and evidence before merge or release."
 name: "QA Gate"
 tools: [read, search]
-argument-hint: "Portée QA (ex: test/**, scripts/check_memory_budget.sh, artefacts de build)"
+argument-hint: "Portée QA (ex: firmware/test/**, scripts/check_memory_budget.sh, artefacts de build)"
 user-invocable: true
 ---
 
@@ -33,4 +33,4 @@ Mission:
 4. Gaps restants
 5. Checklist Go/No-Go finale
 
-Portée à auditer: ${input:Portée QA (ex: test/**, scripts/check_memory_budget.sh, artefacts de build)}.
+Portée à auditer: ${input:Portée QA (ex: firmware/test/**, scripts/check_memory_budget.sh, artefacts de build)}.

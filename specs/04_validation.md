@@ -21,7 +21,7 @@ Statut actuel : **L1 ✅ L2 ✅ L3 ⬜**
 
 ## L1 — Tests unitaires natifs (`pio test -e native`)
 
-Fichier : `test/test_protection/test_protection.cpp`
+Fichier : `firmware/test/test_protection/test_protection.cpp`
 
 | ID | Test | Résultat |
 |----|------|----------|
@@ -38,7 +38,7 @@ Fichier : `test/test_protection/test_protection.cpp`
 
 ---
 
-## L2 — Simulation étendue (`test/test_s3_sim/`)
+## L2 — Simulation étendue (`firmware/test/test_s3_sim/`)
 
 Fichiers : `sim_s3.cpp` (scénarios S3) + `sim_validation.cpp` (validation étendue)
 

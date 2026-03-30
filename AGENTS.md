@@ -3,7 +3,7 @@
 ## Scope
 - This repository is an ESP32 PlatformIO battery management firmware (BMU) for parallelized battery packs (up to 16 channels).
 - Keep behavior safe by default: battery protection logic must not be weakened.
-- Prefer focused changes in src/ and avoid unrelated edits in hardware design folders.
+- Prefer focused changes in firmware/src/ and avoid unrelated edits in hardware design folders.
 
 ## Build and Test
 - Main build (default): pio run -e kxkm-s3-16MB
@@ -16,22 +16,22 @@
 - Hardware test target (when relevant): pio test -e kxkm-s3-16MB
 
 ## Architecture
-- Main entrypoint and orchestration: src/main.cpp
-- Core battery logic: src/BatteryParallelator.cpp, src/BatteryManager.cpp
-- Sensor/actuator drivers: src/INAHandler.cpp, src/TCAHandler.cpp
-- Shared bus lock: src/I2CMutex.h
-- Logging and integrations: src/SD_Logger.cpp, src/InfluxDBHandler.cpp, src/WebServerHandler.cpp, src/TimeAndInfluxTask.cpp
+- Main entrypoint and orchestration: firmware/src/main.cpp
+- Core battery logic: firmware/src/BatteryParallelator.cpp, firmware/src/BatteryManager.cpp
+- Sensor/actuator drivers: firmware/src/INAHandler.cpp, firmware/src/TCAHandler.cpp
+- Shared bus lock: firmware/src/I2CMutex.h
+- Logging and integrations: firmware/src/SD_Logger.cpp, firmware/src/InfluxDBHandler.cpp, firmware/src/WebServerHandler.cpp, firmware/src/TimeAndInfluxTask.cpp
 
 ## Conventions
 - The codebase is primarily French in comments and many identifiers; keep naming and phrasing consistent with surrounding code.
 - Keep the existing style (Arduino/ESP32 C++, Doxygen-friendly headers, fixed-size arrays where already used).
-- Any I2C access (Wire, INA/TCA operations) must use I2CLockGuard from src/I2CMutex.h.
+- Any I2C access (Wire, INA/TCA operations) must use I2CLockGuard from firmware/src/I2CMutex.h.
 - Validate sensor indexes before access and preserve existing fault behavior (NAN/early return patterns).
 - Use existing DebugLogger categories for observability instead of ad-hoc Serial.print additions.
 - Keep CSV conventions unchanged (; separator and existing timestamp flow in logger/influx code).
 
 ## Safety-Critical Rules
-- Do not bypass topology validation between INA and TCA counts in src/main.cpp.
+- Do not bypass topology validation between INA and TCA counts in firmware/src/main.cpp.
 - Do not silently relax battery thresholds, reconnect delays, or current/voltage protections.
 - Keep task behavior non-blocking for FreeRTOS loops and avoid long blocking calls in periodic tasks.
 
@@ -56,7 +56,7 @@
 - Project architecture and operating notes: CLAUDE.md
 - Product and usage overview: README.md
 - ML battery health roadmap/spec: docs/ml-battery-health-spec.md
-- Credentials template: src/credentials.h.example
+- Credentials template: firmware/src/credentials.h.example
 - Platform/build configuration: platformio.ini
 - Firmware safety instruction (applyTo src): .github/instructions/firmware-safety.instructions.md
 - ML pipeline instruction (applyTo scripts/ml, docs, models): .github/instructions/ml-pipeline.instructions.md
@@ -64,5 +64,5 @@
 - BMU audit prompt: .github/prompts/audit-bmu.prompt.md
 
 ## Areas to Avoid Unless Requested
-- Legacy hardware folder marked as untouchable: battery-management-unit/PCB V1 (don't touch)/
-- Large PCB/CAD assets under PCB/ and pcb-bmu-v2/ unless the task is explicitly hardware-design related.
+- Legacy hardware folder marked as untouchable: hardware/battery-management-unit/PCB V1 (don't touch)/
+- Large hardware/PCB/CAD assets under hardware/PCB/ and hardware/pcb-bmu-v2/ unless the task is explicitly hardware-design related.

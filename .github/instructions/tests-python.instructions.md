@@ -1,7 +1,7 @@
 ---
-description: "Use when writing or modifying Python tests in test/*.py or test/**. Enforce deterministic pytest style, clear evidence, and CI-friendly assertions."
+description: "Use when writing or modifying Python tests in firmware/test/*.py or firmware/test/**. Enforce deterministic pytest style, clear evidence, and CI-friendly assertions."
 name: "Python Test Rules"
-applyTo: ["test/**/*.py", "**/test/**/*.py"]
+applyTo: ["firmware/test/**/*.py", "**/firmware/test/**/*.py"]
 ---
 
 # Python Test Rules

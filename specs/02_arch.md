@@ -39,21 +39,21 @@ I²C bus (50 kHz)
 
 | Fichier | Rôle |
 |---------|------|
-| `src/main.cpp` | Setup/loop principal, orchestration |
-| `src/INA_Func.h` | Init INA237, lecture V/I/P |
-| `src/TCA_Func.h` | Init TCA9535, lecture/écriture GPIO |
-| `src/compute.h` | Logique protection (switch_on/off, compteurs) |
-| `src/pin_mappings.h` | Mapping GPIO → INA ALERT pins |
-| `src/data_log.h` | Logging série |
-| `lib/INA237/` | Driver INA237 local (fork) |
-| `data/` | Interface web (HTML/JS/CSS) |
+| `firmware/src/main.cpp` | Setup/loop principal, orchestration |
+| `firmware/src/INA_Func.h` | Init INA237, lecture V/I/P |
+| `firmware/src/TCA_Func.h` | Init TCA9535, lecture/écriture GPIO |
+| `firmware/src/compute.h` | Logique protection (switch_on/off, compteurs) |
+| `firmware/src/pin_mappings.h` | Mapping GPIO → INA ALERT pins |
+| `firmware/src/data_log.h` | Logging série |
+| `firmware/lib/INA237/` | Driver INA237 local (fork) |
+| `firmware/data/` | Interface web (HTML/JS/CSS) |
 
 ## PCB
 
 | Version | Fichier | État |
 |---------|---------|------|
-| BMU v1 | `PCB/BMU v1/BMU v1.kicad_sch` | Fabriqué JLCPCB |
-| BMU v2 | `pcb-bmu-v2/BMU_switch_mosfet.kicad_sch` | En cours |
+| BMU v1 | `hardware/PCB/BMU v1/BMU v1.kicad_sch` | Fabriqué JLCPCB |
+| BMU v2 | `hardware/pcb-bmu-v2/BMU_switch_mosfet.kicad_sch` | En cours |
 
 ## Adressage I²C
 

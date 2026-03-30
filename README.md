@@ -86,8 +86,8 @@ Le système déconnecte automatiquement une batterie si elle sort des limites de
 ### Schémas et PCB
 
 Les fichiers de conception électronique (KiCad) sont disponibles dans les dossiers :
-- `PCB/` — révision 1 du BMU
-- `pcb-bmu-v2/` — révision 2 (améliorée, fichiers Gerber pour JLCPCB inclus)
+- `hardware/PCB/` — révision 1 du BMU
+- `hardware/pcb-bmu-v2/` — révision 2 (améliorée, fichiers Gerber pour JLCPCB inclus)
 
 ---
 
@@ -159,7 +159,7 @@ Nb_switch > 5   →  Déconnexion permanente (LED rouge fixe)
 
 ## Configuration
 
-Les paramètres principaux sont définis en tête de `src/main.cpp` :
+Les paramètres principaux sont définis en tête de `firmware/src/main.cpp` :
 
 ```cpp
 #define I2C_Speed               50      // Vitesse I2C en kHz
@@ -185,33 +185,33 @@ KXKM_Batterie_Parallelator/
 │   ├── 01_spec.md              # Fonctions F01–F11, paramètres ✅
 │   ├── 02_arch.md              # Architecture firmware + hardware ✅
 │   └── 03_plan.md              # Gates S0–S3 et todos ✅
-├── src/
+├── firmware/src/
 │   ├── main.cpp                # Initialisation et boucle principale
 │   ├── INA_Func.h              # Fonctions de lecture INA237
 │   ├── TCA_Func.h              # Fonctions de contrôle TCA9535/9555
 │   ├── compute.h               # Logique de commutation et LED
 │   ├── pin_mappings.h         # Définition des GPIO
 │   └── data_log.h              # Journalisation
-├── test/
+├── firmware/test/
 │   └── test_protection/        # Kill_LIFE — tests Unity natifs (10 tests)
 │       └── test_protection.cpp # Protection V/I/déséquilibre/verrouillage
 ├── lib/
 │   └── INA237/                 # Bibliothèque INA237 locale (fork)
-├── data/
+├── firmware/data/
 │   ├── index.html              # Interface web embarquée
 │   ├── style.css
 │   └── script.js
-├── PCB/                        # Schémas et PCB KiCad BMU v1 (fabriqué)
-├── pcb-bmu-v2/                 # KiCad BMU v2 + Gerber JLCPCB (ERC 0 violations)
+├── hardware/PCB/                        # Schémas et PCB KiCad BMU v1 (fabriqué)
+├── hardware/pcb-bmu-v2/                 # KiCad BMU v2 + Gerber JLCPCB (ERC 0 violations)
 │   ├── BMU v2.kicad_sch        # Schéma principal
 │   ├── erc_report.json         # Rapport ERC — 0 violations
 │   └── ...
-├── examples-ina/               # Exemples d'utilisation INA237
-├── examples-tca95x5/           # Exemples d'utilisation TCA9535/9555
-├── test-code/
+├── hardware/examples-ina/               # Exemples d'utilisation INA237
+├── hardware/examples-tca95x5/           # Exemples d'utilisation TCA9535/9555
+├── hardware/test-code/
 │   └── scanner_I2C.cpp         # Utilitaire de scan I2C
 ├── .github/workflows/ci.yml    # CI — tests Unity natifs
-├── partitions_16MB.csv         # Table de partitions flash ESP32 16 MB
+├── firmware/partitions_16MB.csv         # Table de partitions flash ESP32 16 MB
 ├── platformio.ini              # Configuration PlatformIO (env native + kxkm-v3-16MB)
 ├── CLAUDE.md                   # Conventions pour les assistants AI
 └── adresse TCA_INA.xlsx        # Tableau de référence des adresses I2C
@@ -221,7 +221,7 @@ KXKM_Batterie_Parallelator/
 
 ```raw
 KXKM_Batterie_Parallelator/
-├── src/
+├── firmware/src/
 │   ├── main.cpp            # Initialisation et boucle principale
 │   ├── INA_Func.h          # Fonctions de lecture INA237
 │   ├── TCA_Func.h          # Fonctions de contrôle TCA9535/9555
@@ -230,15 +230,15 @@ KXKM_Batterie_Parallelator/
 │   └── data_log.h          # Journalisation (réservé)
 ├── lib/
 │   └── INA237/             # Bibliothèque INA237 locale (fork)
-├── data/
+├── firmware/data/
 │   ├── index.html          # Interface web embarquée
 │   ├── style.css
 │   └── script.js
-├── PCB/                    # Schémas et PCB KiCad (v1)
-├── pcb-bmu-v2/             # Schémas et PCB KiCad (v2) + Gerber JLCPCB
-├── examples-ina/           # Exemples d'utilisation INA237
-├── examples-tca95x5/       # Exemples d'utilisation TCA9535/9555
-├── test-code/
+├── hardware/PCB/                    # Schémas et PCB KiCad (v1)
+├── hardware/pcb-bmu-v2/             # Schémas et PCB KiCad (v2) + Gerber JLCPCB
+├── hardware/examples-ina/           # Exemples d'utilisation INA237
+├── hardware/examples-tca95x5/       # Exemples d'utilisation TCA9535/9555
+├── hardware/test-code/
 │   └── scanner_I2C.cpp     # Utilitaire de scan I2C
 ├── platformio.ini          # Configuration PlatformIO
 └── adresse TCA_INA.xlsx    # Tableau de référence des adresses I2C
@@ -255,7 +255,7 @@ Les tests unitaires couvrent la logique de protection embarquée, sans matériel
 pio test -e native
 ```
 
-**10 tests Unity** — `test/test_protection/` :
+**10 tests Unity** — `firmware/test/test_protection/` :
 
 | Test | Vérifie |
 |------|---------|
@@ -364,7 +364,7 @@ Chaque groupe de 4 INA237 consécutifs est associé à un TCA9535 :
 
 | Bibliothèque | Usage |
 |---|---|
-| [INA (fork local)](lib/INA237/) | Lecture INA237 (tension, courant, puissance) |
+| [INA (fork local)](firmware/lib/INA237/) | Lecture INA237 (tension, courant, puissance) |
 | [TCA9555](https://github.com/RobTillaart/TCA9555) | Contrôle des expandeurs I/O TCA9535/9555 |
 | [TCA95x5 driver](https://github.com/karl-mohring/TCA95x5_driver) | Driver alternatif TCA9535/9555 |
 | [AsyncTCP](https://github.com/me-no-dev/AsyncTCP) | TCP asynchrone pour l'ESP32 |
