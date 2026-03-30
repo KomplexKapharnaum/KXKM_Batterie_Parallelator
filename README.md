@@ -2,11 +2,9 @@
 
 [![CI](https://github.com/KomplexKapharnaum/KXKM_Batterie_Parallelator/actions/workflows/ci.yml/badge.svg)](https://github.com/KomplexKapharnaum/KXKM_Batterie_Parallelator/actions/workflows/ci.yml)
 
-Système de gestion de batteries en parallèle basé sur un ESP32 (Battery Management Unit — BMU). Ce firmware surveille, protège et pilote automatiquement jusqu'à 16 packs batterie connectés en parallèle.
+Système de gestion de batteries en parallèle basé  (Battery Management Unit — BMU). surveille, protège et pilote automatiquement jusqu'à 16 packs batterie connectés en parallèle voir plus si besoin.
 
-Développé par [**KompleX KapharnaüM**](https://komplex-kapharnaum.net) pour alimenter leurs installations de scénographie numérique en milieu urbain, sans accès au réseau électrique.
-Suivi technique et intégration firmware/hardware : [L'Électron Rare](https://lelectronrare.fr).
-
+Développé par[L'Électron Rare](https://lelectronrare.fr), Clément Saillant pour [**KompleX KapharnaüM**](https://komplex-kapharnaum.net) pour alimenter des installations de scénographie numérique en milieu urbain, sans accès au réseau électrique.
 ---
 
 ## Table des matières
