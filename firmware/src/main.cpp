@@ -2,11 +2,6 @@
 
 bool print_message = true;
 
-long reconnect_time[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-
-int TCA_num = 0;
-int OUT_num = 0;
-
 #include <Arduino.h>
 #include "pin_mappings.h"
 #include "I2CMutex.h"
@@ -18,10 +13,13 @@ int OUT_num = 0;
 // Global handler instances for I2C devices
 INAHandler inaHandler;
 TCAHandler tcaHandler;
+BATTParallelator BattParallelator;
+BatteryManager batteryManager;
 
 // Global I2C mutex (declared in I2CMutex.h)
 SemaphoreHandle_t i2cMutex = NULL;
 volatile uint32_t g_i2cConsecutiveFailures = 0;
+static bool g_topologyValid = true;
 
 void setup()
 {
@@ -55,9 +53,8 @@ void setup()
   Serial.print(count, DEC);
   Serial.println(" device(s).");
 
-  // CRIT-001: Replace setup_tca(), setup_ina(), check_INA_TCA_address()
-  // with new handler-based initialization
-  inaHandler.begin(0.5, 2000);  // 0.5 A max, 2000 micro-ohm shunt
+  // Initialisation handlers capteurs/actuateurs
+  inaHandler.begin(0.5, 2000);  // 0.5 A max, shunt 2000 micro-ohm
   Serial.printf("INA setup done — found %d INA devices\n", inaHandler.getNbINA());
   
   tcaHandler.begin();
@@ -66,99 +63,49 @@ void setup()
   tcaHandler.check_INA_TCA_address();
   Serial.println("INA-TCA topology validation complete");
 
-  // Initialize battery readings from detected INA devices
-  for (int i = 0; i < inaHandler.getNbINA(); i++) 
-  {
-    // battery_voltage[i] = inaHandler.read_volt(i);  // Will be read in main loop
-    // battery_current[i] = inaHandler.read_current(i);
-    // battery_power[i] = inaHandler.read_power(i);
+  // Config protection centralisée via BATTParallelator (fail-safe)
+  BattParallelator.set_min_voltage(alert_bat_min_voltage / 1000.0f);
+  BattParallelator.set_max_voltage(alert_bat_max_voltage / 1000.0f);
+  BattParallelator.set_max_current(alert_bat_max_current * 1000.0f); // mA interne
+  BattParallelator.set_max_diff_voltage(voltage_diff);
+  BattParallelator.set_reconnect_delay(reconnect_delay);
+  BattParallelator.set_nb_switch_on(Nb_switch_max);
+
+  // Validation topologie: 1 TCA pour 4 INA
+  const uint8_t nbIna = inaHandler.getNbINA();
+  const uint8_t nbTca = tcaHandler.getNbTCA();
+  g_topologyValid = (nbIna > 0) && (nbTca > 0) && ((nbTca * 4) == nbIna);
+  if (!g_topologyValid) {
+    Serial.printf("Topology mismatch: Nb_INA=%u Nb_TCA=%u (attendu Nb_TCA*4 == Nb_INA)\n",
+                  nbIna, nbTca);
+    // Fail-safe: ne pas autoriser la logique de reconnexion automatique
+  }
+
+  for (int i = 0; i < nbIna; i++) {
+    BattParallelator.check_battery_connected_status(i);
   }
 }
 
 void loop()
 {
-  // CRIT-002: Replace global Nb_INA with dynamic handler.getNbINA()
-  int nbIna = inaHandler.getNbINA();
-  
-  for (int i = 0; i < nbIna; i++) // loop through all INA devices
-  {
-    battery_voltage[i] = inaHandler.read_volt(i);
-    battery_current[i] = inaHandler.read_current(i);
-    battery_power[i] = inaHandler.read_power(i);
-
-    if (print_message)
-      Serial.printf("Reading INA %d\n", i);
-    // read_INA(i, print_message);  // OLD function — replace with handler
-    
-    if ((inaHandler.getDeviceAddress(i) >= 64) && (inaHandler.getDeviceAddress(i) <= 67))
-    {
-      TCA_num = 0;
-      OUT_num = inaHandler.getDeviceAddress(i) - 64;
-    }
-    if ((inaHandler.getDeviceAddress(i) >= 68) && (inaHandler.getDeviceAddress(i) <= 71))
-    {
-      TCA_num = 1;
-      OUT_num = inaHandler.getDeviceAddress(i) - 68;
-    }
-    if ((inaHandler.getDeviceAddress(i) >= 72) && (inaHandler.getDeviceAddress(i) <= 75))
-    {
-      TCA_num = 2;
-      OUT_num = inaHandler.getDeviceAddress(i) - 72;
-    }
-    if ((inaHandler.getDeviceAddress(i) >= 76) && (inaHandler.getDeviceAddress(i) <= 79))
-    {
-      TCA_num = 3;
-      OUT_num = inaHandler.getDeviceAddress(i) - 76;
-    }
-
-    /*
-0 Batt switch 4
-1 Batt switch 3
-2 Batt switch 2
-3 Batt switch 1
-4 Alert 4
-5 Alert 3
-6 Alert 2
-7 Alert 1
-8 Red 1
-9 Green 1
-10 Red 2
-11 Green 2
-12 Red 3
-13 Green 3
-14 Red 4
-15 Green 4
-*/
-
-    if (battery_voltage[i] < alert_bat_min_voltage / 1000.0f)
-    {
-      if (print_message)
-        Serial.println("Battery voltage is too low");
-      // switch_off_battery(TCA_num, OUT_num, i); // TODO: refactor to handler
-    }
-    else if (battery_voltage[i] > alert_bat_max_voltage / 1000.0f)
-    {
-      if (print_message)
-        Serial.println("Battery voltage is too high");
-      // switch_off_battery(TCA_num, OUT_num, i);
-    }
-    else if (battery_current[i] > alert_bat_max_current)
-    {
-      if (print_message)
-        Serial.println("Battery current is too high");
-      // switch_off_battery(TCA_num, OUT_num, i);
-    }
-    else if (battery_current[i] < -alert_bat_max_current)
-    {
-      if (print_message)
-        Serial.println("Battery current is too high");
-      // switch_off_battery(TCA_num, OUT_num, i);
-    }
-    else
-    {
-      // check_switch[i] = 0;
-      // protection logic continues...
-    }
+  const int nbIna = inaHandler.getNbINA();
+  if (nbIna <= 0) {
+    delay(500);
+    return;
   }
+
+  if (!g_topologyValid) {
+    // Fail-safe: topologie invalide, forcer OFF pour éviter couplage dangereux
+    for (int i = 0; i < nbIna; i++) {
+      BattParallelator.switch_battery(i, false);
+    }
+    delay(500);
+    return;
+  }
+
+  for (int i = 0; i < nbIna; i++) {
+    BattParallelator.check_battery_connected_status(i);
+  }
+
   delay(500);
 }
