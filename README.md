@@ -479,7 +479,7 @@ Les artefacts de pilotage et d'execution continue sont centralises ici :
 
 See [docs/05_Edge_TinyML_Embedded_IoT/](./docs/05_Edge_TinyML_Embedded_IoT/) for organized research library of 12 peer-reviewed papers (2020–2026) covering:
 - **Quantization strategies** for neural network deployment
-- **Edge inference optimization** for battery SOH/RUL prediction on MCUs
+- **Edge inference optimization** for battery SOH/RUL prediction on MCUs  
 - **SOTA techniques** for TinyML and embedded AI systems
 
 Priority tiers:

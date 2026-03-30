@@ -41,7 +41,21 @@
   - Jumpers restants JP2–JP13 : adressage des batteries 5–16 (hors périmètre BMU v2 monoboard)
   - ⚠️  Vérification physique des solder jumpers recommandée avant assemblage terrain
 
+## S2.5 — Audit sécurité post-migration (2026-03-30)
+
+- [x] Audit complet firmware (4 domaines: I2C, web, protection, cloud/FreeRTOS) ✅ 2026-03-30
+- [x] Plan de correction créé (`docs/superpowers/plans/2026-03-30-audit-crit-fixes.md`) ✅ 2026-03-30
+- [x] Phase 4 ajoutée au plan (`plan/refactor-safety-core-web-remote-1.md` TASK-024..034) ✅ 2026-03-30
+- [ ] **CRIT-A** : Corriger unités mV/V dans BatteryParallelator (bloque F03-F06)
+- [ ] **CRIT-B** : Imbalance check contre fleet max (bloque F06)
+- [ ] **CRIT-C** : Deadlock validateBatteryVoltageForSwitch (bloque F10)
+- [ ] **CRIT-D** : Auth web routes POST + token JS (bloque F10)
+- [ ] **HIGH-1/5/7/8 + MED-1/6** : Corrections secondaires
+- [ ] Tests alignés config.h (10A) + tests négatifs + lock permanent
+
 ## S3 — Validation terrain
+
+> **Prérequis :** S2.5 complété (audit CRIT fixes) avant lancement S3 hardware.
 
 - [x] Simulation logique S3 (`firmware/test/test_s3_sim/sim_s3.cpp`) — 3 scénarios ✅ 2026-03-25
 - [x] Simulation étendue (`firmware/test/test_s3_sim/sim_validation.cpp`) — 32/32 cas TV01–TV08 ✅ 2026-03-25

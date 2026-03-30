@@ -2,7 +2,7 @@
 goal: "Phase 1, Phase 2, and Phase 3A Implementation Plan: Safety Core Stabilization, Web/Remote Hardening, and ML Training"
 version: "1.1"
 date_created: "2026-03-28"
-last_updated: "2026-03-29"
+last_updated: "2026-03-30"
 owner: "Firmware BMU Team + ML Battery Health Team"
 status: "In progress"
 tags: ["refactor", "safety", "security", "freertos", "web", "esp32-s3", "ml", "soh", "rul", "quantization"]
@@ -79,6 +79,24 @@ This plan updates the existing BMU implementation plan by keeping Phase 1 (runti
 | TASK-022 | Create `scripts/ml/create_rul_labels_v2.py` and generate `models/features_with_rul.parquet`. | ✅ | 2026-03-28 |
 | TASK-023 | Train SambaMixer with `python scripts/ml/train_sambamixer.py --input models/features_with_rul.parquet --output models/rul_sambamixer.pt --epochs 20 --d-model 64 --n-layers 3 --lr 1e-3`. | ✅ | 2026-03-28 |
 | TASK-024 | Close regeneration loop: rebuild features from corrected extractor to `models/features_v2.parquet`, adapt/retrain/re-evaluate, and produce final `models/phase2_metrics.json`. | ✅ | 2026-03-29 |
+
+### Implementation Phase 4
+
+- GOAL-004: Fix critical audit findings from 2026-03-30 security audit before S3 hardware validation.
+
+| Task | Description | Completed | Date |
+|------|-------------|-----------|------|
+| TASK-040 | Fix unit mismatch (CRIT-A): normalize BATTParallelator threshold storage to mV/mA, remove double-conversion in main.cpp setters. | ⬜ | |
+| TASK-041 | Fix imbalance check (CRIT-B): `is_difference_acceptable()` must compare against live fleet max voltage from `find_max_voltage()`, not config ceiling. | ⬜ | |
+| TASK-042 | Fix deadlock (CRIT-C): remove outer `I2CLockGuard` in `validateBatteryVoltageForSwitch()` — `read_volt()` already acquires its own lock. | ⬜ | |
+| TASK-043 | Fix web auth (CRIT-D): change mutation routes to POST, wire auth token in JS client, add `#warning` when `BMU_WEB_ADMIN_TOKEN` is empty. | ⬜ | |
+| TASK-044 | Fix negative overcurrent (HIGH-1): use `fabs(current)` in ERROR handler overcurrent check. | ⬜ | |
+| TASK-045 | Fix task self-deletion (HIGH-8): replace `return` with `continue` in `timeAndInfluxTask` SD failure path. | ⬜ | |
+| TASK-046 | Fix I2C speed locking (HIGH-5): wrap `setI2CSpeed()` Wire.setClock in I2CLockGuard. | ⬜ | |
+| TASK-047 | Implement permanent lockout (MED-1): add explicit lock when `nb_switch > nbSwitchMax` in `check_battery_connected_status()`. | ⬜ | |
+| TASK-048 | Make `battery_voltages[]` private (HIGH-7): enforce mutex discipline by removing public access. | ⬜ | |
+| TASK-049 | Update tests: align thresholds with config.h (10A), add negative overcurrent + permanent lock + fleet imbalance tests. | ⬜ | |
+| TASK-050 | Validate Phase 4: `pio test -e sim-host` all pass + `pio run -e kxkm-s3-16MB` builds. | ⬜ | |
 
 ## 3. Alternatives
 
@@ -454,3 +472,56 @@ This plan updates the existing BMU implementation plan by keeping Phase 1 (runti
 ### 5. Proposition de patch du fichier cible
 
 - Patch applique: ajout de ce delta `Audit Quotidien — 2026-03-30 (delta implementation start)`.
+## Execution Update — 2026-03-30 (kxkm-ai run-container unblocked, quality gate failed)
+
+- Le pipeline distant dans `mascarade-platformio` execute maintenant jusqu'aux artefacts finaux sur le dataset present dans le conteneur.
+- Le correctif racine a ete applique: installation du package `onnx` dans le conteneur puis ajout du controle `onnx` dans `scripts/ml/remote_kxkm_ai_pipeline.sh` pour eviter la regression au bootstrap.
+- Le blocage restant est un gate qualite sur la quantization, pas un blocage infra ou dataset.
+
+### Evidence
+
+- `scripts/ml/remote_kxkm_ai_pipeline.sh run-container` -> lecture `42,528,590` lignes, generation `features_v2.parquet`, `features_adapted_v2.parquet`, entrainement FPNN termine.
+- Echec intermediaire leve: `torch.onnx.OnnxExporterError: Module onnx is not installed!`.
+- Relance ciblee quantization/finalize -> artefacts distants a `2026-03-30 15:50 UTC`:
+  - `models/fpnn_soh_v2_quantized.onnx` -> `16.0 KB`
+  - `models/phase2_metrics.json` -> `overall_gate_pass=false`
+- Metriques finales du run distant:
+  - float32 MAPE `7.7289%`
+  - quantized MAPE `14.2045%`
+  - degradation `+6.4756 pp`
+  - gate KO: `quantized_mape_degradation_le_5pp=false`
+
+### TODO normalises (delta)
+
+| TODO ID | Item | Statut | Priorite | Evidence | Next Action |
+|---|---|---|---|---|---|
+| TODO-006 | Rendre le pipeline ML executable dans conteneur existant `mascarade-platformio` | completed | P0 | `run-container` execute jusqu'aux artefacts finaux | Aucune. Maintenir le check `onnx` au bootstrap. |
+| TODO-007 | Verifier et verrouiller la source de dataset distante | completed | P0 | dataset visible sur l'hote puis dans `/workspace/KXKM_Batterie_Parallelator/models/` | Aucune. Documenter le chemin canonique dans le runbook. |
+| TODO-008 | Faire repasser le gate qualite quantization sur le dataset distant actuel | blocked | P0 | `models/phase2_metrics.json` distant: `overall_gate_pass=false` | Tester calibration stricte (`stratified`, percentiles) et comparer `qdq` vs `qoperator`. |
+
+### Blocker + Next Action
+
+- Blocker: la degradation quantization depasse le seuil autorise sur le split distant courant.
+- Next Action prioritaire: lancer une matrice courte d'experiences de quantization avec nouveaux paramètres explicites, puis conserver le meilleur run sous seuil.
+## Execution Update — 2026-03-30 (quantization iteration 1 passed)
+
+- Premiere iteration qualite executee sur `kxkm-ai` avec la configuration suivante: `qdq` + calibration `stratified` + `500` echantillons + clipping `1 99`.
+- Cette configuration est promue comme nouveau baseline distant car elle fait repasser tous les gates.
+
+### Evidence
+
+- `python3 scripts/ml/quantize_tflite.py --model models/fpnn_soh.pt --features models/features_adapted_v2.parquet --output models/fpnn_soh_v2_quantized.onnx --backend onnxrt --quant-format qdq --calib-strategy stratified --calib-samples 500 --percentile-clip 1 99`
+- `python3 scripts/ml/finalize_phase2_metrics.py --features models/features_adapted_v2.parquet --quantized models/fpnn_soh_v2_quantized.onnx --rul-model models/rul_sambamixer.pt --train-log phase2_fpnn_train_v2.log --output models/phase2_metrics.json --gate-fpnn-mape-max 15 --gate-quantized-mape-max 15 --gate-quantized-size-max-kb 50 --gate-quantized-mape-degradation-max-pp 5`
+- Artefacts distants promus a `2026-03-30 16:17 UTC`:
+  - `models/fpnn_soh_v2_quantized.onnx` -> `15.99 KB`
+  - `models/phase2_metrics.json` -> `overall_gate_pass=true`
+- Metriques finales promues:
+  - float32 MAPE `7.7289%`
+  - quantized MAPE `10.7734%`
+  - degradation `+3.0446 pp`
+
+### TODO normalises (delta)
+
+| TODO ID | Item | Statut | Priorite | Evidence | Next Action |
+|---|---|---|---|---|---|
+| TODO-008 | Faire repasser le gate qualite quantization sur le dataset distant actuel | completed | P0 | `models/phase2_metrics.json` distant: `overall_gate_pass=true` | Aucune. Conserver cette configuration comme baseline et seulement explorer mieux en lot distinct. |
