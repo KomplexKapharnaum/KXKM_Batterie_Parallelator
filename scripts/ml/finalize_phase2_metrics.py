@@ -53,6 +53,10 @@ def main() -> None:
     parser.add_argument("--rul-model", default="models/rul_sambamixer.pt", help="Path to SambaMixer checkpoint")
     parser.add_argument("--train-log", default="phase2_fpnn_train.log", help="Optional training log path")
     parser.add_argument("--output", default="models/phase2_metrics.json", help="Output JSON path")
+    parser.add_argument("--gate-fpnn-mape-max", type=float, default=15.0, help="Maximum allowed float32 FPNN MAPE")
+    parser.add_argument("--gate-quantized-mape-max", type=float, default=15.0, help="Maximum allowed quantized MAPE")
+    parser.add_argument("--gate-quantized-size-max-kb", type=float, default=50.0, help="Maximum allowed quantized model size in KB")
+    parser.add_argument("--gate-quantized-mape-degradation-max-pp", type=float, default=5.0, help="Maximum allowed quantized MAPE degradation in percentage points")
     args = parser.parse_args()
 
     repo_root = Path(__file__).resolve().parents[2]
@@ -104,16 +108,21 @@ def main() -> None:
         mape_degradation_pp = round(quant_metrics["MAPE"] - pt_metrics["MAPE"], 4)
 
     gates = {
-        "fpnn_mape_le_15": bool(pt_metrics["MAPE"] <= 15.0),
-        "quantized_size_lt_50kb": bool(quant_size_kb is not None and quant_size_kb < 50.0),
-        "quantized_mape_degradation_le_5pp": bool(
-            mape_degradation_pp is not None and abs(mape_degradation_pp) <= 5.0
+        "fpnn_mape_le_threshold": bool(pt_metrics["MAPE"] <= args.gate_fpnn_mape_max),
+        "quantized_mape_le_threshold": bool(
+            quant_metrics is not None and quant_metrics["MAPE"] <= args.gate_quantized_mape_max
+        ),
+        "quantized_size_le_threshold_kb": bool(
+            quant_size_kb is not None and quant_size_kb <= args.gate_quantized_size_max_kb
+        ),
+        "quantized_mape_degradation_le_threshold_pp": bool(
+            mape_degradation_pp is not None and abs(mape_degradation_pp) <= args.gate_quantized_mape_degradation_max_pp
         ),
     }
 
     payload = {
         "phase": "3A Phase 2",
-        "status": "in-progress",
+        "status": "completed" if all(gates.values()) else "blocked",
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "inputs": {
             "model": str(model_path),
@@ -153,6 +162,12 @@ def main() -> None:
             "size_kb": rul_size_kb,
         },
         "log_extract": log_metrics,
+        "thresholds": {
+            "fpnn_mape_max": args.gate_fpnn_mape_max,
+            "quantized_mape_max": args.gate_quantized_mape_max,
+            "quantized_size_max_kb": args.gate_quantized_size_max_kb,
+            "quantized_mape_degradation_max_pp": args.gate_quantized_mape_degradation_max_pp,
+        },
         "gates": gates,
         "overall_gate_pass": bool(all(gates.values())),
     }

@@ -1,13 +1,13 @@
 {
   "phase": "3A Phase 2",
-  "status": "in-progress",
-  "generated_at_utc": "2026-03-29T00:23:41.601742+00:00",
+  "status": "completed",
+  "generated_at_utc": "2026-03-30T16:17:39.373493+00:00",
   "inputs": {
-    "model": "/Users/electron/Documents/Lelectron_rare/1-KXKM/KXKM_Batterie_Parallelator/models/fpnn_soh.pt",
-    "features": "/Users/electron/Documents/Lelectron_rare/1-KXKM/KXKM_Batterie_Parallelator/models/features_adapted_v2.parquet",
-    "quantized": "/Users/electron/Documents/Lelectron_rare/1-KXKM/KXKM_Batterie_Parallelator/models/fpnn_soh_v2_quantized.onnx",
-    "rul_model": "/Users/electron/Documents/Lelectron_rare/1-KXKM/KXKM_Batterie_Parallelator/models/rul_sambamixer.pt",
-    "train_log": "/Users/electron/Documents/Lelectron_rare/1-KXKM/KXKM_Batterie_Parallelator/phase2_fpnn_train_v2.log"
+    "model": "/workspace/KXKM_Batterie_Parallelator/models/fpnn_soh.pt",
+    "features": "/workspace/KXKM_Batterie_Parallelator/models/features_adapted_v2.parquet",
+    "quantized": "/workspace/KXKM_Batterie_Parallelator/models/fpnn_soh_v2_quantized.onnx",
+    "rul_model": "/workspace/KXKM_Batterie_Parallelator/models/rul_sambamixer.pt",
+    "train_log": "/workspace/KXKM_Batterie_Parallelator/phase2_fpnn_train_v2.log"
   },
   "fpnn": {
     "soh_mode": "capacity",
@@ -17,36 +17,43 @@
     "params": 6785,
     "size_kb": 31.59,
     "metrics_test_split_20pct": {
-      "mape": 2.3716,
-      "rmse": 0.028358,
-      "r2": 0.964608,
-      "n_samples": 81039
+      "mape": 7.7289,
+      "rmse": 0.167772,
+      "r2": 0.651249,
+      "n_samples": 90191
     }
   },
   "fpnn_quantized": {
     "exists": true,
-    "path": "/Users/electron/Documents/Lelectron_rare/1-KXKM/KXKM_Batterie_Parallelator/models/fpnn_soh_v2_quantized.onnx",
+    "path": "/workspace/KXKM_Batterie_Parallelator/models/fpnn_soh_v2_quantized.onnx",
     "size_kb": 15.99,
     "metrics_test_split_20pct": {
-      "mape": 2.423,
-      "rmse": 0.02898,
-      "r2": 0.963037
+      "mape": 10.7734,
+      "rmse": 0.171554,
+      "r2": 0.635351
     },
-    "mape_degradation_pp": 0.0514
+    "mape_degradation_pp": 3.0446
   },
   "sambamixer": {
-    "exists": true,
-    "path": "/Users/electron/Documents/Lelectron_rare/1-KXKM/KXKM_Batterie_Parallelator/models/rul_sambamixer.pt",
-    "size_kb": 668.37
+    "exists": false,
+    "path": "/workspace/KXKM_Batterie_Parallelator/models/rul_sambamixer.pt",
+    "size_kb": null
   },
   "log_extract": {
     "best_epoch": 29,
     "best_val_loss": 0.002115
   },
+  "thresholds": {
+    "fpnn_mape_max": 15.0,
+    "quantized_mape_max": 15.0,
+    "quantized_size_max_kb": 50.0,
+    "quantized_mape_degradation_max_pp": 5.0
+  },
   "gates": {
-    "fpnn_mape_le_15": true,
-    "quantized_size_lt_50kb": true,
-    "quantized_mape_degradation_le_5pp": true
+    "fpnn_mape_le_threshold": true,
+    "quantized_mape_le_threshold": true,
+    "quantized_size_le_threshold_kb": true,
+    "quantized_mape_degradation_le_threshold_pp": true
   },
   "overall_gate_pass": true
 }

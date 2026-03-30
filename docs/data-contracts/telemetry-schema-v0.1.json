@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BMU Telemetry Schema v0.1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "timestamp_ms",
+    "battery_index",
+    "voltage_v",
+    "current_a",
+    "switch_state",
+    "quality_flags"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "0.1"
+    },
+    "timestamp_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "battery_index": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 15
+    },
+    "voltage_v": {
+      "type": "number"
+    },
+    "current_a": {
+      "type": "number"
+    },
+    "switch_state": {
+      "type": "string",
+      "enum": ["on", "off", "locked"]
+    },
+    "ah_discharge": {
+      "type": "number"
+    },
+    "ah_charge": {
+      "type": "number"
+    },
+    "quality_flags": {
+      "type": "object",
+      "required": ["nan_count", "stale_data", "i2c_fault"],
+      "properties": {
+        "nan_count": { "type": "integer", "minimum": 0 },
+        "stale_data": { "type": "boolean" },
+        "i2c_fault": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
