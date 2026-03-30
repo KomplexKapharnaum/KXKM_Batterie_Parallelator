@@ -18,6 +18,7 @@
 #include "bmu_influx.h"
 #include "bmu_sntp.h"
 #include "bmu_display.h"
+#include "bmu_ui.h"
 #include "bsp/esp-bsp.h"
 #include "bmu_vedirect.h"
 #include "bmu_ota.h"
@@ -135,7 +136,14 @@ extern "C" void app_main(void)
 
     i2c_master_bus_handle_t i2c_bus = NULL;
     ESP_ERROR_CHECK(bmu_i2c_init(&i2c_bus));
-    bmu_i2c_scan(i2c_bus);
+    int i2c_dev_count = bmu_i2c_scan(i2c_bus);
+    bmu_ui_debug_log("I2C bus init OK");
+    bmu_ui_debug_set_device_count(i2c_dev_count);
+    {
+        char msg[40];
+        snprintf(msg, sizeof(msg), "Scan: %d devices", i2c_dev_count);
+        bmu_ui_debug_log(msg);
+    }
 
     static bmu_ina237_t ina[BMU_MAX_BATTERIES] = {};
     uint8_t nb_ina = 0;
@@ -143,14 +151,27 @@ extern "C" void app_main(void)
     for (int i = 0; i < nb_ina; i++) {
         bmu_ina237_set_bus_voltage_alerts(&ina[i], BMU_MAX_VOLTAGE_MV, BMU_MIN_VOLTAGE_MV);
     }
+    {
+        char msg[40];
+        snprintf(msg, sizeof(msg), "INA237: %d found", nb_ina);
+        bmu_ui_debug_log(msg);
+    }
 
     static bmu_tca9535_handle_t tca[BMU_MAX_TCA] = {};
     uint8_t nb_tca = 0;
     bmu_tca9535_scan_init(i2c_bus, tca, BMU_MAX_TCA, &nb_tca);
+    {
+        char msg[40];
+        snprintf(msg, sizeof(msg), "TCA9535: %d found", nb_tca);
+        bmu_ui_debug_log(msg);
+    }
 
     bool topology_ok = (nb_ina > 0) && (nb_tca > 0) && (nb_tca * 4 == nb_ina);
     if (!topology_ok) {
         ESP_LOGE(TAG, "TOPOLOGY MISMATCH %d TCA * 4 != %d INA — FAIL-SAFE", nb_tca, nb_ina);
+        bmu_ui_debug_log("TOPOLOGY FAIL-SAFE");
+    } else {
+        bmu_ui_debug_log("Topology OK");
     }
 
     /* ── 6. Protection + Battery Manager ───────────────────────────── */
