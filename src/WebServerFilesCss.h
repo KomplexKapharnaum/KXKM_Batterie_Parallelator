@@ -1,0 +1,117 @@
+#ifndef WEBSERVERFILECSS_H
+#define WEBSERVERFILECSS_H
+
+#include <pgmspace.h>
+
+const char style_css[] PROGMEM = R"rawliteral(
+html {
+  font-family: Arial, Helvetica, sans-serif;
+  display: inline-block;
+  text-align: center;
+}
+h1 {
+  font-size: 2rem; /* Augmenter la taille de la police */
+  color: white;
+}
+h2 {
+  font-size: 1.5rem; /* Ajouter un style pour les sous-titres */
+  color: #ddd;
+}
+p {
+  font-size: 1.4rem;
+}
+.topnav {
+  overflow: hidden;
+  background-color: #333;
+}
+body {
+  margin: 0;
+  background-color: #111;
+  color: white;
+  font-size: 1.2rem;
+}
+
+#content {
+  padding: 30px;
+  max-width: 800px; /* Limiter la largeur maximale du contenu */
+  margin: auto; /* Centrer le contenu */
+  background-color: #222; /* Ajouter un fond pour le contenu */
+  border-radius: 10px; /* Ajouter des coins arrondis */
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5); /* Ajouter une ombre */
+}
+
+/* dark input type number */
+input {
+  background-color: #333;
+  color: white;
+  padding: 5px;
+  border: none; /* Supprimer les bordures */
+  border-radius: 5px; /* Ajouter des coins arrondis */
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 20px;
+}
+
+th, td {
+  padding: 10px;
+  border: 1px solid #444; /* Ajouter une bordure */
+  text-align: center;
+}
+
+th {
+  background-color: #333; /* Ajouter un fond pour les en-têtes */
+}
+
+td {
+  background-color: #222; /* Ajouter un fond pour les cellules */
+}
+
+.button {
+  display: inline-block;
+  padding: 10px 20px;
+  font-size: 1rem;
+  color: white;
+  background-color: #1e90ff;
+  border: none;
+  border-radius: 5px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.button:hover {
+  background-color: #1c86ee;
+}
+
+button {
+  padding: 5px 10px;
+  font-size: 1rem;
+  color: white;
+  background-color: #1e90ff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #1c86ee;
+}
+
+th, td {
+  padding: 10px;
+  border-bottom: 1px solid #444; /* Ajouter une bordure en bas */
+}
+
+a {
+  color: #1e90ff; /* Changer la couleur des liens */
+  text-decoration: none; /* Supprimer la décoration des liens */
+}
+
+a:hover {
+  text-decoration: underline; /* Ajouter une décoration au survol */
+}
+)rawliteral";
+
+#endif // WEBSERVERFILECSS_H

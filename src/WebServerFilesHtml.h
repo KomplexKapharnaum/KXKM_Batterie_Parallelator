@@ -1,0 +1,43 @@
+#ifndef WEBSERVERFILEHTML_H
+#define WEBSERVERFILEHTML_H
+
+#include <pgmspace.h>
+
+const char index_html[] PROGMEM = R"rawliteral(
+<!DOCTYPE html>
+<html>
+<head>
+    <title>KXKM Batterie Parallelator</title>
+    <meta charset="UTF-8"> <!-- Ajouter le type d'encodage -->
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="style.css">
+</head>
+<body>
+    <div class="topnav">
+        <h1>KXKM BATTERIE PARRALELATOR</h1>
+    </div>
+    <div id="content">
+        <h1>Battery Monitor</h1>
+        <h2>Battery Status</h2>
+        <table id="batteryStatusTable">
+            <thead>
+                <tr>
+                    <th>Battery</th>
+                    <th>Voltage (V)</th>
+                    <th>Current (A)</th>
+                    <th>Ah</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="batteryStatus"></tbody>
+        </table>
+        <h2>Log Data</h2>
+        <a href="/log" class="button">View Log</a>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
+)rawliteral";
+
+#endif // WEBSERVERFILEHTML_H

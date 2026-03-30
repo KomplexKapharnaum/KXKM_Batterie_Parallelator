@@ -86,6 +86,10 @@
 #include <INA.h>  // INA Library
 
 #include "MB85_FRAM.h"  // I2C FRAM Library
+#include "SDLogger.h" // Inclure le nouveau fichier d'en-tête
+
+SDLogger sdLogger; // Créer une instance de la nouvelle classe
+
 /**************************************************************************************************
 ** Declare program Constants                                                                     **
 **************************************************************************************************/
@@ -415,6 +419,7 @@ void setup()                             //                                  //
   TCCR1B |= (1 << CS12) | (1 << CS10);  // CS10 & CS12 for 1024 prescaler   //
   TIMSK1 |= (1 << OCIE1A);              // Enable timer compare interrupt   //
   sei();                                // re-enable interrupts             //
+  sdLogger.begin(); // Initialiser le logger SD
 }  // of method setup()                                                        // //
 
 /*******************************************************************************************************************
@@ -427,4 +432,5 @@ void setup()                             //                                  //
 void loop()  //                                  //
 {            //                                  //
   delay(10000);
+  sdLogger.logData(deviceNumber, INA.getBusVoltage(deviceNumber)); // Enregistrer les données sur la carte SD
 }  // of method loop //----------------------------------//
