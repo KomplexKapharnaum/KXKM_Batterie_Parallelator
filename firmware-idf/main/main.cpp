@@ -1,6 +1,9 @@
 /**
  * @file main.cpp
- * @brief KXKM BMU — ESP-IDF v5.3 (Phase 3: WiFi + Web + Storage)
+ * @brief KXKM BMU — ESP-IDF v5.3 (Phase 4: Full firmware)
+ *
+ * Init order: NVS → WiFi → SPIFFS → SD → SNTP → I2C → Protection → MQTT → InfluxDB → Web
+ * Tasks: protection loop (main), Ah tracking (per battery), cloud telemetry (dedicated)
  */
 #include "bmu_i2c.h"
 #include "bmu_ina237.h"
@@ -11,13 +14,73 @@
 #include "bmu_wifi.h"
 #include "bmu_web.h"
 #include "bmu_storage.h"
+#include "bmu_mqtt.h"
+#include "bmu_influx.h"
+#include "bmu_sntp.h"
 #include "esp_log.h"
 #include "esp_spiffs.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include <cstdio>
 
 static const char *TAG = "MAIN";
 
+/* ── Cloud telemetry task context ──────────────────────────────────── */
+typedef struct {
+    bmu_protection_ctx_t    *prot;
+    bmu_battery_manager_t   *mgr;
+    uint8_t                  nb_ina;
+} cloud_task_ctx_t;
+
+static void cloud_telemetry_task(void *pv)
+{
+    cloud_task_ctx_t *ctx = (cloud_task_ctx_t *)pv;
+    const TickType_t period = pdMS_TO_TICKS(10000); /* Push every 10s */
+
+    ESP_LOGI("CLOUD", "Telemetry task started — period 10s");
+
+    for (;;) {
+        vTaskDelay(period);
+
+        if (!bmu_wifi_is_connected()) continue;
+
+        /* Publish battery data via MQTT + InfluxDB */
+        for (int i = 0; i < ctx->nb_ina; i++) {
+            float v_mv = bmu_protection_get_voltage(ctx->prot, i);
+            float ah_d = bmu_battery_manager_get_ah_discharge(ctx->mgr, i);
+            float ah_c = bmu_battery_manager_get_ah_charge(ctx->mgr, i);
+            bmu_battery_state_t state = bmu_protection_get_state(ctx->prot, i);
+
+            const char *state_str = "unknown";
+            switch (state) {
+                case BMU_STATE_CONNECTED:    state_str = "connected"; break;
+                case BMU_STATE_DISCONNECTED: state_str = "disconnected"; break;
+                case BMU_STATE_RECONNECTING: state_str = "reconnecting"; break;
+                case BMU_STATE_ERROR:        state_str = "error"; break;
+                case BMU_STATE_LOCKED:       state_str = "locked"; break;
+            }
+
+            /* InfluxDB line protocol */
+            float i_a = 0;
+            bmu_ina237_read_current(&ctx->mgr->ina_devices[i], &i_a);
+            bmu_influx_write_battery(i, v_mv, i_a, ah_d, ah_c, state_str);
+
+            /* MQTT JSON */
+            char payload[192];
+            snprintf(payload, sizeof(payload),
+                     "{\"bat\":%d,\"v_mv\":%.0f,\"i_a\":%.3f,\"ah_d\":%.3f,\"ah_c\":%.3f,\"state\":\"%s\"}",
+                     i + 1, v_mv, i_a, ah_d, ah_c, state_str);
+            char topic[48];
+            snprintf(topic, sizeof(topic), "bmu/battery/%d", i + 1);
+            bmu_mqtt_publish(topic, payload, 0, 0, false);
+        }
+
+        /* Flush InfluxDB buffer */
+        bmu_influx_flush();
+    }
+}
+
+/* ── SPIFFS init ───────────────────────────────────────────────────── */
 static esp_err_t init_spiffs(void)
 {
     esp_vfs_spiffs_conf_t conf = {
@@ -30,17 +93,19 @@ static esp_err_t init_spiffs(void)
     if (ret == ESP_OK) {
         size_t total = 0, used = 0;
         esp_spiffs_info("storage", &total, &used);
-        ESP_LOGI(TAG, "SPIFFS: total=%d used=%d", total, used);
+        ESP_LOGI(TAG, "SPIFFS: total=%zu used=%zu", total, used);
     } else {
         ESP_LOGW(TAG, "SPIFFS mount failed: %s", esp_err_to_name(ret));
     }
     return ret;
 }
 
+/* ── app_main ──────────────────────────────────────────────────────── */
 extern "C" void app_main(void)
 {
     ESP_LOGI(TAG, "══════════════════════════════════════════════");
-    ESP_LOGI(TAG, "  KXKM BMU — ESP-IDF v5.3 (Phase 3)");
+    ESP_LOGI(TAG, "  KXKM BMU — ESP-IDF v5.3 (Phase 4)");
+    ESP_LOGI(TAG, "  Free heap: %lu bytes", (unsigned long)esp_get_free_heap_size());
     ESP_LOGI(TAG, "══════════════════════════════════════════════");
     bmu_config_log();
 
@@ -54,7 +119,12 @@ extern "C" void app_main(void)
     /* ── 3. SD card ────────────────────────────────────────────────── */
     bmu_sd_init();
 
-    /* ── 4. I2C + sensors (unchanged from Phase 2) ─────────────────── */
+    /* ── 4. SNTP time sync ─────────────────────────────────────────── */
+    if (bmu_wifi_is_connected()) {
+        bmu_sntp_init();
+    }
+
+    /* ── 5. I2C + sensors ──────────────────────────────────────────── */
     i2c_master_bus_handle_t i2c_bus = NULL;
     ESP_ERROR_CHECK(bmu_i2c_init(&i2c_bus));
     bmu_i2c_scan(i2c_bus);
@@ -75,7 +145,7 @@ extern "C" void app_main(void)
         ESP_LOGE(TAG, "TOPOLOGY MISMATCH %d TCA * 4 != %d INA — FAIL-SAFE", nb_tca, nb_ina);
     }
 
-    /* ── 5. Protection + Battery Manager ───────────────────────────── */
+    /* ── 6. Protection + Battery Manager ───────────────────────────── */
     static bmu_protection_ctx_t prot = {};
     ESP_ERROR_CHECK(bmu_protection_init(&prot, ina, nb_ina, tca, nb_tca));
 
@@ -85,15 +155,23 @@ extern "C" void app_main(void)
         bmu_battery_manager_start_ah_task(&mgr, i);
     }
 
-    /* ── 6. Web server (needs prot + mgr handles) ──────────────────── */
+    /* ── 7. MQTT + InfluxDB ────────────────────────────────────────── */
+    if (bmu_wifi_is_connected()) {
+        bmu_mqtt_init();
+        bmu_influx_init();
+
+        /* Cloud telemetry task — pushes data every 10s */
+        static cloud_task_ctx_t cloud_ctx = { .prot = &prot, .mgr = &mgr, .nb_ina = nb_ina };
+        xTaskCreate(cloud_telemetry_task, "cloud", 4096, &cloud_ctx, 1, NULL);
+    }
+
+    /* ── 8. Web server ─────────────────────────────────────────────── */
     if (bmu_wifi_is_connected()) {
         static bmu_web_ctx_t web_ctx = { .prot = &prot, .mgr = &mgr };
         bmu_web_start(&web_ctx);
         char ip[16] = {};
         bmu_wifi_get_ip(ip, sizeof(ip));
-        ESP_LOGI(TAG, "Web server started at http://%s/", ip);
-    } else {
-        ESP_LOGW(TAG, "WiFi not connected — web server not started");
+        ESP_LOGI(TAG, "Web server at http://%s/", ip);
     }
 
     ESP_LOGI(TAG, "Init complete — protection loop (%d ms)", BMU_LOOP_PERIOD_MS);
