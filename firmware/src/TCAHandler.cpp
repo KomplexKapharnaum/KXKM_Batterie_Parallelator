@@ -20,10 +20,12 @@
 
 #include "TCAHandler.h"
 #include "I2CMutex.h"
+#include "INAHandler.h"
 #include <KxLogger.h>
 
 // Assurez-vous que `debugLogger` est déclaré et initialisé correctement
 extern KxLogger debugLogger;
+extern INAHandler inaHandler;
 
 TCAHandler::TCAHandler()
     : TCA_0(TCA_address[0]), 
@@ -199,4 +201,26 @@ byte TCAHandler::getDeviceAddress(int TCA_num) { return TCA_address[TCA_num]; }
 
 uint8_t TCAHandler::getNbTCA() {
   return Nb_TCA; // Return cached count from begin()
+}
+
+void TCAHandler::check_INA_TCA_address() {
+  const uint8_t nbIna = inaHandler.getNbINA();
+  const uint8_t expectedTca = (nbIna + 3) / 4;
+  if (nbIna == 0 || Nb_TCA == 0) {
+    debugLogger.println(KxLogger::WARNING,
+                        "Topologie INA/TCA invalide: aucun peripherique detecte");
+    return;
+  }
+
+  if (Nb_TCA != expectedTca) {
+    debugLogger.println(
+        KxLogger::WARNING,
+        "Mismatch topologie INA/TCA: Nb_INA=" + String(nbIna) +
+            " Nb_TCA=" + String(Nb_TCA) + " attendu=" + String(expectedTca));
+    return;
+  }
+
+  debugLogger.println(KxLogger::INFO,
+                      "Topologie INA/TCA valide: Nb_INA=" + String(nbIna) +
+                          " Nb_TCA=" + String(Nb_TCA));
 }

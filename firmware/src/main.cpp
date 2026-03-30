@@ -18,7 +18,6 @@ BatteryManager batteryManager;
 
 // Global I2C mutex (declared in I2CMutex.h)
 SemaphoreHandle_t i2cMutex = NULL;
-volatile uint32_t g_i2cConsecutiveFailures = 0;
 static bool g_topologyValid = true;
 
 void setup()
