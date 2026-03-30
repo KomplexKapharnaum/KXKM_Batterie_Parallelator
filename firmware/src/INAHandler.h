@@ -40,6 +40,7 @@ public:
     float read_current(const uint8_t deviceNumber);
     float read_volt(const uint8_t deviceNumber);
     float read_power(const uint8_t deviceNumber);
+    bool read_voltage_current(const uint8_t deviceNumber, float &voltage, float &current);
     void set_max_voltage(const float_t voltage);
     void set_min_voltage(const float_t voltage);
     void set_max_current(const float_t current);
@@ -64,7 +65,7 @@ private:
     int min_voltage = 24000;                                                                                                   // Seuil de sous-tension de la batterie en mV (undervoltage)
     int max_current = 1000;                                                                                                    // Seuil de surintensité de la batterie en mA
     int max_charge_current = 1000;                                                                                             // Seuil de courant de charge de la batterie en mA
-    int I2C_Speed = 100; // Vitesse I2C en KHz
+    int i2cSpeedKHz = 100; // Vitesse I2C en KHz
 };
 
 #endif // INA_HANDLER_H

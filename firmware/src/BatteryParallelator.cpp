@@ -44,7 +44,7 @@ enum BatteryState {
  * @brief Constructeur de la classe BATTParallelator.
  */
 BATTParallelator::BATTParallelator()
-  : Nb_switch_max(5), max_discharge_current(1000)
+  : nbSwitchMax(5), max_discharge_current(1000)
 {
   stateMutex = xSemaphoreCreateMutex();
   configASSERT(stateMutex != NULL);
@@ -90,7 +90,12 @@ void BATTParallelator::copy_battery_voltages(float *dest, int count) {
  * @brief Définir le nombre maximal de commutateurs.
  * @param nb Nombre maximal de commutateurs.
  */
-void BATTParallelator::set_nb_switch_on(int nb) { Nb_switch_max = nb; }
+void BATTParallelator::set_nb_switch_on(int nb) {
+  if (lockState()) {
+    nbSwitchMax = nb;
+    xSemaphoreGive(stateMutex);
+  }
+}
 
 /**
  * @brief Définir le délai de reconnexion.
@@ -98,7 +103,7 @@ void BATTParallelator::set_nb_switch_on(int nb) { Nb_switch_max = nb; }
  */
 void BATTParallelator::set_reconnect_delay(int delay) {
   if (lockState()) {
-    reconnect_delay = delay;
+    reconnectDelayMs = delay;
     xSemaphoreGive(stateMutex);
   }
 }
@@ -373,12 +378,20 @@ void BATTParallelator::check_battery_connected_status(int INA_num) {
   BatteryState state;
   int localNbSwitch = 0;
   long localReconnectTime = 0;
+  int localNbSwitchMax = 0;
+  int localReconnectDelay = 0;
 
-  if (lockState()) {
-    localNbSwitch = Nb_switch[INA_num];
-    localReconnectTime = reconnect_time[INA_num];
-    xSemaphoreGive(stateMutex);
+  if (!lockState()) {
+    debugLogger.println(KxLogger::WARNING,
+                        "check_battery_connected_status: state mutex indisponible " +
+                            String(INA_num));
+    return;
   }
+  localNbSwitch = Nb_switch[INA_num];
+  localReconnectTime = reconnect_time[INA_num];
+  localNbSwitchMax = nbSwitchMax;
+  localReconnectDelay = reconnectDelayMs;
+  xSemaphoreGive(stateMutex);
 
   // Vérifier l'état de la batterie
   // mem_set_max_current is in mA, current is in A — convert for comparison
@@ -392,8 +405,8 @@ void BATTParallelator::check_battery_connected_status(int INA_num) {
              !check_voltage_offset(INA_num, voltageOffset)) {
     state = DISCONNECTED;
   } else if (localNbSwitch == 0 || // Première connexion
-             (localNbSwitch < Nb_switch_max &&
-              (millis() - localReconnectTime > reconnect_delay))) {
+             (localNbSwitch < localNbSwitchMax &&
+              (millis() - localReconnectTime > localReconnectDelay))) {
     state = RECONNECTING;
   } else {
     state = CONNECTED;

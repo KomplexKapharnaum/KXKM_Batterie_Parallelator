@@ -339,8 +339,11 @@ void WebServerHandler::handleWebSocket(AsyncWebServerRequest *request) {
   for (int i = 0; i < inaHandler.getNbINA(); i++) {
     JsonObject battery = batteryStatus.createNestedObject();
     battery["index"] = i;
-    battery["voltage"] = inaHandler.read_volt(i);
-    battery["current"] = inaHandler.read_current(i);
+    float voltage = NAN;
+    float current = NAN;
+    const bool ok = inaHandler.read_voltage_current(i, voltage, current);
+    battery["voltage"] = ok ? voltage : 0.0f;
+    battery["current"] = ok ? current : 0.0f;
     battery["ampereHour"] = batteryManager.getAmpereHourConsumption(i);
     battery["ledStatus"] = BattParallelator.check_battery_status(i) ? "green" : "red";
   }
@@ -362,8 +365,11 @@ void WebServerHandler::onWebSocketEvent(uint8_t num, WStype_t type, uint8_t *pay
     for (int i = 0; i < inaHandler.getNbINA(); i++) {
       JsonObject battery = batteryStatus.createNestedObject();
       battery["index"] = i;
-      battery["voltage"] = inaHandler.read_volt(i);
-      battery["current"] = inaHandler.read_current(i);
+      float voltage = NAN;
+      float current = NAN;
+      const bool ok = inaHandler.read_voltage_current(i, voltage, current);
+      battery["voltage"] = ok ? voltage : 0.0f;
+      battery["current"] = ok ? current : 0.0f;
       battery["ampereHour"] = batteryManager.getAmpereHourConsumption(i);
       battery["ledStatus"] = BattParallelator.check_battery_status(i) ? "green" : "red";
     }

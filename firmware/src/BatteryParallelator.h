@@ -88,8 +88,8 @@ private:
   int mem_set_max_charge_current = 0;
   int mem_set_max_discharge_current = 0;
 
-  int reconnect_delay = 0;
-  int Nb_switch_max = 5;
+  int reconnectDelayMs = 0;
+  int nbSwitchMax = 5;
   int Nb_switch[16];
   long reconnect_time[16];
   int max_discharge_current;

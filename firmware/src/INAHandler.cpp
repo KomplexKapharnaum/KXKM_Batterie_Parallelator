@@ -112,7 +112,7 @@ void INAHandler::begin(const uint8_t amp, const uint16_t micro_ohm)
         return;
     }
 
-    Wire.setClock(static_cast<uint32_t>(I2C_Speed) * 1000U);
+    Wire.setClock(static_cast<uint32_t>(i2cSpeedKHz) * 1000U);
 }
 
 void INAHandler::initialize_ina(const uint8_t sensorIndex, float amp, float shunt_ohm)
@@ -241,6 +241,51 @@ float INAHandler::read_power(const uint8_t sensorIndex)
     return val;
 }
 
+bool INAHandler::read_voltage_current(const uint8_t sensorIndex, float &voltage, float &current)
+{
+    voltage = NAN;
+    current = NAN;
+    if (!isValidIndex(sensorIndex)) return false;
+
+    I2CLockGuard lock;
+    if (!lock.isAcquired()) {
+        i2cRecordFailure();
+        tryI2CRecoveryIfNeeded("INA.read_voltage_current");
+        return false;
+    }
+
+    voltage = sensors[sensorIndex]->getBusVoltage();
+    if (sensors[sensorIndex]->getLastError() != 0) {
+        i2cRecordFailure();
+        if (i2cShouldRecover()) {
+            i2cBusRecovery();
+            i2cResetFailureCounter();
+            debugLogger.println(KxLogger::WARNING,
+                "I2C recovery executed from INA.read_voltage_current voltage error");
+        }
+        debugLogger.println(KxLogger::WARNING,
+            "INA226 I2C error on read_voltage_current() voltage slot " + String(sensorIndex));
+        return false;
+    }
+
+    current = sensors[sensorIndex]->getCurrent();
+    if (sensors[sensorIndex]->getLastError() != 0) {
+        i2cRecordFailure();
+        if (i2cShouldRecover()) {
+            i2cBusRecovery();
+            i2cResetFailureCounter();
+            debugLogger.println(KxLogger::WARNING,
+                "I2C recovery executed from INA.read_voltage_current current error");
+        }
+        debugLogger.println(KxLogger::WARNING,
+            "INA226 I2C error on read_voltage_current() current slot " + String(sensorIndex));
+        return false;
+    }
+
+    i2cResetFailureCounter();
+    return true;
+}
+
 uint8_t INAHandler::getDeviceAddress(const uint8_t sensorIndex)
 {
     if (sensorIndex < Nb_INA) {
@@ -276,8 +321,8 @@ void INAHandler::set_max_charge_current(const float_t current)
 
 void INAHandler::setI2CSpeed(int speed)
 {
-    I2C_Speed = speed;
-    Wire.setClock(static_cast<uint32_t>(I2C_Speed) * 1000U);
+    i2cSpeedKHz = speed;
+    Wire.setClock(static_cast<uint32_t>(i2cSpeedKHz) * 1000U);
 }
 
 int INAHandler::detect_batteries()

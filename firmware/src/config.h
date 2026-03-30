@@ -17,8 +17,8 @@
 #define alert_bat_max_voltage 30000   // Seuil sur-tension en mV   (30 V)
 
 // ── Protection courant ───────────────────────────────────────────────────────
-#define alert_bat_max_current 1       // Seuil sur-courant en A (valeur absolue)
-#define current_diff          1       // Réservé (non utilisé en V1)
+#define alert_bat_max_current 10       // Seuil sur-courant en A (valeur absolue)
+#define current_diff          10      // Réservé (non utilisé en V1)
 
 // ── Déséquilibre tension ─────────────────────────────────────────────────────
 #define voltage_diff          1       // Tolérance déséquilibre entre batteries (V)

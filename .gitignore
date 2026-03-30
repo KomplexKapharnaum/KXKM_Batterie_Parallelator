@@ -101,3 +101,4 @@ src/credentials.h
 data/
 models/*.pt
 models/*.onnx
+.failsafe/

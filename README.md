@@ -120,33 +120,52 @@ Les fichiers de conception électronique (KiCad) sont disponibles dans les dossi
           └────────────────────────────────────┘
 ```
 
+
 **Ratio matériel :** 1 TCA9535 gère 4 batteries, chacune équipée d'un INA237.  
-Le système valide automatiquement que `Nb_TCA == Nb_INA / 4`.
+✅ **Validation topologie activée** : le firmware vérifie `Nb_TCA * 4 == Nb_INA` au démarrage et passe en mode fail-safe (batteries OFF) si la topologie est incohérente.
 
 ---
 
-## Fonctionnement
+## Status & Audit (2026-03-30)
 
-### Boucle principale
+### 🔍 Audit de sécurité post-migration
 
-Toutes les 500 ms, le firmware :
+Un audit complet du firmware post-migration arborescence (migration `firmware/` + `hardware/`) a identifié des risques critiques/hauts qui ont été traités par lots.
 
-1. Lit la **tension**, le **courant** et la **puissance** de chaque batterie (INA237).
-2. Vérifie les conditions de protection pour chaque batterie :
+#### 🔴 **CRITIQUE** — Statut d'implémentation
 
-| Condition | Action |
-|---|---|
-| Tension < 24 V (sous-tension) | Déconnecte la batterie |
-| Tension > 30 V (sur-tension) | Déconnecte la batterie |
-| Courant > ±1 A (sur-courant) | Déconnecte la batterie |
-| Tension < (max − 1 V) des autres batteries | Déconnecte la batterie |
+| Issue | Fichier | Risque | Statut |
+|-------|---------|--------|--------|
+| **CRIT-001** | `firmware/src/main.cpp` | Appels obsolètes (`setup_tca()`, `setup_ina()`) | ✅ Corrigé |
+| **CRIT-002** | `firmware/src/main.cpp` | Boucles basées sur global `Nb_INA` non fiable | ✅ Corrigé (`inaHandler.getNbINA()`) |
+| **CRIT-003** | `firmware/src/TCAHandler.cpp` | Accès I2C sans verrou | ✅ Corrigé (`I2CLockGuard`) |
+| **CRIT-004** | `firmware/src/main.cpp` | `i2cMutexInit()` manquant | ✅ Corrigé |
 
-3. Gère la **logique de reconnexion** avec hystérésis.
+#### 🟠 **HAUTE** — Statut d'implémentation
 
-### Logique de reconnexion
+- **HIGH-005** : Cohérence lecture Web V/I dans WebSocket — ✅ corrigé via lecture atomique `read_voltage_current()`.
+- **HIGH-006** : Risque de course `reconnect_time[]`/`Nb_switch_max` — ✅ corrigé via accès mutex renforcé dans `check_battery_connected_status()`.
+- **HIGH-007** : Objets globaux `BattParallelator` / `batteryManager` — ✅ instanciés dans `main.cpp`.
 
-Chaque batterie possède un compteur de déconnexions (`Nb_switch`) :
+#### 🟡 **MOYENNE** — Reste à finaliser
 
+- **MED-010** : Harmonisation stricte unités mV/V entre docs, config et logique runtime.
+- **Dépendances build S3** : rétablir build complet `kxkm-s3-16MB` (dépendances PlatformIO manquantes).
+
+### ✅ Tests actuels
+
+Après migration + correctifs sécurité : **`pio test -e sim-host` PASSED** — 10/10 ✅
+
+```text
+firmware/test/test_protection/ — protections V/I/déséquilibre/verrouillage
+firmware/test/test_battery_route_validation/
+firmware/test/test_influx_buffer_codec/
+firmware/test/test_web_mutation_rate_limit/
+firmware/test/test_web_route_security/
+firmware/test/test_emulation_bench/
+```
+
+---
 ```raw
 Nb_switch < 5   →  Reconnexion immédiate dès que la condition est normale
 Nb_switch == 5  →  Temporisation de 10 secondes avant reconnexion
@@ -157,18 +176,21 @@ Nb_switch > 5   →  Déconnexion permanente (LED rouge fixe)
 
 ## Configuration
 
-Les paramètres principaux sont définis en tête de `firmware/src/main.cpp` :
+Les paramètres principaux sont définis dans `firmware/src/config.h` (inclus par `firmware/src/main.cpp`) :
+
+⚠️ **Post-audit 2026-03-30** : L'harmonisation mV/V est en cours de finalisation (MED-010), mais les seuils de base restent ceux-ci :
 
 ```cpp
 #define I2C_Speed               50      // Vitesse I2C en kHz
 #define alert_bat_min_voltage   24000   // Seuil sous-tension en mV (24 V)
 #define alert_bat_max_voltage   30000   // Seuil sur-tension en mV (30 V)
-#define alert_bat_max_current   1       // Seuil sur-courant en A
+#define alert_bat_max_current   1       // Seuil sur-courant en A (valeur absolue)
 
-const int reconnect_delay = 10000;      // Délai de reconnexion en ms (10 s)
-const int voltage_diff    = 1;          // Tolérance de différence de tension en V
-int Nb_switch_max         = 5;          // Nombre max de déconnexions avant blocage
+#define reconnect_delay         10000   // Délai de reconnexion en ms (10 s)
+#define voltage_diff            1       // Tolérance de différence de tension en V
+#define Nb_switch_max           5       // Nombre max de coupures avant verrouillage
 ```
+
 
 ---
 
@@ -176,71 +198,98 @@ int Nb_switch_max         = 5;          // Nombre max de déconnexions avant blo
 
 Cette section fusionne la vue detaillee recente et la vue compacte historique de la branche object-orriented.
 
+### Structure post-migration (2026-03-30)
+
+Après migration complète vers arborescence `firmware/` + `hardware/` (voir AGENTS.md et CLAUDE.md) :
+
 ```raw
 KXKM_Batterie_Parallelator/
 ├── specs/                      # Kill_LIFE — spécifications formelles
-│   ├── 00_intake.md            # Gate S0 — contexte et besoin ✅
-│   ├── 01_spec.md              # Fonctions F01–F11, paramètres ✅
-│   ├── 02_arch.md              # Architecture firmware + hardware ✅
-│   └── 03_plan.md              # Gates S0–S3 et todos ✅
-├── firmware/src/
-│   ├── main.cpp                # Initialisation et boucle principale
-│   ├── INA_Func.h              # Fonctions de lecture INA237
-│   ├── TCA_Func.h              # Fonctions de contrôle TCA9535/9555
-│   ├── compute.h               # Logique de commutation et LED
-│   ├── pin_mappings.h         # Définition des GPIO
-│   └── data_log.h              # Journalisation
-├── firmware/test/
-│   └── test_protection/        # Kill_LIFE — tests Unity natifs (10 tests)
-│       └── test_protection.cpp # Protection V/I/déséquilibre/verrouillage
-├── lib/
-│   └── INA237/                 # Bibliothèque INA237 locale (fork)
-├── firmware/data/
-│   ├── index.html              # Interface web embarquée
-│   ├── style.css
-│   └── script.js
-├── hardware/PCB/                        # Schémas et PCB KiCad BMU v1 (fabriqué)
-├── hardware/pcb-bmu-v2/                 # KiCad BMU v2 + Gerber JLCPCB (ERC 0 violations)
-│   ├── BMU v2.kicad_sch        # Schéma principal
-│   ├── erc_report.json         # Rapport ERC — 0 violations
-│   └── ...
-├── hardware/examples-ina/               # Exemples d'utilisation INA237
-├── hardware/examples-tca95x5/           # Exemples d'utilisation TCA9535/9555
-├── hardware/test-code/
-│   └── scanner_I2C.cpp         # Utilitaire de scan I2C
-├── .github/workflows/ci.yml    # CI — tests Unity natifs
-├── firmware/partitions_16MB.csv         # Table de partitions flash ESP32 16 MB
-├── platformio.ini              # Configuration PlatformIO (env native + kxkm-v3-16MB)
-├── CLAUDE.md                   # Conventions pour les assistants AI
-└── adresse TCA_INA.xlsx        # Tableau de référence des adresses I2C
+│   ├── 00_intake.md            # Gate S0 — contexte et besoin
+│   ├── 01_spec.md              # Fonctions F01–F11
+│   ├── 02_arch.md              # Architecture firmware + hardware
+│   └── 03_plan.md              # Gates S1–S3 et tracking
+├── firmware/                   # Code et assets embarqués (migration 2026-03-30)
+│   ├── src/                    # Modules principaux refactorisés
+│   │   ├── main.cpp            # Initialisation et boucle principale
+│   │   ├── INAHandler.h/cpp    # Classe mesures INA237 via I2C (CRIT-002 post-audit)
+│   │   ├── TCAHandler.h/cpp    # Classe switches TCA9535/9555 via I2C (CRIT-003)
+│   │   ├── BatteryParallelator.h/cpp    # Orchestration batteries parallèle (HIGH-006)
+│   │   ├── BatteryManager.h/cpp         # Gestion état + protection batterie
+│   │   ├── WebServerHandler.h/cpp       # Serveur HTTP embarqué (HIGH-005)
+│   │   ├── I2CMutex.h          # Sérialisation I2C multi-task (CRIT-004 — init manquante)
+│   │   ├── BatteryRouteValidation.h     # Validation routes web control (MED-009)
+│   │   ├── SD_Logger.h/cpp     # Journalisation SD-card
+│   │   ├── InfluxDBHandler.h/cpp        # Export cloud MQTT/InfluxDB
+│   │   ├── TimeAndInfluxTask.h/cpp      # Task FreeRTOS sync-time + cloud upload
+│   │   ├── config.h            # Constantes protection V/I/délai (MED-010 — unités)
+│   │   ├── DebugLogger.h       # Logging diagnostic + categories
+│   │   └── credentials.h.example        # Template secrets WiFi/MQTT
+│   ├── test/                   # Tests Unity (base sim-host, 10/10 PASSED post-audit)
+│   │   ├── test_protection/test_protection.cpp
+│   │   ├── test_battery_route_validation/
+│   │   ├── test_influx_buffer_codec/
+│   │   ├── test_web_mutation_rate_limit/
+│   │   ├── test_web_route_security/
+│   │   └── test_emulation_bench/
+│   ├── lib/
+│   │   └── INA237/             # Driver INA237 local (fork)
+│   ├── data/                   # Interface web embarquée
+│   │   ├── index.html
+│   │   ├── style.css
+│   │   └── script.js
+│   └── partitions_16MB.csv     # Table partitions flash ESP32 16 MB custom
+├── hardware/                   # Actifs matériel (non modifiés par migration)
+│   ├── PCB/                    # Schémas KiCad BMU v1 (PCB fabriqué)
+│   │   └── ...
+│   ├── pcb-bmu-v2/             # Schémas KiCad BMU v2 (ERC 0 violations, Gerber JLCPCB)
+│   │   ├── BMU v2.kicad_sch
+│   │   ├── erc_report.json
+│   │   ├── BOM (107 composants)
+│   │   └── gerber/ (JLCPCB-ready)
+│   ├── battery-management-unit/        # Documentation PCB v1
+│   ├── examples-ina/           # Exemples code INA237 standalone
+│   ├── examples-tca95x5/       # Exemples code TCA9535/9555 standalone
+│   ├── log-sd/                 # Logs terrain (données brutes CSV)
+│   │   └── datalog_*.csv       # Field data (multipleistes batterie/dispositifs)
+│   └── test-code/
+│       └── scanner_I2C.cpp     # Utilitaire scan I2C + détection adresses
+├── .github/
+│   ├── workflows/ci.yml        # CI — pio test -e sim-host automatique
+│   ├── instructions/           # Règles firmware/ML/planning
+│   │   ├── firmware-safety.instructions.md     # Règles safety I2C/FreeRTOS
+│   │   ├── firmware-workflow.instructions.md
+│   │   ├── ml-pipeline.instructions.md
+│   │   ├── plan-todo-implementation.instructions.md
+│   │   └── tests-python.instructions.md
+│   ├── agents/                 # Copilot agents spécialisés
+│   │   ├── bmu-safety-review.agent.md          # Audit sécurité (lancé post-migration)
+│   │   └── qa-gate.agent.md
+│   └── prompts/audit-bmu.prompt.md
+├── scripts/
+│   ├── ml/                     # Pipeline ML (extract, train, quantize — optionnel)
+│   │   ├── parse_csv.py        # Parse logs SD → features
+│   │   ├── extract_features.py # Feature engineering batterie
+│   │   ├── train_fpnn.py       # Training SOH model
+│   │   └── quantize_tflite.py  # INT8 quantization edge
+│   ├── ci/run_qa_env.sh        # Orchest. QA (test + memory budget checks)
+│   └── check_memory_budget.sh  # Validation RAM/Flash vs limites
+├── plan/                       # Kill_LIFE tracking + refactor plans
+│   ├── process-cicd-environments-1.md
+│   └── refactor-safety-core-web-remote-1.md
+├── docs/
+│   ├── governance/             # Feature maps, integration, architecture diagrams
+│   ├── azure-mqtt-bridge.md    # Cloud bridge (optionnel)
+│   ├── ml-battery-health-spec.md       # Spec ML RUL/SOH (optionnel)
+│   └── ... (docs complémentaires)
+├── platformio.ini              # Configuration PlatformIO (env par défaut: kxkm-s3-16MB)
+├── AGENTS.md                   # Conventions agents Copilot (mis à jour post-migration)
+├── CLAUDE.md                   # Conventions code + architecture (mis à jour)
+├── README.md                   # Ce fichier (mis à jour post-audit)
+└── adresse_TCA_INA.xlsx        # Tableau adresses I2C (référence matériel)
 ```
 
-### Vue compacte (historique object-orriented)
 
-```raw
-KXKM_Batterie_Parallelator/
-├── firmware/src/
-│   ├── main.cpp            # Initialisation et boucle principale
-│   ├── INA_Func.h          # Fonctions de lecture INA237
-│   ├── TCA_Func.h          # Fonctions de contrôle TCA9535/9555
-│   ├── compute.h           # Logique de commutation et LED
-│   ├── pin_mappings.h     # Définition des GPIO
-│   └── data_log.h          # Journalisation (réservé)
-├── lib/
-│   └── INA237/             # Bibliothèque INA237 locale (fork)
-├── firmware/data/
-│   ├── index.html          # Interface web embarquée
-│   ├── style.css
-│   └── script.js
-├── hardware/PCB/                    # Schémas et PCB KiCad (v1)
-├── hardware/pcb-bmu-v2/             # Schémas et PCB KiCad (v2) + Gerber JLCPCB
-├── hardware/examples-ina/           # Exemples d'utilisation INA237
-├── hardware/examples-tca95x5/       # Exemples d'utilisation TCA9535/9555
-├── hardware/test-code/
-│   └── scanner_I2C.cpp     # Utilitaire de scan I2C
-├── platformio.ini          # Configuration PlatformIO
-└── adresse TCA_INA.xlsx    # Tableau de référence des adresses I2C
-```
 
 ---
 
@@ -249,9 +298,11 @@ KXKM_Batterie_Parallelator/
 Les tests unitaires couvrent la logique de protection embarquée, sans matériel.
 
 ```bash
-# Lancer les tests natifs (pas d'ESP32 requis)
-pio test -e native
+# Lancer les tests natifs (pas d'ESP32 requis, host-based sim-host)
+pio test -e sim-host
+pio test -e sim-host -vv    # Verbose output
 ```
+
 
 **10 tests Unity** — `firmware/test/test_protection/` :
 
@@ -282,17 +333,22 @@ La CI GitHub Actions exécute ces tests automatiquement à chaque push.
 ### Compilation et flash
 
 ```bash
-# Compiler le projet
-pio run
+# Compiler pour ESP32-S3 (environnement par défaut kxkm-s3-16MB)
+pio run -e kxkm-s3-16MB
 
-# Compiler et flasher (port série détecté automatiquement)
-pio run --target upload
+# Compiler et flasher sur ESP32-S3 (port détecté auto)
+pio run -e kxkm-s3-16MB --target upload
 
-# Moniteur série
-pio device monitor --baud 115200
+# Moniteur série (ESP32-S3)
+pio device monitor -e kxkm-s3-16MB --baud 115200
+
+# Support legacy ESP32 Wrover (env: kxkm-v3-16MB, déprecié fin 2024)
+pio run -e kxkm-v3-16MB --target upload
 ```
 
-L'environnement cible par défaut est `kxkm-v3-16MB` (ESP32 Wrover, flash 16 MB).
+**Environnement par défaut** : `kxkm-s3-16MB` (ESP32-S3, flash 16 MB, PSRAM).  
+**Legacy support** : `kxkm-v3-16MB` (ESP32 Wrover) — à migrer vers S3.
+
 
 ---
 
@@ -393,4 +449,3 @@ Les artefacts de pilotage et d'execution continue sont centralises ici :
 - [Assignation agents et taches](docs/governance/agent-task-assignment.md)
 - [Gates produit et variantes](docs/governance/product-gates-variants.md)
 - [Plans actifs](plan/process-cicd-environments-1.md), [plan safety/web/ML](plan/refactor-safety-core-web-remote-1.md)
-
