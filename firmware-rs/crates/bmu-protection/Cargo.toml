@@ -1,0 +1,9 @@
+[package]
+name = "bmu-protection"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+defmt = { workspace = true }
+
+[dev-dependencies]
