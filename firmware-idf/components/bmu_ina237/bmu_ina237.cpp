@@ -9,6 +9,9 @@
 #include "bmu_ina237.h"
 #include "bmu_i2c.h"
 #include "esp_log.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include <inttypes.h>
 #include <cmath>
 #include <cstring>
 
@@ -226,11 +229,23 @@ esp_err_t bmu_ina237_read_voltage_current(const bmu_ina237_t *ctx,
     if (ctx == NULL || !ctx->ready || voltage_mv == NULL || current_a == NULL)
         return ESP_ERR_INVALID_ARG;
 
+    /* Acquire I2C bus mutex for atomic V+I read (audit H-01) */
+    if (bmu_i2c_lock() != ESP_OK) {
+        *voltage_mv = NAN;
+        *current_a = NAN;
+        return ESP_ERR_TIMEOUT;
+    }
+
     /* Lecture sequentielle bus voltage puis current */
     esp_err_t ret = bmu_ina237_read_bus_voltage(ctx, voltage_mv);
-    if (ret != ESP_OK) return ret;
+    if (ret != ESP_OK) {
+        bmu_i2c_unlock();
+        return ret;
+    }
 
-    return bmu_ina237_read_current(ctx, current_a);
+    ret = bmu_ina237_read_current(ctx, current_a);
+    bmu_i2c_unlock();
+    return ret;
 }
 
 /* ── Configuration alertes ────────────────────────────────────────────────── */
@@ -257,7 +272,7 @@ esp_err_t bmu_ina237_set_bus_voltage_alerts(const bmu_ina237_t *ctx,
         return ret;
     }
 
-    ESP_LOGI(TAG, "[0x%02X] Alertes bus: BOVL=%u mV (reg=%u) BUVL=%u mV (reg=%u)",
+    ESP_LOGI(TAG, "[0x%02X] Alertes bus: BOVL=%" PRIu32 " mV (reg=%u) BUVL=%" PRIu32 " mV (reg=%u)",
              ctx->addr, overvoltage_mv, bovl, undervoltage_mv, buvl);
     return ESP_OK;
 }
@@ -298,6 +313,6 @@ esp_err_t bmu_ina237_scan_init(i2c_master_bus_handle_t bus,
         }
     }
 
-    ESP_LOGI(TAG, "Scan termine: %u INA237 initialise(s)", *count);
+    ESP_LOGI(TAG, "Scan termine: %u INA237 initialise(s)", (unsigned)*count);
     return (*count > 0) ? ESP_OK : ESP_ERR_NOT_FOUND;
 }

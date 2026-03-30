@@ -17,6 +17,17 @@ esp_err_t bmu_i2c_add_device(i2c_master_bus_handle_t bus, uint8_t addr,
                               i2c_master_dev_handle_t *dev);
 int bmu_i2c_scan(i2c_master_bus_handle_t bus);
 
+/**
+ * @brief Acquire the BMU I2C bus mutex. Must be called before multi-register operations.
+ * @return ESP_OK if acquired, ESP_ERR_TIMEOUT if not acquired within 100ms.
+ */
+esp_err_t bmu_i2c_lock(void);
+
+/**
+ * @brief Release the BMU I2C bus mutex.
+ */
+void bmu_i2c_unlock(void);
+
 #ifdef __cplusplus
 }
 #endif

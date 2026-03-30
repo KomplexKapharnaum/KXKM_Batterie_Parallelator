@@ -46,6 +46,12 @@ bmu_battery_state_t bmu_protection_get_state(bmu_protection_ctx_t *ctx, int batt
 
 float bmu_protection_get_voltage(bmu_protection_ctx_t *ctx, int battery_idx);
 
+/**
+ * @brief Web-initiated switch command. Validates voltage precondition before switching.
+ * Respects locked batteries — returns ESP_ERR_NOT_ALLOWED for locked batteries.
+ */
+esp_err_t bmu_protection_web_switch(bmu_protection_ctx_t *ctx, int battery_idx, bool on);
+
 #ifdef __cplusplus
 }
 #endif

@@ -1,25 +1,29 @@
 #include "bmu_i2c.h"
 #include "esp_log.h"
+#include "driver/i2c_master.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 
 static const char *TAG = "I2C";
+static SemaphoreHandle_t s_i2c_mutex = NULL;
 
 esp_err_t bmu_i2c_init(i2c_master_bus_handle_t *bus_handle)
 {
-    i2c_master_bus_config_t bus_config = {};
-    bus_config.i2c_port = BMU_I2C_PORT;
-    bus_config.sda_io_num = BMU_I2C_SDA_GPIO;
-    bus_config.scl_io_num = BMU_I2C_SCL_GPIO;
-    bus_config.clk_source = I2C_CLK_SRC_DEFAULT;
-    bus_config.glitch_ignore_cnt = 7;
-    bus_config.flags.enable_internal_pullup = false;
-
-    esp_err_t ret = i2c_new_master_bus(&bus_config, bus_handle);
+    /* Le bus DOCK BSP (I2C_NUM_1, GPIO40/41) est deja cree par bsp_i2c_init().
+     * On recupere le handle existant plutot que de recreer le bus. */
+    esp_err_t ret = i2c_master_get_bus_handle(BMU_I2C_PORT, bus_handle);
     if (ret == ESP_OK) {
-        ESP_LOGI(TAG, "BMU I2C bus OK — SDA=%d SCL=%d %dHz port=%d",
+        ESP_LOGI(TAG, "BMU I2C bus OK — SDA=%d SCL=%d %dHz port=%d (BSP DOCK)",
                  BMU_I2C_SDA_GPIO, BMU_I2C_SCL_GPIO, BMU_I2C_FREQ_HZ, BMU_I2C_PORT);
     } else {
-        ESP_LOGE(TAG, "BMU I2C bus FAILED: %s", esp_err_to_name(ret));
+        ESP_LOGE(TAG, "BMU I2C get bus handle FAILED: %s", esp_err_to_name(ret));
+        return ret;
     }
+
+    /* Create I2C bus mutex for multi-register atomic operations (audit H-01) */
+    s_i2c_mutex = xSemaphoreCreateMutex();
+    configASSERT(s_i2c_mutex != NULL);
+
     return ret;
 }
 
@@ -46,4 +50,16 @@ int bmu_i2c_scan(i2c_master_bus_handle_t bus)
     }
     ESP_LOGI(TAG, "Scan: %d device(s)", count);
     return count;
+}
+
+esp_err_t bmu_i2c_lock(void)
+{
+    if (s_i2c_mutex == NULL) return ESP_ERR_INVALID_STATE;
+    return (xSemaphoreTake(s_i2c_mutex, pdMS_TO_TICKS(100)) == pdTRUE)
+           ? ESP_OK : ESP_ERR_TIMEOUT;
+}
+
+void bmu_i2c_unlock(void)
+{
+    if (s_i2c_mutex != NULL) xSemaphoreGive(s_i2c_mutex);
 }

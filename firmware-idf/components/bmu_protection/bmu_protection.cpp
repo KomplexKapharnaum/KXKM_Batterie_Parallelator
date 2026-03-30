@@ -108,7 +108,7 @@ esp_err_t bmu_protection_check_battery(bmu_protection_ctx_t *ctx, int idx)
     /* Read voltage (mV) and current (A) from INA237 */
     float v_mv = 0, i_a = 0;
     esp_err_t ret = bmu_ina237_read_voltage_current(&ctx->ina_devices[idx], &v_mv, &i_a);
-    if (ret != ESP_OK || isnan(v_mv) || isnan(i_a)) {
+    if (ret != ESP_OK || std::isnan(v_mv) || std::isnan(i_a)) {
         ESP_LOGW(TAG, "BAT[%d] I2C read error — skip protection", idx + 1);
         return ret;
     }
@@ -271,4 +271,39 @@ float bmu_protection_get_voltage(bmu_protection_ctx_t *ctx, int idx)
         }
     }
     return v;
+}
+
+/* ── Web-initiated switch — validates through protection (audit H-06) ─── */
+esp_err_t bmu_protection_web_switch(bmu_protection_ctx_t *ctx, int idx, bool on)
+{
+    if (idx < 0 || idx >= ctx->nb_ina) return ESP_ERR_INVALID_ARG;
+
+    /* Check if battery is locked */
+    bmu_battery_state_t state = bmu_protection_get_state(ctx, idx);
+    if (state == BMU_STATE_LOCKED) {
+        ESP_LOGW(TAG, "BAT[%d] web switch rejected — LOCKED", idx + 1);
+        return ESP_ERR_NOT_ALLOWED;
+    }
+
+    /* For switch ON: validate voltage is in safe range */
+    if (on) {
+        float v_mv = bmu_protection_get_voltage(ctx, idx);
+        if (v_mv < BMU_MIN_VOLTAGE_MV || v_mv > BMU_MAX_VOLTAGE_MV) {
+            ESP_LOGW(TAG, "BAT[%d] web switch ON rejected — voltage %.0f mV out of range",
+                     idx + 1, v_mv);
+            return ESP_ERR_INVALID_STATE;
+        }
+    }
+
+    /* Execute switch via TCA */
+    int tca_idx = idx / 4;
+    int channel = idx % 4;
+    if (tca_idx >= ctx->nb_tca) return ESP_ERR_INVALID_ARG;
+
+    esp_err_t ret = bmu_tca9535_switch_battery(&ctx->tca_devices[tca_idx], channel, on);
+    if (ret == ESP_OK) {
+        bmu_tca9535_set_led(&ctx->tca_devices[tca_idx], channel, !on, on);
+        ESP_LOGI(TAG, "BAT[%d] web switch %s OK", idx + 1, on ? "ON" : "OFF");
+    }
+    return ret;
 }

@@ -279,21 +279,21 @@ static esp_err_t handle_mutation(httpd_req_t *req, bool switch_on)
         return ESP_OK;
     }
 
-    /* 6. Vérif état (locked → 423) */
-    bmu_battery_state_t st = bmu_protection_get_state(s_ctx->prot, battery_idx);
-    if (st == BMU_STATE_LOCKED) {
+    /* 6–7. Route through protection state machine (audit H-06) */
+    esp_err_t ret = bmu_protection_web_switch(s_ctx->prot, battery_idx, switch_on);
+
+    if (ret == ESP_ERR_NOT_ALLOWED) {
         ESP_LOGW(TAG, "MUTATION %s bat=%d REJETÉ: batterie verrouillée", route, battery_idx);
         httpd_resp_set_status(req, "423 Locked");
         httpd_resp_sendstr(req, "{\"error\":\"battery locked\"}");
         return ESP_OK;
     }
-
-    /* 7. Exécution : switch via TCA */
-    uint8_t tca_idx = battery_idx / 4;
-    uint8_t channel = battery_idx % 4;
-    esp_err_t ret = bmu_tca9535_switch_battery(
-        &s_ctx->prot->tca_devices[tca_idx], channel, switch_on);
-
+    if (ret == ESP_ERR_INVALID_STATE) {
+        ESP_LOGW(TAG, "MUTATION %s bat=%d REJETÉ: tension hors limites", route, battery_idx);
+        httpd_resp_set_status(req, "409 Conflict");
+        httpd_resp_sendstr(req, "{\"error\":\"voltage out of safe range\"}");
+        return ESP_OK;
+    }
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "MUTATION %s bat=%d ERREUR: switch failed (%s)",
                  route, battery_idx, esp_err_to_name(ret));
