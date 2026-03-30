@@ -1,0 +1,11 @@
+menu "BMU Display"
+    config BMU_DISPLAY_BACKLIGHT_GPIO
+        int "Backlight GPIO"
+        default 47
+    config BMU_DISPLAY_BL_DIM_TIMEOUT_S
+        int "Backlight dim timeout (seconds, 0=never)"
+        default 30
+    config BMU_DISPLAY_REFRESH_MS
+        int "UI refresh period (ms)"
+        default 100
+endmenu

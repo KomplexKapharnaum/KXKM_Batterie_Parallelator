@@ -1,9 +1,9 @@
 /**
  * @file main.cpp
- * @brief KXKM BMU — ESP-IDF v5.3 (Phase 4: Full firmware)
+ * @brief KXKM BMU — ESP-IDF v5.3 (Phase 6+7: Full firmware + Display + VE.Direct)
  *
- * Init order: NVS → WiFi → SPIFFS → SD → SNTP → I2C → Protection → MQTT → InfluxDB → Web
- * Tasks: protection loop (main), Ah tracking (per battery), cloud telemetry (dedicated)
+ * Init: NVS → WiFi → SPIFFS → SD → SNTP → I2C → Protection → MQTT → InfluxDB → Display → VE.Direct → Web
+ * Tasks: protection (main), Ah tracking (per battery), cloud telemetry, LVGL render, VE.Direct RX
  */
 #include "bmu_i2c.h"
 #include "bmu_ina237.h"
@@ -17,6 +17,8 @@
 #include "bmu_mqtt.h"
 #include "bmu_influx.h"
 #include "bmu_sntp.h"
+#include "bmu_display.h"
+#include "bmu_vedirect.h"
 #include "esp_log.h"
 #include "esp_spiffs.h"
 #include "freertos/FreeRTOS.h"
@@ -104,7 +106,7 @@ static esp_err_t init_spiffs(void)
 extern "C" void app_main(void)
 {
     ESP_LOGI(TAG, "══════════════════════════════════════════════");
-    ESP_LOGI(TAG, "  KXKM BMU — ESP-IDF v5.3 (Phase 4)");
+    ESP_LOGI(TAG, "  KXKM BMU — ESP-IDF v5.3");
     ESP_LOGI(TAG, "  Free heap: %lu bytes", (unsigned long)esp_get_free_heap_size());
     ESP_LOGI(TAG, "══════════════════════════════════════════════");
     bmu_config_log();
@@ -172,6 +174,19 @@ extern "C" void app_main(void)
         char ip[16] = {};
         bmu_wifi_get_ip(ip, sizeof(ip));
         ESP_LOGI(TAG, "Web server at http://%s/", ip);
+    }
+
+    /* ── 9. Display Dashboard (BOX-3 ILI9342C + LVGL) ─────────────── */
+    static bmu_display_ctx_t disp_ctx = { .prot = &prot, .mgr = &mgr, .nb_ina = nb_ina };
+    bmu_display_init(&disp_ctx);
+    ESP_LOGI(TAG, "Display dashboard initialized");
+
+    /* ── 10. VE.Direct (Victron MPPT solar charger) ────────────────── */
+    bmu_vedirect_init();
+    if (bmu_vedirect_is_connected()) {
+        ESP_LOGI(TAG, "VE.Direct charger detected");
+    } else {
+        ESP_LOGI(TAG, "VE.Direct: no charger (will auto-detect)");
     }
 
     ESP_LOGI(TAG, "Init complete — protection loop (%d ms)", BMU_LOOP_PERIOD_MS);
