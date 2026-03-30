@@ -1,0 +1,17 @@
+menu "BMU InfluxDB"
+    config BMU_INFLUX_URL
+        string "InfluxDB URL"
+        default "http://kxkm-ai:8086"
+    config BMU_INFLUX_ORG
+        string "InfluxDB Organization"
+        default "kxkm"
+    config BMU_INFLUX_BUCKET
+        string "InfluxDB Bucket"
+        default "bmu"
+    config BMU_INFLUX_TOKEN
+        string "InfluxDB API Token"
+        default ""
+    config BMU_INFLUX_BUFFER_SIZE
+        int "Write buffer size (lines)"
+        default 20
+endmenu
