@@ -1,0 +1,36 @@
+name: Rust Protection Tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'firmware-rs/**'
+      - '.github/workflows/rust-tests.yml'
+  pull_request:
+    paths:
+      - 'firmware-rs/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Cargo test (host)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: firmware-rs
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable (for host tests)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run protection tests
+        run: |
+          cd crates/bmu-protection
+          cargo test --target x86_64-unknown-linux-gnu
