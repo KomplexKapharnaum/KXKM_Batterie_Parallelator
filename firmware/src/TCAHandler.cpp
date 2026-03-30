@@ -56,6 +56,13 @@ void TCAHandler::initialize_tca(TCA9535 &tca, const char *name) {
 
 void TCAHandler::begin() {
   for (int i = 0; i < 8; i++) {
+    // CRIT-003: Protect Wire access with I2CLockGuard to prevent race conditions
+    I2CLockGuard lock(pdMS_TO_TICKS(100));
+    if (!lock.isAcquired()) {
+      debugLogger.println(KxLogger::WARNING, "Failed to acquire I2C lock for TCA detection");
+      continue;
+    }
+    
     Wire.beginTransmission(TCA_address[i]);
     delay(1);
     if (Wire.endTransmission() == 0) {
