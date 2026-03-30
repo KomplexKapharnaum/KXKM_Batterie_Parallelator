@@ -397,16 +397,27 @@ void BATTParallelator::check_battery_connected_status(int INA_num) {
   // mem_set_max_current is in mA, current is in A — convert for comparison
   const float overcurrent_limit_A = (2.0f * mem_set_max_current) / 1000.0f;
   if (voltage < 0 ||
-      current > overcurrent_limit_A) { // Conditions critiques
+      fabs(current) > overcurrent_limit_A) { // Both positive and negative overcurrent
     state = ERROR;
   } else if (voltage < 1) {
     state = DISCONNECTED;
+  } else if (localNbSwitch > localNbSwitchMax) {
+    // Permanent lock — too many reconnection attempts (F08)
+    debugLogger.println(KxLogger::BATTERY,
+        "Battery " + String(INA_num + 1) + " permanently locked (nb_switch=" +
+        String(localNbSwitch) + " > max=" + String(localNbSwitchMax) + ")");
+    switch_battery(INA_num, false); // Force OFF
+    return; // Do not proceed — battery is locked until reboot
   } else if (!check_battery_status(INA_num) ||
              !check_voltage_offset(INA_num, voltageOffset)) {
     state = DISCONNECTED;
   } else if (localNbSwitch == 0 || // Première connexion
              (localNbSwitch < localNbSwitchMax &&
               (millis() - localReconnectTime > localReconnectDelay))) {
+    state = RECONNECTING;
+  } else if (localNbSwitch == localNbSwitchMax &&
+             (millis() - localReconnectTime > localReconnectDelay)) {
+    // At max — allow one final reconnect attempt with delay
     state = RECONNECTING;
   } else {
     state = CONNECTED;
@@ -586,9 +597,27 @@ bool BATTParallelator::is_current_within_range(float current) {
  * @return true si les différences sont acceptables, false sinon.
  */
 bool BATTParallelator::is_difference_acceptable(float voltage, float current) {
+  // Compare against live fleet max voltage, not config ceiling
+  const float fleetMaxV = find_max_voltage(battery_voltages, inaHandler.getNbINA());
+  const float diffV = fleetMaxV - voltage;
+  const float diffThresholdV = mem_set_voltage_diff / 1000.0f; // mV -> V
+
+  if (diffV > diffThresholdV) {
+    debugLogger.println(KxLogger::BATTERY,
+        "Voltage imbalance: battery=" + String(voltage) +
+        "V fleet_max=" + String(fleetMaxV) +
+        "V diff=" + String(diffV) +
+        "V threshold=" + String(diffThresholdV) + "V");
+    return false;
+  }
+
   // mem_set_current_diff is in mA, current is in A — convert
-  return compare_voltage(voltage, mem_set_max_voltage, mem_set_voltage_diff) &&
-         fabs(current) <= mem_set_current_diff / 1000.0f;
+  if (fabs(current) > mem_set_current_diff / 1000.0f) {
+    debugLogger.println(KxLogger::BATTERY,
+                        "Current diff out of range: " + String(current));
+    return false;
+  }
+  return true;
 }
 
 /**

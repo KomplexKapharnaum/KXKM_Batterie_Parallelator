@@ -52,7 +52,6 @@ public:
   void check_battery_connected_status(int INA_num);
   void reset_switch_count(int INA_num);
   int detect_batteries();
-  float battery_voltages[16];
   void set_battery_voltage(int INA_num, float voltage);
   void copy_battery_voltages(float *dest, int count);
 
@@ -80,6 +79,7 @@ private:
   bool isValidBatteryIndex(int INA_num) const;
   bool lockState(TickType_t timeout = pdMS_TO_TICKS(20));
   SemaphoreHandle_t stateMutex = NULL;
+  float battery_voltages[16];
   int mem_set_max_voltage = 30000;
   int mem_set_min_voltage = 24000;
   int mem_set_max_current = 1000;

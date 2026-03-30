@@ -64,8 +64,9 @@ void timeAndInfluxTask(void *pvParameters) {
       }
 
       if (!SD.begin()) {
-        debugLogger.println(KxLogger::ERROR, "Card Mount Failed");
-        return;
+        debugLogger.println(KxLogger::WARNING, "SD Card Mount Failed — will retry next cycle");
+        vTaskDelay(60000 / portTICK_PERIOD_MS);
+        continue;
       }
       debugLogger.println(KxLogger::INFO, "SD card initialized");
 
@@ -77,19 +78,14 @@ void timeAndInfluxTask(void *pvParameters) {
       isTimeSynced = false; // Reset time sync status
     }
 
-    // Afficher la date et l'heure actuelles
-    if (isTimeSynced) {
-      timeClient.update();
-      debugLogger.println(KxLogger::TIME, "Current Date and Time: " + timeClient.getFormattedTime());
+    // Afficher la date et l'heure actuelles via RTC (NTP already synced to RTC)
+    struct tm timeinfo;
+    if (getLocalTime(&timeinfo)) {
+      char buffer[20];
+      strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &timeinfo);
+      debugLogger.println(KxLogger::TIME, "Current Date and Time: " + String(buffer));
     } else {
-      struct tm timeinfo;
-      if (getLocalTime(&timeinfo)) {
-        char buffer[20];
-        strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &timeinfo);
-        debugLogger.println(KxLogger::TIME, "=================================== > Current Date and Time: " + String(buffer));
-      } else {
-        debugLogger.println(KxLogger::ERROR, "RTC time not available, unable to display date and time");
-      }
+      debugLogger.println(KxLogger::WARNING, "RTC time not available");
     }
 
     vTaskDelay(60000 / portTICK_PERIOD_MS); // Attendre 1 minute avant de réessayer
