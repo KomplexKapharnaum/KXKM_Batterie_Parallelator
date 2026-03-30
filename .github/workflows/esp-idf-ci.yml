@@ -1,0 +1,92 @@
+name: ESP-IDF Build & Test
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'firmware-idf/**'
+      - '.github/workflows/esp-idf-ci.yml'
+  pull_request:
+    paths:
+      - 'firmware-idf/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build ESP-IDF firmware
+    runs-on: ubuntu-latest
+    container:
+      image: espressif/idf:v5.3
+    defaults:
+      run:
+        working-directory: firmware-idf
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup ESP-IDF
+        run: |
+          . $IDF_PATH/export.sh
+          echo "IDF_PATH=$IDF_PATH" >> $GITHUB_ENV
+
+      - name: Set target ESP32-S3
+        run: |
+          . $IDF_PATH/export.sh
+          idf.py set-target esp32s3
+
+      - name: Build
+        run: |
+          . $IDF_PATH/export.sh
+          idf.py build
+
+      - name: Check binary size
+        run: |
+          . $IDF_PATH/export.sh
+          idf.py size
+          echo "--- App partition budget check ---"
+          APP_SIZE=$(stat -c%s build/kxkm-bmu.bin 2>/dev/null || echo 0)
+          MAX_SIZE=$((3 * 1024 * 1024))  # 3MB factory partition
+          echo "App size: $APP_SIZE bytes (max: $MAX_SIZE)"
+          if [ "$APP_SIZE" -gt "$MAX_SIZE" ]; then
+            echo "FAIL: App exceeds partition size!"
+            exit 1
+          fi
+          echo "PASS: App fits in partition"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-bin
+          path: |
+            firmware-idf/build/kxkm-bmu.bin
+            firmware-idf/build/partition_table/partition-table.bin
+            firmware-idf/build/bootloader/bootloader.bin
+
+  host-test:
+    name: Host protection tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++ curl
+
+      - name: Download Unity
+        working-directory: firmware-idf/test/test_protection
+        run: |
+          curl -sL https://raw.githubusercontent.com/ThrowTheSwitch/Unity/master/src/unity.c -o unity.c
+          curl -sL https://raw.githubusercontent.com/ThrowTheSwitch/Unity/master/src/unity.h -o unity.h
+          curl -sL https://raw.githubusercontent.com/ThrowTheSwitch/Unity/master/src/unity_internals.h -o unity_internals.h
+
+      - name: Build and run tests
+        working-directory: firmware-idf/test/test_protection
+        run: |
+          g++ -Wall -Wextra -DNATIVE_TEST -I. -o test_protection main/test_protection.cpp unity.c
+          ./test_protection
