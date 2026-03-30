@@ -125,7 +125,7 @@ bash scripts/ci/collect_remote_qa_evidence.sh qa-cicd-environments object-orrien
 - Consolidation des analyses multi-composants via agents: `BMU Safety Review`, `QA Gate`, `Explore`.
 - Blocker QA principal maintenu: preuve CI distante complete non stabilisee (TASK-006).
 - Nouveaux artefacts de pilotage crees dans `docs/` : gouvernance, diagrammes Mermaid, feature map, assignation agents/taches.
-- Script de synchronisation contexte ajoute: `scripts/project/update_project_context.sh`.
+- Script de synchronisation contexte ajoute: `scripts/project/update-context-snapshot.sh`.
 
 ### Evidence
 

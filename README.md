@@ -389,10 +389,10 @@ Ce projet est distribué sous licence **GNU General Public License v3.0** — vo
 
 Les artefacts de pilotage et d'execution continue sont centralises ici :
 
-- [Gouvernance integration](docs/GOVERNANCE_INTEGRATION.md)
-- [Diagrammes Mermaid d'architecture](docs/ARCHITECTURE_DIAGRAMS.md)
-- [Feature map BMU](docs/FEATURE_MAP.md)
-- [Assignation agents et taches](docs/AGENT_TASK_ASSIGNMENT.md)
-- [Gates produit et variantes](docs/PRODUCT_GATES_VARIANTS.md)
+- [Gouvernance integration](docs/governance/integration.md)
+- [Diagrammes Mermaid d'architecture](docs/governance/architecture-diagrams.md)
+- [Feature map BMU](docs/governance/feature-map.md)
+- [Assignation agents et taches](docs/governance/agent-task-assignment.md)
+- [Gates produit et variantes](docs/governance/product-gates-variants.md)
 - [Plans actifs](plan/process-cicd-environments-1.md), [plan safety/web/ML](plan/refactor-safety-core-web-remote-1.md)
 

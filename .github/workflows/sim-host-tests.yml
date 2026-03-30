@@ -5,8 +5,7 @@ on:
   pull_request:
   push:
     branches:
-      - master
-      - object-orriented
+      - main
 
 jobs:
   qa-by-environment:
@@ -17,9 +16,8 @@ jobs:
       matrix:
         include:
           - id: sim-host
-          - id: kxkm-s3-build
           - id: kxkm-v3-build
-          - id: kxkm-s3-memory-budget
+          - id: kxkm-v3-memory-budget
 
     steps:
       - name: Checkout

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-output_file="$repo_root/docs/PROJECT_CONTEXT_SNAPSHOT.md"
+output_file="$repo_root/docs/context/project-context-snapshot.md"
 
 cd "$repo_root"
 
@@ -30,10 +30,11 @@ $status_short
 - plan/refactor-safety-core-web-remote-1.md
 
 ## Governance Docs
-- docs/GOVERNANCE_INTEGRATION.md
-- docs/ARCHITECTURE_DIAGRAMS.md
-- docs/FEATURE_MAP.md
-- docs/AGENT_TASK_ASSIGNMENT.md
+- docs/governance/integration.md
+- docs/governance/architecture-diagrams.md
+- docs/governance/feature-map.md
+- docs/governance/agent-task-assignment.md
+- docs/governance/product-gates-variants.md
 EOF
 
 echo "Snapshot written to $output_file"

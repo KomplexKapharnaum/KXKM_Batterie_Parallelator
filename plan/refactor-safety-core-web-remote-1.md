@@ -299,10 +299,10 @@ This plan updates the existing BMU implementation plan by keeping Phase 1 (runti
 - Revue surete firmware executee: aucun `Critical`, plusieurs `High` detectes sur surface web mutatrice et chemins I2C.
 - Revue QA executee: couverture locale partielle validee, mais gate distante et alignement de branche encore incomplets.
 - Ajout des documents de cadrage pour execution continue:
-  - `docs/GOVERNANCE_INTEGRATION.md`
-  - `docs/ARCHITECTURE_DIAGRAMS.md`
-  - `docs/FEATURE_MAP.md`
-  - `docs/AGENT_TASK_ASSIGNMENT.md`
+  - `docs/governance/integration.md`
+  - `docs/governance/architecture-diagrams.md`
+  - `docs/governance/feature-map.md`
+  - `docs/governance/agent-task-assignment.md`
 
 ### Prioritized Backlog (issue-ready)
 
