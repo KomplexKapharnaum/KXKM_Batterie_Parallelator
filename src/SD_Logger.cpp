@@ -291,7 +291,7 @@ String SDLogger::getCurrentTime(const char* logFileBase) {
     time_t lastLogTime = getLastLogTimeFromSD(logFileBase);
     if (lastLogTime > 0) {
       baseTime = lastLogTime;
-      debugLogger.print(KxLogger::SD, "Base temporelle initialisée à la dernière date du log SD : ");
+      debugLogger.print(KxLogger::SD, "Base temporelle initialisée à la dernière date du log-sd : ");
       debugLogger.println(KxLogger::SD, String(ctime(&baseTime)));
     } else {
       const char *compileDate = __DATE__;

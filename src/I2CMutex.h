@@ -5,7 +5,7 @@
 #include <Wire.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
-#include "pin_mapppings.h"
+#include "pin_mappings.h"
 
 /**
  * @brief Global I2C bus mutex for thread-safe access.

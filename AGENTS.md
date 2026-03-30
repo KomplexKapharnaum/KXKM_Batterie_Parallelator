@@ -64,5 +64,5 @@
 - BMU audit prompt: .github/prompts/audit-bmu.prompt.md
 
 ## Areas to Avoid Unless Requested
-- Legacy hardware folder marked as untouchable: Battery management unit/PCB V1 (don't touch)/
-- Large PCB/CAD assets under PCB/ and PCB BMU v2/ unless the task is explicitly hardware-design related.
+- Legacy hardware folder marked as untouchable: battery-management-unit/PCB V1 (don't touch)/
+- Large PCB/CAD assets under PCB/ and pcb-bmu-v2/ unless the task is explicitly hardware-design related.

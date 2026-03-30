@@ -8,7 +8,7 @@ int TCA_num = 0;
 int OUT_num = 0;
 
 #include <Arduino.h>
-#include "pin_mapppings.h"
+#include "pin_mappings.h"
 #include "INA_Func.h"
 #include "BatterySwitchCtrl.h"
 

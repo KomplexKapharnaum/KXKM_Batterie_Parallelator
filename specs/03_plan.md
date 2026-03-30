@@ -27,9 +27,9 @@
 
 ## S2 — Hardware review BMU v2
 
-- [x] `schops snapshot` → `PCB BMU v2/snapshot_before.json` (55 symboles) ✅ 2026-03-25
-- [x] `schops erc` → `PCB BMU v2/erc_report.json` — **0 violations** ✅ 2026-03-25
-- [x] `schops bom` → `PCB BMU v2/bom.csv` — 107 composants ✅ 2026-03-25
+- [x] `schops snapshot` → `pcb-bmu-v2/snapshot_before.json` (55 symboles) ✅ 2026-03-25
+- [x] `schops erc` → `pcb-bmu-v2/erc_report.json` — **0 violations** ✅ 2026-03-25
+- [x] `schops bom` → `pcb-bmu-v2/bom.csv` — 107 composants ✅ 2026-03-25
   - U1–U4: INA237 (VSSOP-10) ×4 | U6: TCA9535PWR (TSSOP-24) | U5: ISO1540 (isolateur I²C)
   - U4: TCA9517 (level shifter I²C) | U8: VPS8505 | U9: MCP16331 (buck)
   - JP2–JP20: solder jumpers adressage I²C (×19) — cohérent avec firmware (A0/A1/A2)

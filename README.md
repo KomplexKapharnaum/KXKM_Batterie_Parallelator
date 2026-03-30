@@ -87,7 +87,7 @@ Le système déconnecte automatiquement une batterie si elle sort des limites de
 
 Les fichiers de conception électronique (KiCad) sont disponibles dans les dossiers :
 - `PCB/` — révision 1 du BMU
-- `PCB BMU v2/` — révision 2 (améliorée, fichiers Gerber pour JLCPCB inclus)
+- `pcb-bmu-v2/` — révision 2 (améliorée, fichiers Gerber pour JLCPCB inclus)
 
 ---
 
@@ -190,7 +190,7 @@ KXKM_Batterie_Parallelator/
 │   ├── INA_Func.h              # Fonctions de lecture INA237
 │   ├── TCA_Func.h              # Fonctions de contrôle TCA9535/9555
 │   ├── compute.h               # Logique de commutation et LED
-│   ├── pin_mapppings.h         # Définition des GPIO
+│   ├── pin_mappings.h         # Définition des GPIO
 │   └── data_log.h              # Journalisation
 ├── test/
 │   └── test_protection/        # Kill_LIFE — tests Unity natifs (10 tests)
@@ -202,13 +202,13 @@ KXKM_Batterie_Parallelator/
 │   ├── style.css
 │   └── script.js
 ├── PCB/                        # Schémas et PCB KiCad BMU v1 (fabriqué)
-├── PCB BMU v2/                 # KiCad BMU v2 + Gerber JLCPCB (ERC 0 violations)
+├── pcb-bmu-v2/                 # KiCad BMU v2 + Gerber JLCPCB (ERC 0 violations)
 │   ├── BMU v2.kicad_sch        # Schéma principal
 │   ├── erc_report.json         # Rapport ERC — 0 violations
 │   └── ...
-├── examples INA/               # Exemples d'utilisation INA237
-├── examples TCA95x5/           # Exemples d'utilisation TCA9535/9555
-├── test code/
+├── examples-ina/               # Exemples d'utilisation INA237
+├── examples-tca95x5/           # Exemples d'utilisation TCA9535/9555
+├── test-code/
 │   └── scanner_I2C.cpp         # Utilitaire de scan I2C
 ├── .github/workflows/ci.yml    # CI — tests Unity natifs
 ├── partitions_16MB.csv         # Table de partitions flash ESP32 16 MB
@@ -226,7 +226,7 @@ KXKM_Batterie_Parallelator/
 │   ├── INA_Func.h          # Fonctions de lecture INA237
 │   ├── TCA_Func.h          # Fonctions de contrôle TCA9535/9555
 │   ├── compute.h           # Logique de commutation et LED
-│   ├── pin_mapppings.h     # Définition des GPIO
+│   ├── pin_mappings.h     # Définition des GPIO
 │   └── data_log.h          # Journalisation (réservé)
 ├── lib/
 │   └── INA237/             # Bibliothèque INA237 locale (fork)
@@ -235,10 +235,10 @@ KXKM_Batterie_Parallelator/
 │   ├── style.css
 │   └── script.js
 ├── PCB/                    # Schémas et PCB KiCad (v1)
-├── PCB BMU v2/             # Schémas et PCB KiCad (v2) + Gerber JLCPCB
-├── examples INA/           # Exemples d'utilisation INA237
-├── examples TCA95x5/       # Exemples d'utilisation TCA9535/9555
-├── test code/
+├── pcb-bmu-v2/             # Schémas et PCB KiCad (v2) + Gerber JLCPCB
+├── examples-ina/           # Exemples d'utilisation INA237
+├── examples-tca95x5/       # Exemples d'utilisation TCA9535/9555
+├── test-code/
 │   └── scanner_I2C.cpp     # Utilitaire de scan I2C
 ├── platformio.ini          # Configuration PlatformIO
 └── adresse TCA_INA.xlsx    # Tableau de référence des adresses I2C

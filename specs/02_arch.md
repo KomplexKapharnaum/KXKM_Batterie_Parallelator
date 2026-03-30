@@ -43,7 +43,7 @@ I²C bus (50 kHz)
 | `src/INA_Func.h` | Init INA237, lecture V/I/P |
 | `src/TCA_Func.h` | Init TCA9535, lecture/écriture GPIO |
 | `src/compute.h` | Logique protection (switch_on/off, compteurs) |
-| `src/pin_mapppings.h` | Mapping GPIO → INA ALERT pins |
+| `src/pin_mappings.h` | Mapping GPIO → INA ALERT pins |
 | `src/data_log.h` | Logging série |
 | `lib/INA237/` | Driver INA237 local (fork) |
 | `data/` | Interface web (HTML/JS/CSS) |
@@ -53,7 +53,7 @@ I²C bus (50 kHz)
 | Version | Fichier | État |
 |---------|---------|------|
 | BMU v1 | `PCB/BMU v1/BMU v1.kicad_sch` | Fabriqué JLCPCB |
-| BMU v2 | `PCB BMU v2/BMU_switch_mosfet.kicad_sch` | En cours |
+| BMU v2 | `pcb-bmu-v2/BMU_switch_mosfet.kicad_sch` | En cours |
 
 ## Adressage I²C
 

@@ -300,7 +300,7 @@ source ~/venv/bin/activate
 pip install pytorch-lightning tensorboard scikit-learn pandas pyarrow
 
 # Step 1: Parse and extract features
-python scripts/ml/parse_csv.py --input "log SD/" --output data/raw.parquet
+python scripts/ml/parse_csv.py --input "log-sd/" --output data/raw.parquet
 python scripts/ml/extract_features.py --input data/raw.parquet --output data/features.parquet
 
 # Step 2: Train edge model (FPNN)
