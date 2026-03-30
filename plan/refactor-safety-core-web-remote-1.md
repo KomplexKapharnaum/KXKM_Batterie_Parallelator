@@ -318,3 +318,139 @@ This plan updates the existing BMU implementation plan by keeping Phase 1 (runti
 
 - Findings issus des agents `BMU Safety Review`, `QA Gate` et `Explore` integres dans les documents de gouvernance et de planification.
 - README deja aligne avec image PCB et liens de pilotage en cours de mise a jour.
+
+## Audit Quotidien — 2026-03-30 (normalise)
+
+> Portee auditee: `plan/refactor-safety-core-web-remote-1.md`.
+
+### 1. Resume journalier (5 lignes max)
+
+- Les lots critiques firmware (CRIT-001..004) sont traites en local et pousses sur `main`.
+- Les points HIGH-005/HIGH-006 ont ete corriges en local avec validation `pio test -e sim-host` reussie.
+- Le README est partiellement normalise mais reste en cours de finalisation/commit separe.
+- Le build `kxkm-s3-16MB` progresse: dependances C/C++ resolues, blocage residuel environnement Python (`intelhex`) sur generation `bootloader.bin`.
+- La preuve CI distante GitHub Actions reste le principal ecart de cloture.
+
+### 2. Tableau TODO normalise
+
+| TODO ID | Item | Statut | Priorite | Evidence | Next Action |
+|--------|------|--------|----------|----------|-------------|
+| TODO-001 | Cloturer preuve CI distante multi-environnements | in-progress | P0 | `scripts/ci/run_qa_all.sh` local PASS; aucune URL de run distante archivee | Declencher `workflow_dispatch` sur `.github/workflows/sim-host-tests.yml` puis archiver les URLs dans ce plan. |
+| TODO-002 | Finaliser et pousser le lot HIGH-005/HIGH-006 (concurrence web/protection) | in-progress | P0 | Modifs locales sur `firmware/src/WebServerHandler.cpp`, `firmware/src/INAHandler.{h,cpp}`, `firmware/src/BatteryParallelator.cpp`; `pio test -e sim-host` PASS | Committer/pusher ce lot avec message dedie puis lier le hash ici. |
+| TODO-003 | Retablir build `pio run -e kxkm-s3-16MB` de bout en bout | blocked | P0 | Sortie build: dependances C/C++ resolues; echec restant `ModuleNotFoundError: No module named 'intelhex'` depuis `tool-esptoolpy` | Corriger l'environnement Python PlatformIO utilise par `esptool.py` et relancer `pio run -e kxkm-s3-16MB`. |
+| TODO-004 | Nettoyer/finaliser `README.md` et pousser commit separe | in-progress | P1 | README mis a jour partiellement (status/audit/config), statut git local encore modifie | Faire revue finale README, commit dedie docs, puis push. |
+| TODO-005 | Aligner wording historique `src/` vs `firmware/src/` dans sections statiques du plan | not-started | P2 | Sections `Requirements/Files/Testing` contiennent encore des chemins historiques | Normaliser toutes references de chemins vers l'arborescence post-migration. |
+
+### 3. Blocages et dependances
+
+- Blocage principal: preuve CI distante absente (dependance acces GitHub Actions + conservation liens de run).
+- Blocage build cible: environnement Python appele par `esptool.py` ne charge pas `intelhex` au moment de la generation bootloader.
+- Dependances techniques: availability des libs PlatformIO deja ajoutees (INA226, PubSubClient, NTPClient, InfluxDB, WebSockets, ArduinoJson, ESP_SSLClient).
+
+### 4. Check de coherence
+
+- Manques de preuve: TODO-001 et TODO-003 n'ont pas encore de preuve distante/definitive (build S3 complet).
+- Statuts incoherents detectes: backlog `R-*` utilise `planned`; tableau TODO normalise utilise `not-started/in-progress/blocked/completed`.
+- TODO sans Next Action: aucun.
+- Dedupe: actions CI distantes regroupees sous TODO-001; corrections concurrence regroupees sous TODO-002.
+
+### 5. Proposition de patch du fichier cible
+
+- Patch propose/applique: ajout de cette section `Audit Quotidien — 2026-03-30 (normalise)`.
+- Etape suivante recommandee: cloturer TODO-002 et TODO-004 par commit/push, puis lever TODO-003 (build S3 complet) avant cloture globale.
+
+### Hypotheses
+
+- Le parametre `${input:Chemin du fichier plan}` n'etant pas explicitement fourni, la normalisation a ete appliquee au plan principal `plan/refactor-safety-core-web-remote-1.md`.
+## Execution Update — 2026-03-30 (kxkm-ai containers verification + implementation)
+
+- Verification SSH OK sur `kxkm@kxkm-ai`.
+- Inventaire conteneurs existants effectue (dont `mascarade-platformio`, `mascarade-core`, `mascarade-api`).
+- Implementation P0 realisee: script d'orchestration conteneur existant ajoute et valide localement:
+  - `scripts/ml/remote_kxkm_ai_pipeline.sh`
+  - modes ajoutes: `check`, `bootstrap-container`, `run-container`
+- Bootstrap dans conteneur existant reussi (`SYNC_OK`) avec synchro du repo dans `/workspace/KXKM_Batterie_Parallelator`.
+- Dependances ML installees dans `mascarade-platformio` via pip (`numpy`, `pandas`, `pyarrow`, `onnxruntime`, `torch`).
+
+### Evidence
+
+- `scripts/ml/remote_kxkm_ai_pipeline.sh check` -> HOST OK + liste conteneurs.
+- `scripts/ml/remote_kxkm_ai_pipeline.sh bootstrap-container` -> check deps + `SYNC_OK`.
+- `scripts/ml/remote_kxkm_ai_pipeline.sh run-container` -> execution demarree puis blocage explicite:
+  - `BLOCKED: models/consolidated.parquet is missing in container workspace`
+- Verification dataset logs dans conteneur:
+  - `find hardware/log-sd -name "*.csv"` -> `CSV_COUNT=0`.
+
+### TODO normalises (delta)
+
+| TODO ID | Item | Statut | Priorite | Evidence | Next Action |
+|---|---|---|---|---|---|
+| TODO-006 | Rendre le pipeline ML executable dans conteneur existant `mascarade-platformio` | in-progress | P0 | Script + bootstrap + deps installes | Fournir/synchroniser `models/consolidated.parquet` ou source CSV versionnee, puis relancer `run-container`. |
+| TODO-007 | Verifier et verrouiller la source de dataset distante | blocked | P0 | `models/consolidated.parquet` absent, `hardware/log-sd` absent | Definir chemin dataset canonique sur kxkm-ai et l'injecter dans `/workspace/KXKM_Batterie_Parallelator/models/`. |
+
+### Hypotheses
+
+- Le conteneur `mascarade-platformio` est la cible valide pour les jobs ML batch sur kxkm-ai.
+- Les donnees d'entrainement ne sont pas versionnees dans ce repo et doivent etre injectees par artefact externe.
+## Execution Update — 2026-03-30 (dataset unblock tooling on existing container)
+
+- Lot prioritaire implemente pour lever le blocage dataset sans creer de nouveau conteneur.
+- Script `scripts/ml/remote_kxkm_ai_pipeline.sh` etendu avec:
+  - `discover-dataset`
+  - `inject-dataset --dataset-path <abs_path_on_kxkm-ai>`
+- Verification executee sur `mascarade-platformio`:
+  - aucun `consolidated.parquet` trouve cote hote
+  - dataset toujours absent dans `/workspace/KXKM_Batterie_Parallelator/models/`
+
+### Evidence
+
+- `scripts/ml/remote_kxkm_ai_pipeline.sh discover-dataset`
+  - `CONTAINER_DATASET_MISSING:/workspace/KXKM_Batterie_Parallelator/models/consolidated.parquet`
+- `ssh kxkm@kxkm-ai 'find /home/kxkm -type f -name "*.parquet"'`
+  - uniquement des fichiers de test `pyarrow`, aucun dataset metier `consolidated.parquet`
+- `scripts/ml/remote_kxkm_ai_pipeline.sh run-container`
+  - `BLOCKED: models/consolidated.parquet is missing in container workspace`
+
+### TODO normalises (delta)
+
+| TODO ID | Item | Statut | Priorite | Evidence | Next Action |
+|---|---|---|---|---|---|
+| TODO-006 | Pipeline ML sur conteneur existant `mascarade-platformio` | in-progress | P0 | Orchestrateur complet (`check/bootstrap-container/run-container/discover-dataset/inject-dataset`) | Injecter le dataset via `inject-dataset` des que le chemin source est connu. |
+| TODO-007 | Source dataset canonique sur kxkm-ai | blocked | P0 | Recherche hote negative pour `consolidated.parquet`; conteneur sans dataset | Identifier le chemin dataset metier (ou artefact externe) puis relancer `run-container`. |
+
+### Hypotheses (delta)
+
+- Le dataset metier est stocke hors `/home/kxkm` (volume externe, partage reseau, ou artefact CI).
+- Une fois chemin fourni, l'injection dans conteneur existant est immediate via `inject-dataset`.
+## Audit Quotidien — 2026-03-30 (delta implementation start)
+
+### 1. Resume journalier (5 lignes max)
+
+- Demarrage implementation confirme sur lot P0 gouvernance + cloud/containers.
+- Verification SSH/containers kxkm-ai validee, orchestration remote operationnelle.
+- Blocage critique maintenu: dataset `models/consolidated.parquet` absent dans le conteneur cible.
+- Le plan est mis a jour avec preuves runtime fraiches et actions immediates.
+- Les diagrammes architecture ont ete regeneres pour enlever la corruption documentaire.
+
+### 2. Tableau TODO normalise (delta)
+
+| TODO ID | Item | Statut | Priorite | Evidence | Next Action |
+|---|---|---|---|---|---|
+| TODO-001 | Cloturer preuve CI distante multi-environnements | blocked | P0 | Aucune URL run distante archivee dans ce plan a date | Pousser workflow sur branche par defaut, declencher run, archiver URL + statut. |
+| TODO-006 | Pipeline ML conteneur existant `mascarade-platformio` | in-progress | P0 | `check` OK, `discover-dataset` -> `CONTAINER_DATASET_MISSING`, `run-container` bloque sur dataset manquant | Injecter le dataset via `inject-dataset --dataset-path <abs_path_on_kxkm-ai>` puis relancer `run-container`. |
+| TODO-007 | Source dataset canonique sur kxkm-ai | blocked | P0 | Recherche negative de `consolidated.parquet` sur chemins usuels hote/conteneur | Identifier et documenter le chemin dataset canonique, puis injecter dans `/workspace/KXKM_Batterie_Parallelator/models/`. |
+
+### 3. Blocages et dependances
+
+- Blocage P0-Data: absence du dataset `consolidated.parquet` dans la cible conteneur.
+- Blocage P0-CI: preuve CI distante non capturee (runs URL manquants).
+
+### 4. Check de coherence
+
+- Statuts harmonises: TODO CI passe explicitement en `blocked` (plus `in-progress`).
+- TODO sans Next Action: aucun.
+- Evidence `UNKNOWN`: retiree du delta courant, remplacee par constats verifiables.
+
+### 5. Proposition de patch du fichier cible
+
+- Patch applique: ajout de ce delta `Audit Quotidien — 2026-03-30 (delta implementation start)`.

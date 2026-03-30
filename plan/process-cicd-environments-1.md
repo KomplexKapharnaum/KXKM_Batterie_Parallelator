@@ -138,3 +138,17 @@ bash scripts/ci/collect_remote_qa_evidence.sh qa-cicd-environments object-orrien
 
 - Aligner les workflows CI sur `main` et produire un run distant verifiable (URL + statut) pour cloturer TASK-006.
 - Verifier env `sim-host` vs `native` dans `platformio.ini` et scripts CI pour supprimer l'ambiguite.
+## Audit Quotidien — 2026-03-30 (delta coherence CI)
+
+### Statut critique
+
+- TASK-006 reste `blocked` tant que la preuve distante n'est pas archivee avec URL de run CI.
+
+### Evidence fraiche
+
+- Verification cloud/containers: `scripts/ml/remote_kxkm_ai_pipeline.sh check` -> host + conteneurs OK.
+- Le blocage dataset est confirme cote conteneur (`CONTAINER_DATASET_MISSING`), ce qui n'impacte pas la nature `blocked` de TASK-006 mais confirme l'absence de preuve distante complete.
+
+### Next Action unique
+
+- Generer un run CI distant sur la branche par defaut et archiver les URLs de runs dans ce plan, puis passer TASK-006 a `completed`. 
