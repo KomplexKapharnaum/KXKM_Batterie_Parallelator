@@ -472,3 +472,19 @@ Les artefacts de pilotage et d'execution continue sont centralises ici :
 - [Assignation agents et taches](docs/governance/agent-task-assignment.md)
 - [Gates produit et variantes](docs/governance/product-gates-variants.md)
 - [Plans actifs](plan/process-cicd-environments-1.md), [plan safety/web/ML](plan/refactor-safety-core-web-remote-1.md)
+
+---
+
+## TinyML & Edge AI Literature Library
+
+See [docs/05_Edge_TinyML_Embedded_IoT/](./docs/05_Edge_TinyML_Embedded_IoT/) for organized research library of 12 peer-reviewed papers (2020–2026) covering:
+- **Quantization strategies** for neural network deployment
+- **Edge inference optimization** for battery SOH/RUL prediction on MCUs
+- **SOTA techniques** for TinyML and embedded AI systems
+
+Priority tiers:
+- 📌 **HIGH:** MCUNet, Lightweight DL Survey (validated against KXKM FPNN baseline)
+- 🟡 **MEDIUM:** SLMs, TinyNav, TinyAgent, EmbedAgent (Q2–Q3 2026 roadmap)
+- 📋 **LOW:** Security, Audio, Ultra-low-power (future reference)
+
+Baseline achievement: **FPNN INT8 quantization MAPE degradation +3.04 pp** (≤5 pp gate) ✅ PASS
