@@ -1,11 +1,8 @@
 # KXKM Batterie Parallelator
 
-[![CI](https://github.com/KomplexKapharnaum/KXKM_Batterie_Parallelator/actions/workflows/ci.yml/badge.svg)](https://github.com/KomplexKapharnaum/KXKM_Batterie_Parallelator/actions/workflows/ci.yml)
-
 Système de gestion de batteries en parallèle basé sur un ESP32 (Battery Management Unit — BMU). Ce firmware surveille, protège et pilote automatiquement jusqu'à 16 packs batterie connectés en parallèle.
 
 Développé par [**KompleX KapharnaüM**](https://komplex-kapharnaum.net) pour alimenter leurs installations de scénographie numérique en milieu urbain, sans accès au réseau électrique.
-Suivi technique et intégration firmware/hardware : [L'Électron Rare](https://lelectronrare.fr).
 
 ---
 
@@ -19,7 +16,6 @@ Suivi technique et intégration firmware/hardware : [L'Électron Rare](https://l
 - [Fonctionnement](#fonctionnement)
 - [Configuration](#configuration)
 - [Structure du projet](#structure-du-projet)
-- [Tests](#tests)
 - [Installation et compilation](#installation-et-compilation)
 - [Câblage I2C et adressage](#câblage-i2c-et-adressage)
 - [Comportement des LEDs](#comportement-des-leds)
@@ -171,70 +167,28 @@ int Nb_switch_max         = 5;          // Nombre max de déconnexions avant blo
 
 ```
 KXKM_Batterie_Parallelator/
-├── specs/                      # Kill_LIFE — spécifications formelles
-│   ├── 00_intake.md            # Gate S0 — contexte et besoin ✅
-│   ├── 01_spec.md              # Fonctions F01–F11, paramètres ✅
-│   ├── 02_arch.md              # Architecture firmware + hardware ✅
-│   └── 03_plan.md              # Gates S0–S3 et todos ✅
 ├── src/
-│   ├── main.cpp                # Initialisation et boucle principale
-│   ├── INA_Func.h              # Fonctions de lecture INA237
-│   ├── TCA_Func.h              # Fonctions de contrôle TCA9535/9555
-│   ├── compute.h               # Logique de commutation et LED
-│   ├── pin_mapppings.h         # Définition des GPIO
-│   └── data_log.h              # Journalisation
-├── test/
-│   └── test_protection/        # Kill_LIFE — tests Unity natifs (10 tests)
-│       └── test_protection.cpp # Protection V/I/déséquilibre/verrouillage
+│   ├── main.cpp            # Initialisation et boucle principale
+│   ├── INA_Func.h          # Fonctions de lecture INA237
+│   ├── TCA_Func.h          # Fonctions de contrôle TCA9535/9555
+│   ├── compute.h           # Logique de commutation et LED
+│   ├── pin_mapppings.h     # Définition des GPIO
+│   └── data_log.h          # Journalisation (réservé)
 ├── lib/
-│   └── INA237/                 # Bibliothèque INA237 locale (fork)
+│   └── INA237/             # Bibliothèque INA237 locale (fork)
 ├── data/
-│   ├── index.html              # Interface web embarquée
+│   ├── index.html          # Interface web embarquée
 │   ├── style.css
 │   └── script.js
-├── PCB/                        # Schémas et PCB KiCad BMU v1 (fabriqué)
-├── PCB BMU v2/                 # KiCad BMU v2 + Gerber JLCPCB (ERC 0 violations)
-│   ├── BMU v2.kicad_sch        # Schéma principal
-│   ├── erc_report.json         # Rapport ERC — 0 violations
-│   └── ...
-├── examples INA/               # Exemples d'utilisation INA237
-├── examples TCA95x5/           # Exemples d'utilisation TCA9535/9555
+├── PCB/                    # Schémas et PCB KiCad (v1)
+├── PCB BMU v2/             # Schémas et PCB KiCad (v2) + Gerber JLCPCB
+├── examples INA/           # Exemples d'utilisation INA237
+├── examples TCA95x5/       # Exemples d'utilisation TCA9535/9555
 ├── test code/
-│   └── scanner_I2C.cpp         # Utilitaire de scan I2C
-├── .github/workflows/ci.yml    # CI — tests Unity natifs
-├── partitions_16MB.csv         # Table de partitions flash ESP32 16 MB
-├── platformio.ini              # Configuration PlatformIO (env native + kxkm-v3-16MB)
-├── CLAUDE.md                   # Conventions pour les assistants AI
-└── adresse TCA_INA.xlsx        # Tableau de référence des adresses I2C
+│   └── scanner_I2C.cpp     # Utilitaire de scan I2C
+├── platformio.ini          # Configuration PlatformIO
+└── adresse TCA_INA.xlsx    # Tableau de référence des adresses I2C
 ```
-
----
-
-## Tests
-
-Les tests unitaires couvrent la logique de protection embarquée, sans matériel.
-
-```bash
-# Lancer les tests natifs (pas d'ESP32 requis)
-pio test -e native
-```
-
-**10 tests Unity** — `test/test_protection/` :
-
-| Test | Vérifie |
-|------|---------|
-| `test_undervoltage_disconnects` | Coupure si tension < 24 V |
-| `test_nominal_voltage_connects` | Connexion si tension nominale |
-| `test_overvoltage_disconnects` | Coupure si tension > 30 V |
-| `test_overcurrent_positive_disconnects` | Coupure si courant > +1 A |
-| `test_overcurrent_negative_disconnects` | Coupure si courant < −1 A |
-| `test_nominal_current_connects` | Connexion si courant nominal |
-| `test_voltage_imbalance_disconnects` | Coupure si déséquilibre > 1 V |
-| `test_voltage_imbalance_within_threshold_connects` | Connexion si déséquilibre < 1 V |
-| `test_permanent_lock_above_max` | Verrouillage permanent après 5+ coupures |
-| `test_no_permanent_lock_at_max` | Pas de verrouillage à 5 coupures exactement |
-
-La CI GitHub Actions exécute ces tests automatiquement à chaque push.
 
 ---
 
