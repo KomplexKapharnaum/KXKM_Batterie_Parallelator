@@ -128,33 +128,56 @@ Les fichiers de conception électronique (KiCad) sont disponibles dans les dossi
 
 ## Status & Audit (2026-03-30)
 
-### 🔍 Audit de sécurité post-migration
-
-Un audit complet du firmware post-migration arborescence (migration `firmware/` + `hardware/`) a identifié des risques critiques/hauts qui ont été traités par lots.
-
-#### 🔴 **CRITIQUE** — Statut d'implémentation
+### 🔍 Audit de sécurité — Phase 1 (migration, mars 2026)
 
 | Issue | Fichier | Risque | Statut |
 |-------|---------|--------|--------|
 | **CRIT-001** | `firmware/src/main.cpp` | Appels obsolètes (`setup_tca()`, `setup_ina()`) | ✅ Corrigé |
-| **CRIT-002** | `firmware/src/main.cpp` | Boucles basées sur global `Nb_INA` non fiable | ✅ Corrigé (`inaHandler.getNbINA()`) |
-| **CRIT-003** | `firmware/src/TCAHandler.cpp` | Accès I2C sans verrou | ✅ Corrigé (`I2CLockGuard`) |
+| **CRIT-002** | `firmware/src/main.cpp` | Boucles basées sur global `Nb_INA` non fiable | ✅ Corrigé |
+| **CRIT-003** | `firmware/src/TCAHandler.cpp` | Accès I2C sans verrou | ✅ Corrigé |
 | **CRIT-004** | `firmware/src/main.cpp` | `i2cMutexInit()` manquant | ✅ Corrigé |
+| **HIGH-005** | `firmware/src/WebServerHandler.cpp` | Course V/I WebSocket | ✅ Corrigé |
+| **HIGH-006** | `firmware/src/BatteryParallelator.cpp` | Course `reconnect_time[]` | ✅ Corrigé |
+| **HIGH-007** | `firmware/src/main.cpp` | Objets globaux non instanciés | ✅ Corrigé |
 
-#### 🟠 **HAUTE** — Statut d'implémentation
+### 🔍 Audit de sécurité — Phase 2 (audit approfondi, 2026-03-30)
 
-- **HIGH-005** : Cohérence lecture Web V/I dans WebSocket — ✅ corrigé via lecture atomique `read_voltage_current()`.
-- **HIGH-006** : Risque de course `reconnect_time[]`/`Nb_switch_max` — ✅ corrigé via accès mutex renforcé dans `check_battery_connected_status()`.
-- **HIGH-007** : Objets globaux `BattParallelator` / `batteryManager` — ✅ instanciés dans `main.cpp`.
+Audit complet sur 4 domaines (I2C concurrence, web sécurité, logique protection, cloud/FreeRTOS).
 
-#### 🟡 **MOYENNE** — Reste à finaliser
+#### 🔴 **CRITIQUE** — À corriger avant S3
 
-- **MED-010** : Harmonisation stricte unités mV/V entre docs, config et logique runtime.
-- **Dépendances build S3** : rétablir build complet `kxkm-s3-16MB` (dépendances PlatformIO manquantes).
+| Issue | Fichier | Risque | Statut |
+|-------|---------|--------|--------|
+| **CRIT-A** | `BatteryParallelator.cpp` + `main.cpp` | Unités mV/V cassées → protection tension non fonctionnelle | ⬜ Plan P0 |
+| **CRIT-B** | `BatteryParallelator.cpp:589` | Déséquilibre compare config (30V) au lieu du max flotte | ⬜ Plan P1 |
+| **CRIT-C** | `BatteryRouteValidation.cpp:65` | Deadlock double I2CLockGuard → web switch_on bloqué | ⬜ Plan P2 |
+| **CRIT-D** | `WebServerHandler.cpp` + `WebServerFilesJs.h` | Routes GET + token vide + JS sans auth | ⬜ Plan P3 |
+
+#### 🟠 **HAUTE** — Corrections secondaires
+
+| Issue | Risque | Statut |
+|-------|--------|--------|
+| **HIGH-1** | Surcourant négatif ne déclenche pas ERROR | ⬜ Plan |
+| **HIGH-2** | WebSocket port 81 non authentifié | ⬜ Plan |
+| **HIGH-3** | XSS dans `/log` (données SD non échappées) | ⬜ Plan |
+| **HIGH-4** | MQTT plaintext (pas de TLS) | ⬜ Plan |
+| **HIGH-5** | `setI2CSpeed()` sans I2CLockGuard | ⬜ Plan |
+| **HIGH-7** | `battery_voltages[]` public | ⬜ Plan |
+| **HIGH-8** | Task `timeAndInflux` se tue sur échec SD | ⬜ Plan |
+
+#### 🟡 **MOYENNE** — En cours
+
+| Issue | Risque | Statut |
+|-------|--------|--------|
+| **MED-1** | Pas de verrouillage permanent implémenté (F08) | ⬜ Plan |
+| **MED-010** | Harmonisation unités mV/V (racine de CRIT-A) | ⬜ Plan |
+
+> **Plan de correction détaillé :** `docs/superpowers/plans/2026-03-30-audit-crit-fixes.md`
+> **Plan d'implémentation :** `plan/refactor-safety-core-web-remote-1.md` Phase 4 (TASK-024..034)
 
 ### ✅ Tests actuels
 
-Après migration + correctifs sécurité : **`pio test -e sim-host` PASSED** — 10/10 ✅
+`pio test -e sim-host` PASSED — 10/10 ✅ (tests sur stub logique, pas sur code réel — voir audit MED-2)
 
 ```text
 firmware/test/test_protection/ — protections V/I/déséquilibre/verrouillage

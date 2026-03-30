@@ -3,8 +3,8 @@
 **Project**: KXKM Batterie Parallelator
 **Repository**: [KomplexKapharnaum/KXKM_Batterie_Parallelator](https://github.com/KomplexKapharnaum/KXKM_Batterie_Parallelator) (branch: `object-orriented`)
 **Author**: Clement Saillant / Komplex Kapharnaum
-**Date**: 2026-03-27
-**Status**: Draft
+**Date**: 2026-03-30
+**Status**: v1.0
 
 ---
 
@@ -156,12 +156,109 @@ Total ML footprint:       ~33 KB
 
 ---
 
+## 4b. Literature Review & SOTA Baseline (2026-03-30)
+
+### Edge Quantization Techniques
+
+**Key References:**
+- **MCUNet: ImageNet on MCU** (MIT, 2020) — Memory-efficient architecture co-design for edge inference. Patch-based processing reduces peak SRAM by 30-50%, applicable to FPNN sliding-window feature computation on ESP32.
+- **Lightweight Deep Learning Survey** (TinyML Consortium, 2024-04) — Quantization taxonomy, calibration strategies, latency/accuracy trade-offs on ARM Cortex-M and RISC-V.
+
+**Applicability KXKM:** FPNN feature-based (pas séquenciel), donc les patterns patch-based MCUNet se transfèrent directement. ESP32-S3 (520 KB SRAM + 4 MB PSRAM) aligne avec les contraintes MCU étudiées. Le coût de quantification repose sur la qualité de calibration, pas les changements architecturaux.
+
+### Quantization Methods Comparison
+
+| Méthode | Format | Per-Unit | Calibration | Avantages | Inconvénients |
+|---------|--------|----------|-------------|-----------|---------------|
+| **QDQ** | INT8 | Per-channel | Stratified (500) | Préserve accuracy | Plus grand |
+| Per-tensor | INT8 | Single scale | Random | Plus rapide, plus petit | 2-5pp perte |
+| Per-channel | INT8 | Per-channel | Stratified | Meilleure accuracy | ~10% plus grand |
+| Clip (1-99) | INT8 overlay | Pré-quant | Pré-calibration | Réduction bruit | Perte cas rares |
+
+**Sélection KXKM actuelle:** QDQ + Per-channel + Stratified (500 samples) + Clip 1-99 percentile.
+
+### FPNN Quantization Baseline (Phase 2)
+
+| Plateforme | Modèle | Quantization | Inférence | MAPE | Taille | Notes |
+|------------|--------|-------------|-----------|------|--------|-------|
+| **ESP32-S3** | FPNN | QDQ+Stratified+Clip | <100ms | 10.77% | 15.99 KB | **Gate pass** |
+| Référence | FPNN | Float32 | N/A | 7.73% | ~20 KB | Baseline |
+
+**Dégradation:** 10.77% - 7.73% = +3.04 pp (seuil gate: ≤5 pp) ✅
+
+### SOTA Roadmap (Q2-Q4 2026)
+
+| Paper | Domaine | Priorité | ETA | Justification |
+|-------|---------|----------|-----|---------------|
+| TinyNav (2026-03) | Systems | MEDIUM | Q2 | DMA/pipeline pour ESP32 |
+| Fine-Tuning SLMs (2025-03) | SLMs | MEDIUM | Q2-Q3 | Advisory LLM design |
+| Shakti (2025-03) | SLM bench | MEDIUM | Q3 | Hybrid sizing |
+| TinyAgent (2024-09) | Agents | MEDIUM | Q2-Q3 | Local advisory |
+| EmbedAgent (2025-06) | LLM metrics | MEDIUM | Q3 | Validation |
+
+Voir [docs/05_Edge_TinyML_Embedded_IoT/](./05_Edge_TinyML_Embedded_IoT/) pour la bibliothèque complète classée par priorité.
+
+---
+
 ## 5. Integration Architecture
 
 ### 5.1 MCU Firmware Changes (I2C-based, platform-agnostic)
 
 New files to add to `src/`:
 
+### 4.3 Quantization Quality Strategy (2026-03-30)
+
+Remote execution on `kxkm-ai` confirmed that the ML pipeline is operational end-to-end in the existing `mascarade-platformio` container, but the latest dataset split produced a quantized degradation above the acceptance gate.
+
+Current remote evidence:
+- Float32 FPNN MAPE: `7.7289%`
+- Quantized INT8 MAPE: `14.2045%`
+- Quantized size: `15.99 KB`
+- Quantization degradation: `+6.4756 pp`
+- Verdict: `overall_gate_pass=false`
+
+Operational rule:
+- Treat this as a model-quality issue, not an infrastructure issue.
+- Keep firmware protections authoritative regardless of ML quality status.
+
+Phase 3B iteration levers:
+
+| Lever | Default | Iteration target | Intent |
+|---|---|---|---|
+| Quantization format | `qdq` | compare `qdq` vs `qoperator` | reduce degradation or size with explicit trade-off |
+| Calibration strategy | `random` | `stratified` by `device/channel` | reduce split bias during calibration |
+| Calibration samples | `200` | `500` then `1000` if needed | stabilize the representative calibration set |
+| Percentile clipping | none | `1 99` then `2 98` | attenuate noisy tails before calibration |
+| Per-channel weights | enabled | compare with per-tensor only if size pressure dominates | preserve accuracy first |
+
+Acceptance criteria for the next promotion gate:
+- Float32 FPNN MAPE `<= 15.0%`
+- Quantized FPNN MAPE `<= 15.0%`
+- Quantized model size `<= 50 KB`
+- Quantized MAPE degradation `<= 5.0 pp`
+
+Recommended experiment order:
+1. `qdq` + `stratified` + `500` samples + clip `1 99`
+2. `qdq` + `stratified` + `1000` samples + clip `1 99`
+3. `qoperator` + `stratified` + `500` samples + clip `1 99`
+### 4.4 First successful remediation baseline (2026-03-30)
+
+The first quality iteration already produced a passing remote baseline:
+- format: `qdq`
+- calibration: `stratified`
+- calibration samples: `500`
+- percentile clipping: `1 99`
+
+Observed result on `kxkm-ai`:
+- float32 MAPE `7.7289%`
+- quantized MAPE `10.7734%`
+- quantized degradation `+3.0446 pp`
+- quantized size `15.99 KB`
+- gate verdict `overall_gate_pass=true`
+
+Decision:
+- keep this configuration as the operational default for the current dataset
+- run any additional quantization experiments only as an optimization track, not as a blocker for promotion
 ```raw
 src/
   SOHEstimator.h        -- SOH inference wrapper (TFLite Micro or ESP-DL)
