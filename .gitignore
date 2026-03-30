@@ -99,6 +99,7 @@ src/credentials.h
 
 # Données terrain et modèles ML (binaires lourds)
 data/
+!firmware-idf/data/
 models/*.pt
 models/*.onnx
 .failsafe/
