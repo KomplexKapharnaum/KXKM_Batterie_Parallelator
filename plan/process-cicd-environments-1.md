@@ -120,3 +120,21 @@ bash scripts/ci/collect_remote_qa_evidence.sh qa-cicd-environments object-orrien
 
 - Publier `.github/workflows/sim-host-tests.yml` sur `master` (ou via PR) pour rendre `qa-cicd-environments` visible à distance.
 - Relancer ensuite `scripts/ci/request_remote_qa_proof.sh` puis marquer TASK-006 `completed` avec URLs de runs.
+## Execution Update — 2026-03-30 (analyse approfondie + gouvernance projet)
+
+- Consolidation des analyses multi-composants via agents: `BMU Safety Review`, `QA Gate`, `Explore`.
+- Blocker QA principal maintenu: preuve CI distante complete non stabilisee (TASK-006).
+- Nouveaux artefacts de pilotage crees dans `docs/` : gouvernance, diagrammes Mermaid, feature map, assignation agents/taches.
+- Script de synchronisation contexte ajoute: `scripts/project/update_project_context.sh`.
+
+### Evidence
+
+- Analyse surete: findings High/Medium classes avec recommandations actionnables.
+- Analyse QA: verdict global `FAIL` tant que preuves distantes/alignement workflows non finalises.
+- Cartographie projet: structure documentaire cible et artefacts manquants identifies puis crees.
+
+
+### Next Action (P0)
+
+- Aligner les workflows CI sur `main` et produire un run distant verifiable (URL + statut) pour cloturer TASK-006.
+- Verifier env `sim-host` vs `native` dans `platformio.ini` et scripts CI pour supprimer l'ambiguite.

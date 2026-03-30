@@ -294,3 +294,27 @@ This plan updates the existing BMU implementation plan by keeping Phase 1 (runti
 
 - Patch appliqué: ajout de cette section `Audit Quotidien — 2026-03-29` dans `plan/refactor-safety-core-web-remote-1.md`.
 - Étape suivante recommandée: compléter TODO-001 avec liens de runs GitHub Actions puis marquer `completed`.
+## Execution Update — 2026-03-30 (synthese analyses et backlog de correction)
+
+- Revue surete firmware executee: aucun `Critical`, plusieurs `High` detectes sur surface web mutatrice et chemins I2C.
+- Revue QA executee: couverture locale partielle validee, mais gate distante et alignement de branche encore incomplets.
+- Ajout des documents de cadrage pour execution continue:
+  - `docs/GOVERNANCE_INTEGRATION.md`
+  - `docs/ARCHITECTURE_DIAGRAMS.md`
+  - `docs/FEATURE_MAP.md`
+  - `docs/AGENT_TASK_ASSIGNMENT.md`
+
+### Prioritized Backlog (issue-ready)
+
+| ID | Priority | Action | Owner | Status |
+|---|---|---|---|---|
+| R-001 | P0 | Corriger le chemin web mutateur expose (auth token en query/GET) | SWE + SE: Security | planned |
+| R-002 | P0 | Aligner workflows QA sur branche par defaut et produire preuve distante | QA Gate + SE: DevOps/CI | in-progress |
+| R-003 | P1 | Couvrir WebServerHandler mutateur par tests integration host | SWE | planned |
+| R-004 | P1 | Clarifier env `sim-host` vs `native` dans pipeline et docs | QA Gate | in-progress |
+| R-005 | P1 | Executer script snapshot contexte a chaque lot merge | SE: Tech Writer | in-progress |
+
+### Evidence
+
+- Findings issus des agents `BMU Safety Review`, `QA Gate` et `Explore` integres dans les documents de gouvernance et de planification.
+- README deja aligne avec image PCB et liens de pilotage en cours de mise a jour.

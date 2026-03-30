@@ -7,10 +7,6 @@ Système de gestion de batteries en parallèle basé sur un ESP32 (Battery Manag
 Développé par [**KompleX KapharnaüM**](https://komplex-kapharnaum.net) pour alimenter leurs installations de scénographie numérique en milieu urbain, sans accès au réseau électrique.
 Suivi technique et intégration firmware/hardware : [L'Électron Rare](https://lelectronrare.fr).
 
-## Aperçu du PCB
-
-![Aperçu PCB BMU](BMU.jpeg)
-
 ---
 
 ## Table des matières
@@ -29,6 +25,7 @@ Suivi technique et intégration firmware/hardware : [L'Électron Rare](https://l
 - [Comportement des LEDs](#comportement-des-leds)
 - [Bibliothèques utilisées](#bibliothèques-utilisées)
 - [Licence](#licence)
+- [Pilotage projet](#pilotage-projet)
 
 ---
 
@@ -95,6 +92,12 @@ Les fichiers de conception électronique (KiCad) sont disponibles dans les dossi
 ---
 
 ## Architecture du système
+
+## Aperçu du PCB
+
+> Rendu 3D de la carte BMU (version PCB).
+
+![Aperçu PCB BMU](BMU.jpeg)
 
 ```raw
 ┌─────────────────────────────────────────────────────────────────┐
@@ -379,3 +382,17 @@ Ce projet est distribué sous licence **GNU General Public License v3.0** — vo
 ---
 
 *Projet développé par [KompleX KapharnaüM](https://komplex-kapharnaum.net) — compagnie de spectacle vivant et d'arts numériques, Villeurbanne. · [GitHub](https://github.com/KomplexKapharnaum)*
+
+---
+
+## Pilotage projet
+
+Les artefacts de pilotage et d'execution continue sont centralises ici :
+
+- [Gouvernance integration](docs/GOVERNANCE_INTEGRATION.md)
+- [Diagrammes Mermaid d'architecture](docs/ARCHITECTURE_DIAGRAMS.md)
+- [Feature map BMU](docs/FEATURE_MAP.md)
+- [Assignation agents et taches](docs/AGENT_TASK_ASSIGNMENT.md)
+- [Gates produit et variantes](docs/PRODUCT_GATES_VARIANTS.md)
+- [Plans actifs](plan/process-cicd-environments-1.md), [plan safety/web/ML](plan/refactor-safety-core-web-remote-1.md)
+
