@@ -1,0 +1,32 @@
+22:48:11  INFO      Torch device: cpu
+22:48:11  INFO      Loading models/features_adapted.parquet
+22:48:11  INFO      Raw shape: (15272, 20)
+22:48:11  INFO      After dropna: (11887, 21)
+22:48:11  INFO      Devices found: ['gocab', 'k-led1', 'k-led2', 'tender']
+22:48:11  INFO      Split — train: ['gocab']  val: ['k-led1']  test: ['k-led2']
+22:48:11  INFO      Train: 4567  Val: 2801  Test: 2427
+22:48:11  INFO      Input features: 13
+22:48:11  INFO      FPNN — degree=2  hidden=64  params=6785  poly_features=104
+22:48:12  INFO      Epoch   1/50  train_loss=0.574156  val_loss=0.765727  (0.2s)
+22:48:13  INFO      Epoch  10/50  train_loss=0.339697  val_loss=0.369873  (0.6s)
+22:48:13  INFO      Epoch  20/50  train_loss=0.322594  val_loss=0.361639  (1.0s)
+22:48:14  INFO      Epoch  30/50  train_loss=0.319076  val_loss=0.361201  (1.5s)
+22:48:14  INFO      Epoch  40/50  train_loss=0.317846  val_loss=0.360959  (2.1s)
+22:48:15  INFO      Epoch  50/50  train_loss=0.317077  val_loss=0.360825  (2.5s)
+22:48:15  INFO      Best epoch: 46  best val_loss: 0.360760
+22:48:15  INFO      Test metrics — MAPE: 6.15%  RMSE: 0.428533  R2: 0.0986
+22:48:15  INFO      Saved PyTorch model: models/fpnn_soh.pt (31.6 KB)
+/Users/electron/Documents/Lelectron_rare/1-KXKM/KXKM_Batterie_Parallelator/scripts/ml/train_fpnn.py:421: DeprecationWarning: You are using the legacy TorchScript-based ONNX export. Starting in PyTorch 2.9, the new torch.export-based ONNX exporter has become the default. Learn more about the new export logic: https://docs.pytorch.org/docs/stable/onnx_export.html. For exporting control flow: https://pytorch.org/tutorials/beginner/onnx/export_control_flow_model_to_onnx_tutorial.html
+  torch.onnx.export(
+22:48:15  INFO      Saved ONNX model: models/fpnn_soh.onnx (29.1 KB)
+22:48:15  INFO      ============================================================
+22:48:15  INFO      FPNN Training Summary
+22:48:15  INFO        Features:     13  (degree-2 expansion -> 104)
+22:48:15  INFO        Parameters:   6785
+22:48:15  INFO        Best epoch:   46 / 50
+22:48:15  INFO        Val MSE:      0.360760
+22:48:15  INFO        Test MAPE:    6.15%
+22:48:15  INFO        Test RMSE:    0.428533
+22:48:15  INFO        Test R2:      0.0986
+22:48:15  INFO        Model size:   31.6 KB (pt)  29.1 KB (onnx)
+22:48:15  INFO      ============================================================

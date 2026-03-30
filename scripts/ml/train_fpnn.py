@@ -11,21 +11,18 @@ Ground-truth State-of-Health requires controlled lab measurements (full charge/d
 cycles with calibrated equipment).  This dataset has no lab SOH labels, so we construct
 a *proxy* target:
 
-    soh_proxy = rest_voltage_normalised          (per device-channel)
+    Phase 1 (broken):   soh_proxy = rest_voltage_normalised  (DEVICE-DEPENDENT, 56% NaN) ✗
+    Phase 2.2 (fixed):  soh_proxy = capacity_fade_ratio      (DEVICE-INDEPENDENT) ✓
 
-    where rest_voltage_normalised maps the observed rest_voltage range for each
-    device+channel pair into [0, 1].  Higher rest voltage generally indicates a
-    healthier cell.  This is an imperfect proxy — it conflates SOC (state of charge)
-    with SOH — but it is the best available signal in the dataset and still lets
-    the model learn meaningful voltage-health correlations.
+    Capacity fade is computed from ah_cons (cumulative discharge) and is physics-based,
+    independent of device-specific voltage offsets. See build_soh_proxy_capacity().
 
-    A secondary proxy based on cumulative ah_cons degradation trend is included as
-    an option (--soh-mode=capacity).
+    A secondary voltage-based proxy is available via --soh-mode=voltage for reference only.
 
 Usage
 -----
     python scripts/ml/train_fpnn.py --input data/features.parquet
-    python scripts/ml/train_fpnn.py --input data/features.parquet --degree 2 --hidden 64
+    python scripts/ml/train_fpnn.py --input data/features.parquet --degree 2 --hidden 64 --soh-mode capacity
 """
 
 from __future__ import annotations
@@ -177,6 +174,7 @@ def prepare_data(
     path: str,
     soh_mode: str = "voltage",
     test_device: str | None = None,
+    val_ratio: float = 0.1,
 ) -> tuple:
     """Load parquet, build features & target, split by device.
 
@@ -207,21 +205,22 @@ def prepare_data(
     log.info("Devices found: %s", devices)
 
     if len(devices) >= 3:
-        # 3 devices: 1 train, 1 val, 1 test (or weighted by size)
-        # Use largest for train, middle for val, smallest for test
+        # Device-aware split with broader training coverage:
+        # - hold out one device for test (explicit or smallest dataset)
+        # - train on remaining devices
+        # - carve validation from train rows with deterministic shuffle
         dev_sizes = df.groupby("device").size().sort_values(ascending=False)
-        train_devs = [dev_sizes.index[0]]
-        val_devs = [dev_sizes.index[1]]
-        test_devs = [dev_sizes.index[2]]
         if test_device and test_device in devices:
             test_devs = [test_device]
-            remaining = [d for d in devices if d != test_device]
-            train_devs = [remaining[0]]
-            val_devs = [remaining[1]]
+        else:
+            test_devs = [dev_sizes.index[-1]]
+        train_devs = [d for d in devices if d not in test_devs]
+        val_devs = None
     elif len(devices) == 2:
+        # Keep one device for test, train/val split on the other.
         train_devs = [devices[0]]
-        val_devs = [devices[1]]
-        test_devs = [devices[1]]  # val == test when only 2 devices
+        test_devs = [devices[1]]
+        val_devs = None
     else:
         # Single device — fall back to random 80/10/10
         log.warning("Only 1 device — falling back to random split (leakage possible).")
@@ -233,13 +232,17 @@ def prepare_data(
         train_idx, val_idx, test_idx = idx[:n_train], idx[n_train:n_train + n_val], idx[n_train + n_val:]
 
     if train_devs is not None:
-        log.info("Split — train: %s  val: %s  test: %s", train_devs, val_devs, test_devs)
-        train_mask = df["device"].isin(train_devs)
-        val_mask = df["device"].isin(val_devs)
-        test_mask = df["device"].isin(test_devs)
-        df_train = df[train_mask]
-        df_val = df[val_mask]
-        df_test = df[test_mask]
+        log.info("Split — train devices: %s  test devices: %s", train_devs, test_devs)
+        train_pool = df[df["device"].isin(train_devs)].copy()
+        df_test = df[df["device"].isin(test_devs)].copy()
+
+        rng = np.random.RandomState(42)
+        idx = rng.permutation(len(train_pool))
+        n_val = max(1, int(val_ratio * len(train_pool)))
+        val_idx = idx[:n_val]
+        train_idx = idx[n_val:]
+        df_val = train_pool.iloc[val_idx]
+        df_train = train_pool.iloc[train_idx]
     else:
         df_np = df.to_numpy()  # not used, just for indexing
         df_train = df.iloc[train_idx]
@@ -301,7 +304,10 @@ def train(args: argparse.Namespace) -> None:
 
     # Data
     X_tr, y_tr, X_va, y_va, X_te, y_te, f_means, f_stds = prepare_data(
-        args.input, soh_mode=args.soh_mode,
+        args.input,
+        soh_mode=args.soh_mode,
+        test_device=args.test_device,
+        val_ratio=args.val_ratio,
     )
     n_features = X_tr.shape[1]
     log.info("Input features: %d", n_features)
@@ -481,12 +487,14 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--dropout", type=float, default=0.1)
     p.add_argument("--batch-size", type=int, default=1024)
     p.add_argument("--patience", type=int, default=10, help="Early stopping patience")
+    p.add_argument("--test-device", default=None, help="Optional device to hold out for test split")
+    p.add_argument("--val-ratio", type=float, default=0.1, help="Validation ratio carved from train pool")
     p.add_argument(
         "--soh-mode",
-        default="voltage",
+        default="capacity",
         choices=["voltage", "capacity"],
         help="SOH proxy method: 'voltage' = normalised rest_voltage, "
-             "'capacity' = capacity fade from ah_cons",
+             "'capacity' = capacity fade from ah_cons (Phase 2.2 FIX: device-independent)",
     )
     return p.parse_args()
 

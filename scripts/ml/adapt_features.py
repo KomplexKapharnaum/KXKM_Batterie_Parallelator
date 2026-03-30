@@ -48,6 +48,27 @@ def adapt_features(input_path: str, output_path: str) -> None:
     # I_max: use absolute maximum of I_mean + I_std
     df["I_max"] = (df["I_mean"].abs() + df["I_std"]).abs()
     
+    # === PHASE 2.2 FIX: Validate NaN rows ===
+    # Drop rows with >50% NaN to prevent training destabilization
+    initial_rows = len(df)
+    nan_counts = df.isna().sum(axis=1)
+    nan_pcts = 100.0 * nan_counts / df.shape[1]
+    high_nan_mask = nan_pcts > 50
+    df = df[~high_nan_mask]
+    rows_dropped = initial_rows - len(df)
+    log.info("NaN validation (Phase 2.2): Dropped %d rows (%.1f%%) with >50%% NaN",
+             rows_dropped, 100.0 * rows_dropped / initial_rows)
+    
+    # Also drop rows with NaN in features truly used by train_fpnn
+    # (coulombic_efficiency is not part of FEATURE_COLS for FPNN).
+    critical_cols = ["R_internal"]
+    for col in critical_cols:
+        rows_before = len(df)
+        df = df[df[col].notna()]
+        rows_dropped = rows_before - len(df)
+        if rows_dropped > 0:
+            log.info("  Dropped %d rows with NaN in %s", rows_dropped, col)
+    
     # Ensure all required columns exist
     required_cols = [
         "V_mean", "V_std", "I_mean", "I_std", "dV_dt", "dI_dt",

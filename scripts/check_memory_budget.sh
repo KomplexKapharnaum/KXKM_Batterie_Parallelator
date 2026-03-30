@@ -34,7 +34,13 @@ fi
 echo "[memory] env=${ENV_NAME} ram_max=${RAM_MAX}% flash_max=${FLASH_MAX}%"
 echo "[memory] log=${LOG_FILE}"
 
-python3 -m platformio run -e "$ENV_NAME" 2>&1 | tee "$LOG_FILE"
+if command -v pio >/dev/null 2>&1; then
+  pio run -e "$ENV_NAME" 2>&1 | tee "$LOG_FILE"
+elif command -v /Users/electron/.local/bin/pio >/dev/null 2>&1; then
+  /Users/electron/.local/bin/pio run -e "$ENV_NAME" 2>&1 | tee "$LOG_FILE"
+else
+  python3 -m platformio run -e "$ENV_NAME" 2>&1 | tee "$LOG_FILE"
+fi
 
 RAM_USED="$(awk '/^[[:space:]]*RAM:/{for(i=1;i<=NF;i++){if($i ~ /^[0-9]+(\.[0-9]+)?%$/){gsub("%","",$i); print $i; exit}}}' "$LOG_FILE")"
 FLASH_USED="$(awk '/^[[:space:]]*Flash:/{for(i=1;i<=NF;i++){if($i ~ /^[0-9]+(\.[0-9]+)?%$/){gsub("%","",$i); print $i; exit}}}' "$LOG_FILE")"

@@ -115,7 +115,8 @@ def compute_window_features(group: pd.DataFrame, window_seconds: float) -> list[
         ah_charge_cum = float(w_ah_charge[-1] - w_ah_charge[0])
 
         # Coulombic efficiency
-        if ah_discharge > 0:
+        # FIX Phase 2.2: Threshold 0.1 Ah to prevent division by ~0 causing outliers (73 values >1000)
+        if ah_discharge > 0.1:
             coulombic_eff = ah_charge_cum / ah_discharge
         else:
             coulombic_eff = np.nan
