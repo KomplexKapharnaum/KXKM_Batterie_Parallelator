@@ -1,0 +1,37 @@
+menu "BMU Protection Config"
+
+    config BMU_MIN_VOLTAGE_MV
+        int "Seuil sous-tension (mV)"
+        default 24000
+
+    config BMU_MAX_VOLTAGE_MV
+        int "Seuil sur-tension (mV)"
+        default 30000
+
+    config BMU_MAX_CURRENT_MA
+        int "Seuil sur-courant (mA)"
+        default 10000
+
+    config BMU_VOLTAGE_DIFF_MV
+        int "Tolerance desequilibre (mV)"
+        default 1000
+
+    config BMU_RECONNECT_DELAY_MS
+        int "Delai reconnexion (ms)"
+        default 10000
+
+    config BMU_NB_SWITCH_MAX
+        int "Coupures max avant verrouillage"
+        default 5
+
+    config BMU_OVERCURRENT_FACTOR
+        int "Facteur surcourant critique (x1000)"
+        default 2000
+        help
+            ERROR si |I| > (factor/1000) * max_current. 2.0 = 2000.
+
+    config BMU_LOOP_PERIOD_MS
+        int "Periode boucle protection (ms)"
+        default 500
+
+endmenu
