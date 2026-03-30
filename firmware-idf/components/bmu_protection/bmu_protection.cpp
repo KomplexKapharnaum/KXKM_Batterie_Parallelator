@@ -1,0 +1,274 @@
+#include "bmu_protection.h"
+#include "esp_log.h"
+#include "esp_timer.h"
+#include <cmath>
+#include <cstring>
+
+static const char *TAG = "BATT";
+
+/* Milliseconds since boot */
+static int64_t now_ms(void) { return esp_timer_get_time() / 1000; }
+
+esp_err_t bmu_protection_init(bmu_protection_ctx_t *ctx,
+                               bmu_ina237_t *ina, uint8_t nb_ina,
+                               bmu_tca9535_handle_t *tca, uint8_t nb_tca)
+{
+    memset(ctx, 0, sizeof(*ctx));
+    ctx->ina_devices = ina;
+    ctx->tca_devices = tca;
+    ctx->nb_ina = nb_ina;
+    ctx->nb_tca = nb_tca;
+    ctx->state_mutex = xSemaphoreCreateMutex();
+    configASSERT(ctx->state_mutex != NULL);
+
+    /* All batteries start DISCONNECTED */
+    for (int i = 0; i < BMU_MAX_BATTERIES; i++) {
+        ctx->battery_state[i] = BMU_STATE_DISCONNECTED;
+    }
+
+    ESP_LOGI(TAG, "Protection init: %d INA, %d TCA", nb_ina, nb_tca);
+    return ESP_OK;
+}
+
+/* ── Helper: switch battery ON/OFF via TCA ─────────────────────────── */
+static esp_err_t switch_battery(bmu_protection_ctx_t *ctx, int idx, bool on)
+{
+    if (idx < 0 || idx >= ctx->nb_ina) return ESP_ERR_INVALID_ARG;
+    int tca_idx = idx / 4;
+    int channel = idx % 4;
+    if (tca_idx >= ctx->nb_tca) return ESP_ERR_INVALID_ARG;
+
+    esp_err_t ret = bmu_tca9535_switch_battery(&ctx->tca_devices[tca_idx], channel, on);
+    if (ret != ESP_OK) return ret;
+
+    /* LED: green=ON/connected, red=OFF/fault */
+    ret = bmu_tca9535_set_led(&ctx->tca_devices[tca_idx], channel, !on, on);
+
+    if (on) {
+        vTaskDelay(pdMS_TO_TICKS(100)); /* MOSFET dead-time protection */
+    } else {
+        vTaskDelay(pdMS_TO_TICKS(50));  /* Wait for switch off */
+    }
+
+    ESP_LOGI(TAG, "Battery %d %s (TCA%d CH%d)", idx + 1, on ? "ON" : "OFF", tca_idx, channel);
+    return ret;
+}
+
+/* ── Helper: is voltage within [min, max] range (mV) ──────────────── */
+static bool is_voltage_in_range(float voltage_mv)
+{
+    if (voltage_mv < BMU_MIN_VOLTAGE_MV || voltage_mv > BMU_MAX_VOLTAGE_MV) {
+        ESP_LOGD(TAG, "V out of range: %.0f mV (min=%d max=%d)",
+                 voltage_mv, BMU_MIN_VOLTAGE_MV, BMU_MAX_VOLTAGE_MV);
+        return false;
+    }
+    return true;
+}
+
+/* ── Helper: is |current| within max (mA→A conversion) ────────────── */
+static bool is_current_in_range(float current_a)
+{
+    const float max_a = BMU_MAX_CURRENT_MA / 1000.0f;
+    if (fabs(current_a) > max_a) {
+        ESP_LOGD(TAG, "I out of range: %.3f A (max=%.1f)", current_a, max_a);
+        return false;
+    }
+    return true;
+}
+
+/* ── Helper: voltage imbalance check against fleet max ─────────────── */
+static bool is_imbalance_ok(float voltage_mv, float fleet_max_mv)
+{
+    const float diff_mv = fleet_max_mv - voltage_mv;
+    if (diff_mv > BMU_VOLTAGE_DIFF_MV) {
+        ESP_LOGD(TAG, "Imbalance: V=%.0f fleet_max=%.0f diff=%.0f > %d mV",
+                 voltage_mv, fleet_max_mv, diff_mv, BMU_VOLTAGE_DIFF_MV);
+        return false;
+    }
+    return true;
+}
+
+/* ── Helper: find max voltage across all batteries ─────────────────── */
+static float find_fleet_max_mv(bmu_protection_ctx_t *ctx)
+{
+    float max_mv = 0;
+    for (int i = 0; i < ctx->nb_ina; i++) {
+        if (ctx->battery_voltages[i] > max_mv) {
+            max_mv = ctx->battery_voltages[i];
+        }
+    }
+    return max_mv;
+}
+
+/* ── Main state machine — called once per battery per loop ─────────── */
+esp_err_t bmu_protection_check_battery(bmu_protection_ctx_t *ctx, int idx)
+{
+    if (idx < 0 || idx >= ctx->nb_ina) return ESP_ERR_INVALID_ARG;
+
+    /* Read voltage (mV) and current (A) from INA237 */
+    float v_mv = 0, i_a = 0;
+    esp_err_t ret = bmu_ina237_read_voltage_current(&ctx->ina_devices[idx], &v_mv, &i_a);
+    if (ret != ESP_OK || isnan(v_mv) || isnan(i_a)) {
+        ESP_LOGW(TAG, "BAT[%d] I2C read error — skip protection", idx + 1);
+        return ret;
+    }
+
+    /* Cache voltage (mutex-protected) */
+    if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+        ctx->battery_voltages[idx] = v_mv;
+        xSemaphoreGive(ctx->state_mutex);
+    }
+
+    /* Read shared state under mutex */
+    int local_nb_switch = 0;
+    int64_t local_reconnect_time = 0;
+    if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+        local_nb_switch = ctx->nb_switch[idx];
+        local_reconnect_time = ctx->reconnect_time_ms[idx];
+        xSemaphoreGive(ctx->state_mutex);
+    } else {
+        ESP_LOGW(TAG, "BAT[%d] mutex timeout — skip", idx + 1);
+        return ESP_ERR_TIMEOUT;
+    }
+
+    /* ── Determine state ──────────────────────────────────────────── */
+    bmu_battery_state_t state;
+
+    /* Overcurrent ERROR: |I| > factor * max_current */
+    const float overcurrent_a = (BMU_OVERCURRENT_FACTOR / 1000.0f) * (BMU_MAX_CURRENT_MA / 1000.0f);
+    if (v_mv < 0 || fabs(i_a) > overcurrent_a) {
+        state = BMU_STATE_ERROR;
+    }
+    /* No voltage detected */
+    else if (v_mv < 1000) { /* < 1V in mV = 1000 */
+        state = BMU_STATE_DISCONNECTED;
+    }
+    /* Permanent lock — too many reconnections (F08) */
+    else if (local_nb_switch > BMU_NB_SWITCH_MAX) {
+        ESP_LOGW(TAG, "BAT[%d] LOCKED (nb_switch=%d > max=%d)",
+                 idx + 1, local_nb_switch, BMU_NB_SWITCH_MAX);
+        switch_battery(ctx, idx, false);
+        /* Update state under mutex */
+        if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+            ctx->battery_state[idx] = BMU_STATE_LOCKED;
+            xSemaphoreGive(ctx->state_mutex);
+        }
+        return ESP_OK; /* Locked — no further processing until reboot */
+    }
+    /* Protection checks failed */
+    else if (!is_voltage_in_range(v_mv) ||
+             !is_current_in_range(i_a) ||
+             !is_imbalance_ok(v_mv, find_fleet_max_mv(ctx))) {
+        state = BMU_STATE_DISCONNECTED;
+    }
+    /* First connection or reconnect eligible */
+    else if (local_nb_switch == 0 ||
+             (local_nb_switch < BMU_NB_SWITCH_MAX &&
+              (now_ms() - local_reconnect_time > BMU_RECONNECT_DELAY_MS))) {
+        state = BMU_STATE_RECONNECTING;
+    }
+    /* At max switches — one final attempt with delay */
+    else if (local_nb_switch == BMU_NB_SWITCH_MAX &&
+             (now_ms() - local_reconnect_time > BMU_RECONNECT_DELAY_MS)) {
+        state = BMU_STATE_RECONNECTING;
+    }
+    /* Nominal */
+    else {
+        state = BMU_STATE_CONNECTED;
+    }
+
+    /* ── Act on state ─────────────────────────────────────────────── */
+    switch (state) {
+    case BMU_STATE_CONNECTED:
+        ESP_LOGD(TAG, "BAT[%d] connected V=%.0fmV I=%.3fA", idx + 1, v_mv, i_a);
+        break;
+
+    case BMU_STATE_RECONNECTING:
+        if (is_voltage_in_range(v_mv) && is_current_in_range(i_a)) {
+            ESP_LOGI(TAG, "BAT[%d] reconnecting", idx + 1);
+            switch_battery(ctx, idx, true);
+            if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+                ctx->nb_switch[idx]++;
+                ctx->reconnect_time_ms[idx] = now_ms();
+                xSemaphoreGive(ctx->state_mutex);
+            }
+        } else {
+            ESP_LOGD(TAG, "BAT[%d] reconnect criteria not met", idx + 1);
+        }
+        break;
+
+    case BMU_STATE_DISCONNECTED:
+        ESP_LOGI(TAG, "BAT[%d] disconnected V=%.0fmV I=%.3fA", idx + 1, v_mv, i_a);
+        switch_battery(ctx, idx, false);
+        break;
+
+    case BMU_STATE_ERROR:
+        ESP_LOGE(TAG, "BAT[%d] ERROR V=%.0fmV I=%.3fA — immediate OFF",
+                 idx + 1, v_mv, i_a);
+        switch_battery(ctx, idx, false);
+        /* Double-off for safety */
+        {
+            int tca_idx = idx / 4;
+            int ch = idx % 4;
+            if (tca_idx < ctx->nb_tca) {
+                bmu_tca9535_switch_battery(&ctx->tca_devices[tca_idx], ch, false);
+            }
+        }
+        break;
+
+    case BMU_STATE_LOCKED:
+        break; /* Already handled above */
+    }
+
+    /* Update state under mutex */
+    if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+        ctx->battery_state[idx] = state;
+        xSemaphoreGive(ctx->state_mutex);
+    }
+
+    return ESP_OK;
+}
+
+esp_err_t bmu_protection_all_off(bmu_protection_ctx_t *ctx)
+{
+    for (int t = 0; t < ctx->nb_tca; t++) {
+        bmu_tca9535_all_off(&ctx->tca_devices[t]);
+    }
+    return ESP_OK;
+}
+
+esp_err_t bmu_protection_reset_switch_count(bmu_protection_ctx_t *ctx, int idx)
+{
+    if (idx < 0 || idx >= BMU_MAX_BATTERIES) return ESP_ERR_INVALID_ARG;
+    if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+        ctx->nb_switch[idx] = 0;
+        ctx->reconnect_time_ms[idx] = 0;
+        ctx->battery_state[idx] = BMU_STATE_DISCONNECTED;
+        xSemaphoreGive(ctx->state_mutex);
+    }
+    return ESP_OK;
+}
+
+bmu_battery_state_t bmu_protection_get_state(bmu_protection_ctx_t *ctx, int idx)
+{
+    bmu_battery_state_t s = BMU_STATE_DISCONNECTED;
+    if (idx >= 0 && idx < BMU_MAX_BATTERIES) {
+        if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+            s = ctx->battery_state[idx];
+            xSemaphoreGive(ctx->state_mutex);
+        }
+    }
+    return s;
+}
+
+float bmu_protection_get_voltage(bmu_protection_ctx_t *ctx, int idx)
+{
+    float v = 0;
+    if (idx >= 0 && idx < BMU_MAX_BATTERIES) {
+        if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+            v = ctx->battery_voltages[idx];
+            xSemaphoreGive(ctx->state_mutex);
+        }
+    }
+    return v;
+}
