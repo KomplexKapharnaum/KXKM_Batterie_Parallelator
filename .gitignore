@@ -89,7 +89,15 @@ out/
 # End of https://www.gitignore.io/api/kicad,linux
 
 .pio/
-/PCB/BMU v1/BMU v1-backups
-/PCB BMU v2/BMU v1-backups
-/PCB BMU v2/BMU v2-backups
-/PCB BMU v2/BMU_switch_mosfet-backups
+
+# KiCad backups et fichiers de production (non versionnés)
+**/*-backups/
+**/jlcpcb/production_files/
+
+# Credentials locaux
+src/credentials.h
+
+# Données terrain et modèles ML (binaires lourds)
+data/
+models/*.pt
+models/*.onnx
