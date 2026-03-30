@@ -152,3 +152,31 @@ bash scripts/ci/collect_remote_qa_evidence.sh qa-cicd-environments object-orrien
 ### Next Action unique
 
 - Generer un run CI distant sur la branche par defaut et archiver les URLs de runs dans ce plan, puis passer TASK-006 a `completed`. 
+## Execution Update — 2026-03-30 (separation CI distante vs gate ML)
+
+- TASK-006 reste `blocked` pour une raison strictement CI/GitHub Actions: aucune preuve distante archivee avec URL de run.
+- Le pipeline ML distant sur `kxkm-ai` ne fait plus partie de ce blocage infra: `mascarade-platformio` execute le lot jusqu'aux artefacts finaux.
+- Le point ouvert cote ML est un gate qualite (`overall_gate_pass=false` sur le dernier run), a suivre dans `plan/refactor-safety-core-web-remote-1.md` et non dans TASK-006.
+
+### Evidence
+
+- Aucune URL GitHub Actions ajoutee a ce plan a date.
+- Artefacts ML distants generes a `2026-03-30 15:50 UTC` dans `mascarade-platformio`.
+- Verdict ML distant: `quantized_mape_degradation_le_5pp=false`.
+
+### Next Action unique
+
+- Conserver TASK-006 sur l'axe CI distante et isoler la remediation quantization dans le plan ML principal.
+## Execution Update — 2026-03-30 (ML gate passed, CI blocker unchanged)
+
+- La premiere remediation quantization sur `kxkm-ai` a fait repasser le gate ML (`overall_gate_pass=true`).
+- TASK-006 reste cependant inchange: son blocage porte uniquement sur la preuve CI distante GitHub Actions.
+
+### Evidence
+
+- Baseline promue cote ML: `qdq` + `stratified` + `500` echantillons + clip `1 99`.
+- `models/phase2_metrics.json` distant a `2026-03-30 16:17 UTC` -> `overall_gate_pass=true`.
+
+### Next Action unique
+
+- Ne pas rouvrir TASK-006 avec des sujets ML; produire uniquement les URLs de runs GitHub Actions manquantes.

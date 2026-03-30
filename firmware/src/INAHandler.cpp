@@ -322,7 +322,10 @@ void INAHandler::set_max_charge_current(const float_t current)
 void INAHandler::setI2CSpeed(int speed)
 {
     i2cSpeedKHz = speed;
-    Wire.setClock(static_cast<uint32_t>(i2cSpeedKHz) * 1000U);
+    I2CLockGuard lock;
+    if (lock.isAcquired()) {
+        Wire.setClock(static_cast<uint32_t>(i2cSpeedKHz) * 1000U);
+    }
 }
 
 int INAHandler::detect_batteries()

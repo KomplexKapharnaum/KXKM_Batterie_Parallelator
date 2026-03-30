@@ -62,11 +62,11 @@ void setup()
   tcaHandler.check_INA_TCA_address();
   Serial.println("INA-TCA topology validation complete");
 
-  // Config protection centralisée via BATTParallelator (fail-safe)
-  BattParallelator.set_min_voltage(alert_bat_min_voltage / 1000.0f);
-  BattParallelator.set_max_voltage(alert_bat_max_voltage / 1000.0f);
-  BattParallelator.set_max_current(alert_bat_max_current * 1000.0f); // mA interne
-  BattParallelator.set_max_diff_voltage(voltage_diff);
+  // Config protection — pass mV/mA directly (mem_set_* stores mV/mA)
+  BattParallelator.set_min_voltage(alert_bat_min_voltage);       // 24000 mV
+  BattParallelator.set_max_voltage(alert_bat_max_voltage);       // 30000 mV
+  BattParallelator.set_max_current(alert_bat_max_current * 1000.0f); // 10A -> 10000 mA
+  BattParallelator.set_max_diff_voltage(voltage_diff * 1000.0f); // 1V -> 1000 mV
   BattParallelator.set_reconnect_delay(reconnect_delay);
   BattParallelator.set_nb_switch_on(Nb_switch_max);
 

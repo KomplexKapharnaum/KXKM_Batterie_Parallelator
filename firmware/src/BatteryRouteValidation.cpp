@@ -61,12 +61,7 @@ bool validateBatteryVoltageForSwitch(int batteryIndex, float minVoltageMv,
     return false;
   }
 
-  // Read battery voltage with I2C protection
-  I2CLockGuard lock;
-  if (!lock.isAcquired()) {
-    return false; // Assume unsafe if we can't acquire lock (I2C busy)
-  }
-
+  // read_volt() acquires I2CLockGuard internally — do NOT wrap in another lock
   const float voltageV = inaHandler.read_volt(batteryIndex); // Returns voltage in volts
   if (std::isnan(voltageV)) {
     return false; // Unsafe — sensor reading failed
