@@ -5,11 +5,11 @@
 #error "Ce fichier doit être compilé avec -DNATIVE_TEST"
 #endif
 
-// Paramètres copiés depuis main.cpp
-static const int ALERT_BAT_MIN_VOLTAGE = 24000; // mV
-static const int ALERT_BAT_MAX_VOLTAGE = 30000; // mV
-static const int ALERT_BAT_MAX_CURRENT = 1;     // A
-static const int VOLTAGE_DIFF          = 1;     // V
+// Paramètres alignés avec config.h (post-audit 2026-03-30)
+static const int ALERT_BAT_MIN_VOLTAGE = 24000; // mV (matches config.h)
+static const int ALERT_BAT_MAX_VOLTAGE = 30000; // mV (matches config.h)
+static const int ALERT_BAT_MAX_CURRENT = 10;    // A  (matches config.h)
+static const int VOLTAGE_DIFF          = 1;     // V  (matches config.h)
 static const int NB_SWITCH_MAX         = 5;
 
 // Logique de protection extraite de BatterySwitchCtrl.h / main.cpp
@@ -46,17 +46,22 @@ void test_overvoltage_disconnects(void) {
 }
 
 void test_overcurrent_positive_disconnects(void) {
-    TEST_ASSERT_TRUE(should_disconnect(27000, 1.1f, 27.0f));
-    TEST_ASSERT_TRUE(should_disconnect(27000, 5.0f, 27.0f));
+    TEST_ASSERT_TRUE(should_disconnect(27000, 10.1f, 27.0f));
+    TEST_ASSERT_TRUE(should_disconnect(27000, 50.0f, 27.0f));
 }
 
 void test_overcurrent_negative_disconnects(void) {
-    TEST_ASSERT_TRUE(should_disconnect(27000, -1.1f, 27.0f));
+    TEST_ASSERT_TRUE(should_disconnect(27000, -10.1f, 27.0f));
+}
+
+void test_overcurrent_large_negative_disconnects(void) {
+    // Large charging inrush must also trigger disconnect
+    TEST_ASSERT_TRUE(should_disconnect(27000, -15.0f, 27.0f));
 }
 
 void test_nominal_current_connects(void) {
-    TEST_ASSERT_FALSE(should_disconnect(27000, 0.5f, 27.0f));
-    TEST_ASSERT_FALSE(should_disconnect(27000, -0.5f, 27.0f));
+    TEST_ASSERT_FALSE(should_disconnect(27000, 5.0f, 27.0f));
+    TEST_ASSERT_FALSE(should_disconnect(27000, -5.0f, 27.0f));
 }
 
 void test_voltage_imbalance_disconnects(void) {
@@ -66,6 +71,13 @@ void test_voltage_imbalance_disconnects(void) {
 
 void test_voltage_imbalance_within_threshold_connects(void) {
     // batterie à 26.5 V, max à 27 V → diff = 0.5 V < seuil
+    TEST_ASSERT_FALSE(should_disconnect(26500, 0.0f, 27.0f));
+}
+
+void test_voltage_imbalance_against_fleet_max(void) {
+    // Fleet at 25-27V. Battery at 25V, max=27V -> diff=2V > 1V -> disconnect
+    TEST_ASSERT_TRUE(should_disconnect(25000, 0.0f, 27.0f));
+    // Battery at 26.5V, max=27V -> diff=0.5V < 1V -> connect
     TEST_ASSERT_FALSE(should_disconnect(26500, 0.0f, 27.0f));
 }
 
@@ -79,6 +91,11 @@ void test_no_permanent_lock_at_max(void) {
     TEST_ASSERT_FALSE(should_permanent_lock(0));
 }
 
+void test_permanent_lock_at_max_plus_one(void) {
+    // nb_switch = 6 (NB_SWITCH_MAX + 1) MUST lock permanently
+    TEST_ASSERT_TRUE(should_permanent_lock(6));
+}
+
 // ── Runner ───────────────────────────────────────────────────────────────────
 
 int main(void) {
@@ -88,10 +105,13 @@ int main(void) {
     RUN_TEST(test_overvoltage_disconnects);
     RUN_TEST(test_overcurrent_positive_disconnects);
     RUN_TEST(test_overcurrent_negative_disconnects);
+    RUN_TEST(test_overcurrent_large_negative_disconnects);
     RUN_TEST(test_nominal_current_connects);
     RUN_TEST(test_voltage_imbalance_disconnects);
     RUN_TEST(test_voltage_imbalance_within_threshold_connects);
+    RUN_TEST(test_voltage_imbalance_against_fleet_max);
     RUN_TEST(test_permanent_lock_above_max);
     RUN_TEST(test_no_permanent_lock_at_max);
+    RUN_TEST(test_permanent_lock_at_max_plus_one);
     return UNITY_END();
 }
