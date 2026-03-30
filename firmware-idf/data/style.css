@@ -1,0 +1,120 @@
+html {
+  font-family: Arial, Helvetica, sans-serif;
+  display: inline-block;
+  text-align: center;
+}
+h1 {
+  font-size: 2rem;
+  color: white;
+}
+h2 {
+  font-size: 1.5rem;
+  color: #ddd;
+}
+p {
+  font-size: 1.4rem;
+}
+.topnav {
+  overflow: hidden;
+  background-color: #333;
+}
+body {
+  margin: 0;
+  background-color: #111;
+  color: white;
+  font-size: 1.2rem;
+}
+
+#content {
+  padding: 30px;
+  max-width: 800px;
+  margin: auto;
+  background-color: #222;
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.auth {
+  margin: 15px 0;
+  padding: 10px;
+  background-color: #2a2a2a;
+  border-radius: 5px;
+  text-align: left;
+}
+
+.auth label {
+  color: #ccc;
+  font-size: 0.9rem;
+}
+
+.auth input[type="password"] {
+  width: 200px;
+  margin-left: 5px;
+}
+
+input {
+  background-color: #333;
+  color: white;
+  padding: 5px;
+  border: none;
+  border-radius: 5px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 20px;
+}
+
+th, td {
+  padding: 10px;
+  border-bottom: 1px solid #444;
+  text-align: center;
+}
+
+th {
+  background-color: #333;
+}
+
+td {
+  background-color: #222;
+}
+
+.button {
+  display: inline-block;
+  padding: 10px 20px;
+  font-size: 1rem;
+  color: white;
+  background-color: #1e90ff;
+  border: none;
+  border-radius: 5px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.button:hover {
+  background-color: #1c86ee;
+}
+
+button {
+  padding: 5px 10px;
+  font-size: 1rem;
+  color: white;
+  background-color: #1e90ff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #1c86ee;
+}
+
+a {
+  color: #1e90ff;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
