@@ -7,6 +7,10 @@ Système de gestion de batteries en parallèle basé sur un ESP32 (Battery Manag
 Développé par [**KompleX KapharnaüM**](https://komplex-kapharnaum.net) pour alimenter leurs installations de scénographie numérique en milieu urbain, sans accès au réseau électrique.
 Suivi technique et intégration firmware/hardware : [L'Électron Rare](https://lelectronrare.fr).
 
+## Aperçu du PCB
+
+![Aperçu PCB BMU](BMU.jpeg)
+
 ---
 
 ## Table des matières
