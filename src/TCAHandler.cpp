@@ -14,11 +14,11 @@
  */
 
 /**
- * @file TCA_NRJ_lib.cpp
+ * @file TCAHandler.cpp
  * @brief Implémentation de la classe TCAHandler pour gérer les appareils TCA.
  */
 
-#include "TCA_NRJ_lib.h"
+#include "TCAHandler.h"
 #include "I2CMutex.h"
 #include <KxLogger.h>
 

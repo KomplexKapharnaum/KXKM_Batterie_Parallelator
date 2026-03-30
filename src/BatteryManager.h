@@ -1,7 +1,7 @@
 #ifndef BATTERY_MANAGER_H
 #define BATTERY_MANAGER_H
 
-#include "INA_NRJ_lib.h"
+#include "INAHandler.h"
 #include <KxLogger.h>
 #include <cfloat>
 #include <freertos/FreeRTOS.h>

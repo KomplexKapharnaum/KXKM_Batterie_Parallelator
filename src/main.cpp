@@ -10,8 +10,7 @@ int OUT_num = 0;
 #include <Arduino.h>
 #include "pin_mapppings.h"
 #include "INA_Func.h"
-#include "TCA_Func.h"
-#include "compute.h"
+#include "BatterySwitchCtrl.h"
 
 void setup()
 {

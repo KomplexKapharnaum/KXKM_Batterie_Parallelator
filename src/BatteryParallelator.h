@@ -23,8 +23,8 @@
 #ifndef BATTERY_PARALLELATOR_H
 #define BATTERY_PARALLELATOR_H
 
-#include "INA_NRJ_lib.h"
-#include "TCA_NRJ_lib.h"
+#include "INAHandler.h"
+#include "TCAHandler.h"
 #include <KxLogger.h>
 #include <cfloat>
 #include <cmath>

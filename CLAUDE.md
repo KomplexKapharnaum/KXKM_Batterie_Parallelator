@@ -16,21 +16,20 @@
 
 ## Firmware
 - Framework : Arduino / PlatformIO
-- Board cible : `kxkm-v3-16MB` (esp-wrover-kit, 16MB flash)
-- Tests natifs : `pio test -e native` (pas de board nécessaire)
-- Build ESP32 : `pio run -e kxkm-v3-16MB`
+- Board cible : `kxkm-s3-16MB` (ESP32-S3, 16MB flash)
+- Board legacy : `kxkm-v3-16MB` (esp-wrover-kit)
+- Build ESP32 : `pio run -e kxkm-s3-16MB`
 - Env `[arduino_base]` dans platformio.ini — ne pas mettre `framework=arduino` dans `[env]` global (casse le native)
 
 ## Hardware (KiCad)
 - Schématics KiCad 8.0 (version 20231120)
 - kicad-cli : Docker direct (pas le wrapper Kill_LIFE — repo hors Kill_LIFE root) :
-  ```bash
   docker run --rm --user $(id -u):$(id -g) -e HOME=/tmp \
     -v "/home/clems/KXKM_Batterie_Parallelator:/project" \
     -w /project kicad/kicad:10.0 kicad-cli sch erc \
     --format json --output "/project/PCB BMU v2/erc_report.json" \
     "/project/PCB BMU v2/BMU v2.kicad_sch"
-  ```
+```raw
 
 ## ICs clés
 - INA237 (VSSOP-10) — mesure V/I/P via I²C @ 0x40–0x4F
@@ -43,3 +42,5 @@
 - S1 ✅ tests natifs 10/10 + bug fix `find_max_voltage`
 - S2 ✅ KiCad BMU v2 review (ERC 0 violations)
 - S3 ⬜ validation terrain (batteries réelles)
+
+```

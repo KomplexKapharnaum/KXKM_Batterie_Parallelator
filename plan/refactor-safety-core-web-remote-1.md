@@ -156,7 +156,7 @@ This plan updates the existing BMU implementation plan by keeping Phase 1 (runti
 - `.github/instructions/ml-pipeline.instructions.md`
 - `CLAUDE.md`
 - `platformio.ini`
-- `docs/ML_BATTERY_HEALTH_SPEC.md`
+- `docs/ml-battery-health-spec.md`
 - `src/main.cpp`
 - `src/BatteryParallelator.cpp`
 - `src/WebServerHandler.cpp`

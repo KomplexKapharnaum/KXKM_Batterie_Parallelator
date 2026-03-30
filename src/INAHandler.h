@@ -14,13 +14,13 @@
  */
 
 /**
- * @file INA_NRJ_lib.h
+ * @file INAHandler.h
  * @brief Déclaration de la classe INAHandler pour gérer les appareils INA.
  * @details Créé par Clément Saillant pour Komplex Kapharnum assisté par IA.
  */
 
-#ifndef INA_NRJ_LIB_h
-#define INA_NRJ_LIB_h
+#ifndef INA_HANDLER_H
+#define INA_HANDLER_H
 
 #include <KxLogger.h>
 #include <INA226.h>
@@ -67,4 +67,4 @@ private:
     int I2C_Speed = 100; // Vitesse I2C en KHz
 };
 
-#endif // INA_NRJ_LIB_h
+#endif // INA_HANDLER_H

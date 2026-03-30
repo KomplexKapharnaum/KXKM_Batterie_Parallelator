@@ -14,13 +14,13 @@
  */
 
 /**
- * @file TCA_NRJ_lib.h
+ * @file TCAHandler.h
  * @brief Déclaration de la classe TCAHandler pour gérer les appareils TCA.
  * @details Créé par Clément Saillant pour Komplex Kapharnum assisté par IA.
  */
 
-#ifndef TCA_NRJ_LIB_H
-#define TCA_NRJ_LIB_H
+#ifndef TCA_HANDLER_H
+#define TCA_HANDLER_H
 
 #include "TCA9555.h" // Bibliothèque TCA9555
 
@@ -48,4 +48,4 @@ private:
   byte TCA_address_connected[8];
 };
 
-#endif // TCA_NRJ_LIB_H
+#endif // TCA_HANDLER_H

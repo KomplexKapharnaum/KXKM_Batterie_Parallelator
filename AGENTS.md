@@ -18,7 +18,7 @@
 ## Architecture
 - Main entrypoint and orchestration: src/main.cpp
 - Core battery logic: src/BatteryParallelator.cpp, src/BatteryManager.cpp
-- Sensor/actuator drivers: src/INA_NRJ_lib.cpp, src/TCA_NRJ_lib.cpp
+- Sensor/actuator drivers: src/INAHandler.cpp, src/TCAHandler.cpp
 - Shared bus lock: src/I2CMutex.h
 - Logging and integrations: src/SD_Logger.cpp, src/InfluxDBHandler.cpp, src/WebServerHandler.cpp, src/TimeAndInfluxTask.cpp
 
@@ -55,7 +55,7 @@
 ## Key References (Link, do not duplicate)
 - Project architecture and operating notes: CLAUDE.md
 - Product and usage overview: README.md
-- ML battery health roadmap/spec: docs/ML_BATTERY_HEALTH_SPEC.md
+- ML battery health roadmap/spec: docs/ml-battery-health-spec.md
 - Credentials template: src/credentials.h.example
 - Platform/build configuration: platformio.ini
 - Firmware safety instruction (applyTo src): .github/instructions/firmware-safety.instructions.md

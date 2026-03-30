@@ -12,7 +12,7 @@ static const int ALERT_BAT_MAX_CURRENT = 1;     // A
 static const int VOLTAGE_DIFF          = 1;     // V
 static const int NB_SWITCH_MAX         = 5;
 
-// Logique de protection extraite de compute.h / main.cpp
+// Logique de protection extraite de BatterySwitchCtrl.h / main.cpp
 static bool should_disconnect(float voltage_mv, float current_a, float voltage_max_v) {
     if (voltage_mv < ALERT_BAT_MIN_VOLTAGE) return true;
     if (voltage_mv > ALERT_BAT_MAX_VOLTAGE) return true;

@@ -29,22 +29,22 @@ case "$env_id" in
     pio test -e sim-host -vv
     ;;
   kxkm-s3-build)
-    echo "[qa] Legacy id detected (kxkm-s3-build) -> using kxkm-v3-16MB"
+    echo "[qa] Running firmware build for kxkm-s3-16MB"
     ensure_credentials_for_ci
-    pio run -e kxkm-v3-16MB
+    pio run -e kxkm-s3-16MB
     ;;
   kxkm-v3-build)
-    echo "[qa] Running firmware build for kxkm-v3-16MB"
+    echo "[qa] Running firmware build (legacy) for kxkm-v3-16MB"
     ensure_credentials_for_ci
     pio run -e kxkm-v3-16MB
     ;;
-  kxkm-v3-memory-budget)
-    echo "[qa] Running memory budget gate for kxkm-v3-16MB"
-    ensure_credentials_for_ci
-    scripts/check_memory_budget.sh --env kxkm-v3-16MB --ram-max 75 --flash-max 85
-    ;;
   kxkm-s3-memory-budget)
-    echo "[qa] Legacy id detected (kxkm-s3-memory-budget) -> using kxkm-v3-16MB"
+    echo "[qa] Running memory budget gate for kxkm-s3-16MB"
+    ensure_credentials_for_ci
+    scripts/check_memory_budget.sh --env kxkm-s3-16MB --ram-max 75 --flash-max 85
+    ;;
+  kxkm-v3-memory-budget)
+    echo "[qa] Running memory budget gate (legacy) for kxkm-v3-16MB"
     ensure_credentials_for_ci
     scripts/check_memory_budget.sh --env kxkm-v3-16MB --ram-max 75 --flash-max 85
     ;;

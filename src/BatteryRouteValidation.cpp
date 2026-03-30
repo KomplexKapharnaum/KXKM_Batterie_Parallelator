@@ -5,7 +5,7 @@
 #include <cmath>
 
 #ifdef ARDUINO
-#include "INA_NRJ_lib.h"
+#include "INAHandler.h"
 #include "I2CMutex.h"
 extern INAHandler inaHandler;
 #endif

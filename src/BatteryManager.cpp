@@ -23,7 +23,7 @@
 
 #include "BatteryManager.h" // Remplacer l'ancien include par le nouveau
 #include <KxLogger.h>
-#include "INA_NRJ_lib.h" // Inclure le fichier où inaHandler est déclaré
+#include "INAHandler.h" // Inclure le fichier où inaHandler est déclaré
 #include "BatteryParallelator.h" // Inclure l'en-tête où AmpereHourTaskParams est défini
 #include <cmath>
 #include <cstdio>

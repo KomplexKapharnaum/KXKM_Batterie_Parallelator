@@ -14,12 +14,12 @@
  */
 
 /**
- * @file INA_NRJ_lib.cpp
+ * @file INAHandler.cpp
  * @brief Implémentation de la classe INAHandler pour gérer les appareils INA.
  * @details Backend migré vers RobTillaart/INA226.
  */
 
-#include "INA_NRJ_lib.h"
+#include "INAHandler.h"
 #include "I2CMutex.h"
 #include <KxLogger.h>
 #include <cmath>
