@@ -25,7 +25,7 @@ bool bmu_web_token_valid(const char *provided);
  * @param now_ms     Timestamp courant en ms (esp_timer).
  * @return true si le rate limit est dépassé (requête à rejeter).
  */
-bool bmu_web_rate_check(uint32_t client_ip, uint32_t now_ms);
+bool bmu_web_rate_check(uint32_t client_ip, int64_t now_ms);
 
 #ifdef __cplusplus
 }

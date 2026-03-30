@@ -23,7 +23,7 @@ void bmu_ui_detail_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx, int idx)
     lv_obj_set_style_bg_color(parent, lv_color_hex(0x1E1E1E), 0);
 
     // Back button
-    lv_obj_t *btn_back = lv_btn_create(parent);
+    lv_obj_t *btn_back = lv_button_create(parent);
     lv_obj_set_size(btn_back, 60, 24);
     lv_obj_align(btn_back, LV_ALIGN_TOP_LEFT, 4, 4);
     lv_obj_t *btn_lbl = lv_label_create(btn_back);
@@ -35,7 +35,7 @@ void bmu_ui_detail_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx, int idx)
     lv_obj_t *tlbl = lv_label_create(parent);
     lv_label_set_text(tlbl, title);
     lv_obj_set_style_text_color(tlbl, lv_color_hex(0x2979FF), 0);
-    lv_obj_set_style_text_font(tlbl, &lv_font_montserrat_20, 0);
+    lv_obj_set_style_text_font(tlbl, &lv_font_montserrat_14, 0);
     lv_obj_align(tlbl, LV_ALIGN_TOP_MID, 0, 4);
 
     // Info labels

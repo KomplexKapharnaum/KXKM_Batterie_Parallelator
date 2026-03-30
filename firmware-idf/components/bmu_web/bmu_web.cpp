@@ -31,6 +31,10 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cerrno>
+#include <inttypes.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
 
 static const char *TAG = "WEB";
 
@@ -72,9 +76,9 @@ static uint32_t get_client_ip(httpd_req_t *req)
 }
 
 /** Retourne le timestamp courant en ms. */
-static uint32_t now_ms(void)
+static int64_t now_ms(void)
 {
-    return (uint32_t)(esp_timer_get_time() / 1000ULL);
+    return (int64_t)(esp_timer_get_time() / 1000LL);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -151,14 +155,15 @@ static esp_err_t handler_api_batteries(httpd_req_t *req)
     const uint8_t nb = s_ctx->prot->nb_ina;
     for (int i = 0; i < nb; ++i) {
         cJSON *obj = cJSON_CreateObject();
+        float current_a = 0.0f;
+        if (i < s_ctx->mgr->nb_ina) {
+            (void)bmu_ina237_read_current(&s_ctx->mgr->ina_devices[i], &current_a);
+        }
         cJSON_AddNumberToObject(obj, "idx", i);
         cJSON_AddNumberToObject(obj, "voltage_mv",
             bmu_protection_get_voltage(s_ctx->prot, i));
         /* Courant : lecture directe depuis INA via battery manager */
-        cJSON_AddNumberToObject(obj, "current_a",
-            (i < s_ctx->mgr->nb_ina)
-                ? bmu_ina237_read_current_a(&s_ctx->mgr->ina_devices[i])
-                : 0.0f);
+        cJSON_AddNumberToObject(obj, "current_a", current_a);
         cJSON_AddStringToObject(obj, "state",
             state_to_string(bmu_protection_get_state(s_ctx->prot, i)));
         cJSON_AddNumberToObject(obj, "ah_discharge",
@@ -410,6 +415,7 @@ static esp_err_t handler_api_log(httpd_req_t *req)
 /*  WebSocket — GET /ws                                                       */
 /* -------------------------------------------------------------------------- */
 
+#if CONFIG_HTTPD_WS_SUPPORT
 static esp_err_t handler_ws(httpd_req_t *req)
 {
     if (req->method == HTTP_GET) {
@@ -558,6 +564,7 @@ static void ws_push_task(void *arg)
         }
     }
 }
+#endif
 
 /* -------------------------------------------------------------------------- */
 /*  Start / Stop                                                              */
@@ -647,6 +654,7 @@ esp_err_t bmu_web_start(bmu_web_ctx_t *ctx)
     };
     httpd_register_uri_handler(s_server, &uri_log);
 
+    #if CONFIG_HTTPD_WS_SUPPORT
     /* GET /ws — WebSocket */
     const httpd_uri_t uri_ws = {
         .uri          = "/ws",
@@ -662,6 +670,9 @@ esp_err_t bmu_web_start(bmu_web_ctx_t *ctx)
     if (xret != pdPASS) {
         ESP_LOGW(TAG, "Impossible de créer la tâche ws_push");
     }
+    #else
+    ESP_LOGW(TAG, "WebSocket désactivé (CONFIG_HTTPD_WS_SUPPORT=0)");
+    #endif
 
     ESP_LOGI(TAG, "Serveur HTTP démarré sur port %d", config.server_port);
     return ESP_OK;

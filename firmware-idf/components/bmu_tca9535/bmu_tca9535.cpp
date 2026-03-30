@@ -30,7 +30,7 @@ static esp_err_t tca9535_write_reg8(i2c_master_dev_handle_t dev,
                                     uint8_t reg, uint8_t data)
 {
     uint8_t buf[2] = { reg, data };
-    return i2c_master_transmit(dev, buf, sizeof(buf), -1);
+    return i2c_master_transmit(dev, buf, sizeof(buf), pdMS_TO_TICKS(50));
 }
 
 /**
@@ -42,7 +42,7 @@ static esp_err_t tca9535_write_reg16(i2c_master_dev_handle_t dev,
                                      uint8_t data_p0, uint8_t data_p1)
 {
     uint8_t buf[3] = { reg, data_p0, data_p1 };
-    return i2c_master_transmit(dev, buf, sizeof(buf), -1);
+    return i2c_master_transmit(dev, buf, sizeof(buf), pdMS_TO_TICKS(50));
 }
 
 /**
@@ -52,7 +52,7 @@ static esp_err_t tca9535_write_reg16(i2c_master_dev_handle_t dev,
 static esp_err_t tca9535_read_reg8(i2c_master_dev_handle_t dev,
                                    uint8_t reg, uint8_t *data)
 {
-    return i2c_master_transmit_receive(dev, &reg, 1, data, 1, -1);
+    return i2c_master_transmit_receive(dev, &reg, 1, data, 1, pdMS_TO_TICKS(50));
 }
 
 /* ========================================================================
@@ -159,7 +159,8 @@ esp_err_t bmu_tca9535_scan_init(i2c_master_bus_handle_t bus,
         uint8_t dummy;
         ret = tca9535_read_reg8(dev, TCA9535_REG_INPUT_PORT0, &dummy);
         if (ret != ESP_OK) {
-            /* Device non present a cette adresse — on continue */
+            /* Device non present a cette adresse — liberer le handle et continuer */
+            i2c_master_bus_rm_device(dev);
             ESP_LOGD(TAG, "Pas de TCA9535 @ 0x%02X", addr);
             continue;
         }

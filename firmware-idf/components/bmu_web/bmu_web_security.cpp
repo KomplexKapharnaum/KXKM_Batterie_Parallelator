@@ -66,13 +66,13 @@ bool bmu_web_token_valid(const char *provided)
 
 typedef struct {
     uint32_t ip_key;
-    uint32_t window_start_ms;
+    int64_t  window_start_ms;
     uint8_t  request_count;
 } rate_slot_t;
 
 static rate_slot_t s_slots[CONFIG_BMU_WEB_MAX_RATE_SLOTS];
 
-bool bmu_web_rate_check(uint32_t client_ip, uint32_t now_ms)
+bool bmu_web_rate_check(uint32_t client_ip, int64_t now_ms)
 {
     const uint8_t  max_requests = CONFIG_BMU_WEB_RATE_MAX_REQUESTS;
     const uint32_t window_ms   = CONFIG_BMU_WEB_RATE_WINDOW_MS;
@@ -83,7 +83,7 @@ bool bmu_web_rate_check(uint32_t client_ip, uint32_t now_ms)
 
     int candidate = -1;
     int lru_idx   = -1;
-    uint32_t oldest_start = UINT32_MAX;
+    int64_t oldest_start = INT64_MAX;
 
     for (int i = 0; i < CONFIG_BMU_WEB_MAX_RATE_SLOTS; ++i) {
         /* Match existant */

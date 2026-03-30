@@ -18,7 +18,9 @@
 #include "bmu_influx.h"
 #include "bmu_sntp.h"
 #include "bmu_display.h"
+#include "bsp/esp-bsp.h"
 #include "bmu_vedirect.h"
+#include "bmu_ota.h"
 #include "esp_log.h"
 #include "esp_spiffs.h"
 #include "freertos/FreeRTOS.h"
@@ -127,6 +129,10 @@ extern "C" void app_main(void)
     }
 
     /* ── 5. I2C + sensors ──────────────────────────────────────────── */
+    /* Le BSP BOX-3 cree les deux bus I2C (I2C_NUM_0 interne + I2C_NUM_1 DOCK/PMOD)
+     * → doit imperativement etre appele AVANT bmu_i2c_init qui recupere le bus DOCK */
+    ESP_ERROR_CHECK(bsp_i2c_init());
+
     i2c_master_bus_handle_t i2c_bus = NULL;
     ESP_ERROR_CHECK(bmu_i2c_init(&i2c_bus));
     bmu_i2c_scan(i2c_bus);
@@ -178,8 +184,12 @@ extern "C" void app_main(void)
 
     /* ── 9. Display Dashboard (BOX-3 ILI9342C + LVGL) ─────────────── */
     static bmu_display_ctx_t disp_ctx = { .prot = &prot, .mgr = &mgr, .nb_ina = nb_ina };
-    bmu_display_init(&disp_ctx);
-    ESP_LOGI(TAG, "Display dashboard initialized");
+    esp_err_t disp_ret = bmu_display_init(&disp_ctx);
+    if (disp_ret == ESP_OK) {
+        ESP_LOGI(TAG, "Display dashboard initialized");
+    } else {
+        ESP_LOGE(TAG, "Display init failed: %s", esp_err_to_name(disp_ret));
+    }
 
     /* ── 10. VE.Direct (Victron MPPT solar charger) ────────────────── */
     bmu_vedirect_init();
@@ -187,6 +197,14 @@ extern "C" void app_main(void)
         ESP_LOGI(TAG, "VE.Direct charger detected");
     } else {
         ESP_LOGI(TAG, "VE.Direct: no charger (will auto-detect)");
+    }
+
+    /* ── 11. OTA validation ─────────────────────────────────────────── */
+    esp_err_t ota_ret = bmu_ota_mark_valid();
+    if (ota_ret == ESP_OK) {
+        ESP_LOGI(TAG, "OTA: firmware marque comme valide");
+    } else {
+        ESP_LOGW(TAG, "OTA mark_valid: %s (ignore si pas d'OTA)", esp_err_to_name(ota_ret));
     }
 
     ESP_LOGI(TAG, "Init complete — protection loop (%d ms)", BMU_LOOP_PERIOD_MS);
