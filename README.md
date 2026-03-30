@@ -92,7 +92,7 @@ Les fichiers de conception électronique (KiCad) sont disponibles dans les dossi
 
 ## Architecture du système
 
-```
+```raw
 ┌─────────────────────────────────────────────────────────────────┐
 │                          ESP32                                  │
 │   GPIO 32 (SDA) ──────┐                                         │
@@ -142,7 +142,7 @@ Toutes les 500 ms, le firmware :
 
 Chaque batterie possède un compteur de déconnexions (`Nb_switch`) :
 
-```
+```raw
 Nb_switch < 5   →  Reconnexion immédiate dès que la condition est normale
 Nb_switch == 5  →  Temporisation de 10 secondes avant reconnexion
 Nb_switch > 5   →  Déconnexion permanente (LED rouge fixe)
@@ -169,7 +169,9 @@ int Nb_switch_max         = 5;          // Nombre max de déconnexions avant blo
 
 ## Structure du projet
 
-```
+Cette section fusionne la vue detaillee recente et la vue compacte historique de la branche object-orriented.
+
+```raw
 KXKM_Batterie_Parallelator/
 ├── specs/                      # Kill_LIFE — spécifications formelles
 │   ├── 00_intake.md            # Gate S0 — contexte et besoin ✅
@@ -206,6 +208,33 @@ KXKM_Batterie_Parallelator/
 ├── platformio.ini              # Configuration PlatformIO (env native + kxkm-v3-16MB)
 ├── CLAUDE.md                   # Conventions pour les assistants AI
 └── adresse TCA_INA.xlsx        # Tableau de référence des adresses I2C
+```
+
+### Vue compacte (historique object-orriented)
+
+```raw
+KXKM_Batterie_Parallelator/
+├── src/
+│   ├── main.cpp            # Initialisation et boucle principale
+│   ├── INA_Func.h          # Fonctions de lecture INA237
+│   ├── TCA_Func.h          # Fonctions de contrôle TCA9535/9555
+│   ├── compute.h           # Logique de commutation et LED
+│   ├── pin_mapppings.h     # Définition des GPIO
+│   └── data_log.h          # Journalisation (réservé)
+├── lib/
+│   └── INA237/             # Bibliothèque INA237 locale (fork)
+├── data/
+│   ├── index.html          # Interface web embarquée
+│   ├── style.css
+│   └── script.js
+├── PCB/                    # Schémas et PCB KiCad (v1)
+├── PCB BMU v2/             # Schémas et PCB KiCad (v2) + Gerber JLCPCB
+├── examples INA/           # Exemples d'utilisation INA237
+├── examples TCA95x5/       # Exemples d'utilisation TCA9535/9555
+├── test code/
+│   └── scanner_I2C.cpp     # Utilitaire de scan I2C
+├── platformio.ini          # Configuration PlatformIO
+└── adresse TCA_INA.xlsx    # Tableau de référence des adresses I2C
 ```
 
 ---
