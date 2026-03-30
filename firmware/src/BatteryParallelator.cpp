@@ -110,55 +110,55 @@ void BATTParallelator::set_reconnect_delay(int delay) {
 
 /**
  * @brief Définir la tension maximale.
- * @param voltage Tension maximale en volts.
+ * @param voltage Tension maximale en mV.
  */
 void BATTParallelator::set_max_voltage(float voltage) {
   if (lockState()) {
-    mem_set_max_voltage = voltage;
+    mem_set_max_voltage = static_cast<int>(voltage);
     xSemaphoreGive(stateMutex);
   }
 }
 
 /**
  * @brief Définir la tension minimale.
- * @param voltage Tension minimale en volts.
+ * @param voltage Tension minimale en mV.
  */
 void BATTParallelator::set_min_voltage(float voltage) {
   if (lockState()) {
-    mem_set_min_voltage = voltage;
+    mem_set_min_voltage = static_cast<int>(voltage);
     xSemaphoreGive(stateMutex);
   }
 }
 
 /**
  * @brief Définir la différence de tension maximale.
- * @param diff Différence de tension maximale en volts.
+ * @param diff Différence de tension maximale en mV.
  */
 void BATTParallelator::set_max_diff_voltage(float diff) {
   if (lockState()) {
-    mem_set_voltage_diff = diff;
+    mem_set_voltage_diff = static_cast<int>(diff);
     xSemaphoreGive(stateMutex);
   }
 }
 
 /**
  * @brief Définir la différence de courant maximale.
- * @param diff Différence de courant maximale en ampères.
+ * @param diff Différence de courant maximale en mA.
  */
 void BATTParallelator::set_max_diff_current(float diff) {
   if (lockState()) {
-    mem_set_current_diff = diff;
+    mem_set_current_diff = static_cast<int>(diff);
     xSemaphoreGive(stateMutex);
   }
 }
 
 /**
  * @brief Définir le courant maximal.
- * @param current Courant maximal en ampères.
+ * @param current Courant maximal en mA.
  */
 void BATTParallelator::set_max_current(float current) {
   if (lockState()) {
-    mem_set_max_current = current;
+    mem_set_max_current = static_cast<int>(current);
     xSemaphoreGive(stateMutex);
   }
 }
@@ -547,16 +547,15 @@ int BATTParallelator::detect_batteries() {
  * @return true si la tension est dans les limites, false sinon.
  */
 bool BATTParallelator::is_voltage_within_range(float voltage) {
-  voltage = voltage * 1000; // Convertir en mV
-  // Vérifier si la tension est dans les limites définies
-  if (voltage < mem_set_min_voltage || voltage > mem_set_max_voltage) {
-    debugLogger.println(KxLogger::BATTERY, "voltage : " + String(voltage));
+  const float voltage_mV = voltage * 1000.0f;
+  if (voltage_mV < mem_set_min_voltage || voltage_mV > mem_set_max_voltage) {
+    debugLogger.println(KxLogger::BATTERY, "voltage (mV): " + String(voltage_mV));
     debugLogger.println(KxLogger::BATTERY,
-                        "Min voltage : " + String(mem_set_min_voltage));
+                        "Min voltage (mV): " + String(mem_set_min_voltage));
     debugLogger.println(KxLogger::BATTERY,
-                        "Max voltage : " + String(mem_set_max_voltage));
+                        "Max voltage (mV): " + String(mem_set_max_voltage));
     debugLogger.println(KxLogger::BATTERY,
-                        "Voltage out of range: " + String(voltage));
+                        "Voltage out of range: " + String(voltage_mV));
     return false;
   }
   return true;
@@ -568,9 +567,11 @@ bool BATTParallelator::is_voltage_within_range(float voltage) {
  * @return true si le courant est dans les limites, false sinon.
  */
 bool BATTParallelator::is_current_within_range(float current) {
-  // mem_set_max_current/charge are in mA, current is in A — convert
-  if (abs(current) > mem_set_max_current / 1000.0f ||
-      current < -(mem_set_max_charge_current / 1000.0f)) {
+  // mem_set_max_current is in mA, current is in A — convert threshold to A
+  const float maxCurrentA = mem_set_max_current / 1000.0f;
+  const float maxChargeA = mem_set_max_charge_current / 1000.0f;
+  if (fabs(current) > maxCurrentA ||
+      current < -maxChargeA) {
     debugLogger.println(KxLogger::BATTERY,
                         "Current out of range: " + String(current));
     return false;
