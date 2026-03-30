@@ -1,0 +1,11 @@
+menu "BMU WiFi"
+    config BMU_WIFI_SSID
+        string "WiFi SSID"
+        default "KXKM-BMU"
+    config BMU_WIFI_PASSWORD
+        string "WiFi Password"
+        default ""
+    config BMU_WIFI_MAX_RETRY
+        int "Max reconnect attempts (0=infinite)"
+        default 0
+endmenu
