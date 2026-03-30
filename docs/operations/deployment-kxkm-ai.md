@@ -59,3 +59,40 @@ Expected artifacts:
 - date/time
 - resulting artifact paths
 - CI link or remote session log reference
+## Dependency gate checked during bootstrap
+
+- `pandas`
+- `numpy`
+- `torch`
+- `onnxruntime`
+- `pyarrow`
+- `onnx`
+
+## Latest verified remote run
+
+- Host: `kxkm@kxkm-ai`
+- Container: `mascarade-platformio`
+- Verified at: `2026-03-30 15:50 UTC`
+- Artifacts generated:
+  - `models/fpnn_soh_v2_quantized.onnx` (`16.0 KB`)
+  - `models/phase2_metrics.json`
+- Final verdict:
+  - technical unblock: yes
+  - quality gate pass: no (`quantized_mape_degradation_le_5pp=false`)
+
+## Recovery notes
+
+- `torch.onnx.OnnxExporterError: Module onnx is not installed!`: install `onnx` in the target container, then rerun quantization/finalize.
+- `overall_gate_pass=false`: infrastructure is healthy; switch to quantization remediation (calibration strategy, percentile clipping, quant format) instead of re-debugging SSH/container plumbing.
+## Promoted quantization baseline
+
+The first remediation iteration passed the gate and is now the promoted remote baseline:
+- `--quant-format qdq`
+- `--calib-strategy stratified`
+- `--calib-samples 500`
+- `--percentile-clip 1 99`
+
+Promoted result:
+- `overall_gate_pass=true`
+- quantized size `15.99 KB`
+- quantized degradation `+3.0446 pp`

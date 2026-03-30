@@ -49,3 +49,38 @@ scripts/ml/remote_kxkm_ai_pipeline.sh run-container
 - models/features_adapted_v2.parquet
 - models/fpnn_soh_v2_quantized.onnx
 - models/phase2_metrics.json
+## Quantization iteration
+
+Advanced quantization iteration:
+
+```bash
+python3 scripts/ml/quantize_tflite.py \
+  --model models/fpnn_soh.pt \
+  --features models/features_adapted_v2.parquet \
+  --output models/fpnn_soh_v2_quantized.onnx \
+  --backend onnxrt \
+  --quant-format qdq \
+  --calib-strategy stratified \
+  --calib-samples 500 \
+  --percentile-clip 1 99
+```
+
+Bootstrap verification now checks `pandas`, `numpy`, `torch`, `onnxruntime`, `pyarrow`, and `onnx`.
+
+Latest verified remote status on `kxkm-ai`:
+- Technical unblock: done.
+- Remaining blocker: quantized quality gate on the latest remote dataset split.
+## Promoted baseline on kxkm-ai
+
+Winning configuration promoted on `2026-03-30 16:17 UTC`:
+- `--quant-format qdq`
+- `--calib-strategy stratified`
+- `--calib-samples 500`
+- `--percentile-clip 1 99`
+
+Promoted remote metrics:
+- float32 MAPE: `7.7289%`
+- quantized MAPE: `10.7734%`
+- degradation: `+3.0446 pp`
+- quantized size: `15.99 KB`
+- `overall_gate_pass=true`
