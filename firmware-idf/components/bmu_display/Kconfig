@@ -8,4 +8,11 @@ menu "BMU Display"
     config BMU_DISPLAY_REFRESH_MS
         int "UI refresh period (ms)"
         default 100
+    config BMU_CHART_HISTORY_POINTS
+        int "Chart history ring buffer size (points per battery)"
+        default 600
+        help
+            Number of data points kept per battery for the V/I chart.
+            At 500ms sampling, 600 = 5 minutes of history.
+            Memory cost: 600 * 8 bytes * 16 batteries = 76.8 KB.
 endmenu

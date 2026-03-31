@@ -1,0 +1,23 @@
+menu "BMU Bluetooth"
+    config BMU_BLE_ENABLED
+        bool "Enable Bluetooth BLE"
+        default n
+        help
+            Active le stack NimBLE BLE pour monitoring et controle via GATT.
+            Impact memoire : ~60 KB flash + ~10 KB RAM.
+
+    config BMU_BLE_DEVICE_NAME
+        string "BLE device name"
+        default "KXKM-BMU"
+        depends on BMU_BLE_ENABLED
+        help
+            Nom visible lors du scan BLE (advertising data).
+
+    config BMU_BLE_MAX_CONNECTIONS
+        int "Max simultaneous BLE connections"
+        default 3
+        range 1 5
+        depends on BMU_BLE_ENABLED
+        help
+            Nombre max de clients BLE connectes simultanement.
+endmenu

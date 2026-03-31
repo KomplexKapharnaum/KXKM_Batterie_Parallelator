@@ -19,6 +19,9 @@ CONFIG_LOG_MAXIMUM_LEVEL_DEBUG=y
 # ── FreeRTOS ──────────────────────────────────────────────────────────
 CONFIG_FREERTOS_HZ=1000
 
+# ── Console sur USB-JTAG (BOX-3 connecté via USB interne) ─────────────
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+
 # ── Watchdog ──────────────────────────────────────────────────────────
 CONFIG_ESP_TASK_WDT_TIMEOUT_S=10
 
@@ -26,3 +29,6 @@ CONFIG_ESP_TASK_WDT_TIMEOUT_S=10
 CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
 CONFIG_APP_PROJECT_VER_FROM_CONFIG=y
 CONFIG_APP_PROJECT_VER="0.4.0"
+
+# ── BSP BOX-3 display/touch (separe du bus BMU PMOD) ─────────────────
+CONFIG_BSP_I2C_NUM=0

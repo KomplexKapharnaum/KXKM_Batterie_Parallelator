@@ -2,22 +2,27 @@
  * @file bmu_display.cpp
  * @brief Display init for ESP32-S3-BOX-3 — LVGL v9 tabview with 5 screens.
  *
- * Ecrans : Batteries | Système | Alertes | Debug I2C | (Detail via tap)
+ * Ecrans : Batteries | Systeme | Alertes | Debug I2C | Solar
  * Navigation : swipe horizontal ou tap sur les onglets en bas.
+ * Tap sur une cellule batterie → ecran detail en overlay.
  */
 
 #include "bmu_display.h"
 #include "bmu_ui.h"
+#include "bmu_vedirect.h"
 
 #include "bsp/esp-bsp.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "lvgl.h"
 
+#include <cstring>
+
 static const char *TAG = "DISP";
 
 static bmu_display_ctx_t *s_ctx = NULL;
 static bmu_ui_ctx_t s_ui_ctx = {};
+static bmu_nav_state_t s_nav = {};
 static lv_display_t *s_disp = NULL;
 static lv_obj_t *s_tabview = NULL;
 static int64_t s_last_touch_us = 0;
@@ -25,6 +30,10 @@ static bool s_dimmed = false;
 static bool s_update_req = false;
 static bool s_ui_ready = false;
 static esp_timer_handle_t s_periodic_timer = NULL;
+
+/* Compteur pour le push chart (500ms = toutes les 5 iterations @ 100ms refresh) */
+static int s_chart_push_counter = 0;
+#define CHART_PUSH_INTERVAL  5  // 5 * 100ms = 500ms
 
 /* ── Backlight ──────────────────────────────────────────────────────── */
 
@@ -47,6 +56,18 @@ static void backlight_check_dim(void)
     }
 }
 
+/* ── Chart history push (500ms) ────────────────────────────────────── */
+
+static void chart_history_push_all(void)
+{
+    int nb = s_ui_ctx.nb_ina > 16 ? 16 : s_ui_ctx.nb_ina;
+    for (int i = 0; i < nb; i++) {
+        float v_mv = bmu_protection_get_voltage(s_ui_ctx.prot, i);
+        float i_a = 0.0f; // TODO: lire depuis INA quand API disponible
+        bmu_chart_history_push(&s_ui_ctx.chart_hist[i], v_mv, i_a);
+    }
+}
+
 /* ── Periodic update (timer callback) ──────────────────────────────── */
 
 static void display_periodic_cb(void *arg)
@@ -56,11 +77,19 @@ static void display_periodic_cb(void *arg)
 
     if (s_disp == NULL || !s_ui_ready) return;
 
+    /* Push chart data toutes les 500ms */
+    s_chart_push_counter++;
+    if (s_chart_push_counter >= CHART_PUSH_INTERVAL) {
+        s_chart_push_counter = 0;
+        chart_history_push_all();
+    }
+
     if (bsp_display_lock(0)) {
-        /* Update all screens — LVGL only renders visible widgets efficiently */
+        /* bmu_ui_main_update gere : grille OU detail selon nav state */
         bmu_ui_main_update(&s_ui_ctx);
         bmu_ui_system_update(&s_ui_ctx);
         bmu_ui_debug_update();
+        bmu_ui_solar_update();
 
         if (s_update_req) {
             s_update_req = false;
@@ -84,6 +113,14 @@ esp_err_t bmu_display_init(bmu_display_ctx_t *ctx)
     s_ui_ctx.mgr = ctx->mgr;
     s_ui_ctx.nb_ina = ctx->nb_ina;
     s_ui_ready = false;
+
+    /* Init navigation state */
+    s_nav.detail_visible = false;
+    s_nav.detail_battery = -1;
+    s_nav.detail_panel = NULL;
+
+    /* Init chart history (zero) */
+    memset(s_ui_ctx.chart_hist, 0, sizeof(s_ui_ctx.chart_hist));
 
     ESP_LOGI(TAG, "=== Initialisation affichage BMU via BSP BOX-3 ===");
 
@@ -123,18 +160,22 @@ esp_err_t bmu_display_init(bmu_display_ctx_t *ctx)
     lv_obj_t *tab_sys    = lv_tabview_add_tab(s_tabview, LV_SYMBOL_SETTINGS " Sys");
     lv_obj_t *tab_alerts = lv_tabview_add_tab(s_tabview, LV_SYMBOL_WARNING " Alert");
     lv_obj_t *tab_debug  = lv_tabview_add_tab(s_tabview, LV_SYMBOL_EYE_OPEN " I2C");
+    lv_obj_t *tab_solar  = lv_tabview_add_tab(s_tabview, LV_SYMBOL_CHARGE " Solar");
 
     /* Fond sombre pour chaque onglet */
     lv_obj_set_style_bg_color(tab_batt,   lv_color_hex(0x1E1E1E), 0);
     lv_obj_set_style_bg_color(tab_sys,    lv_color_hex(0x1E1E1E), 0);
     lv_obj_set_style_bg_color(tab_alerts, lv_color_hex(0x1E1E1E), 0);
     lv_obj_set_style_bg_color(tab_debug,  lv_color_hex(0x1E1E1E), 0);
+    lv_obj_set_style_bg_color(tab_solar,  lv_color_hex(0x1E1E1E), 0);
 
     /* ── Creer le contenu de chaque ecran ─────────────────────────── */
+    bmu_ui_main_set_nav_state(&s_nav);
     bmu_ui_main_create(tab_batt, &s_ui_ctx);
     bmu_ui_system_create(tab_sys, &s_ui_ctx);
     bmu_ui_alerts_create(tab_alerts);
     bmu_ui_debug_create(tab_debug);
+    bmu_ui_solar_create(tab_solar);
 
     s_ui_ready = true;
     bsp_display_unlock();
@@ -164,9 +205,10 @@ esp_err_t bmu_display_init(bmu_display_ctx_t *ctx)
             CONFIG_BMU_DISPLAY_REFRESH_MS * 1000ULL));
     }
 
-    ESP_LOGI(TAG, "=== Affichage BMU pret (refresh=%dms, dim=%ds) ===",
+    ESP_LOGI(TAG, "=== Affichage BMU pret (refresh=%dms, dim=%ds, chart=%d pts) ===",
              CONFIG_BMU_DISPLAY_REFRESH_MS,
-             CONFIG_BMU_DISPLAY_BL_DIM_TIMEOUT_S);
+             CONFIG_BMU_DISPLAY_BL_DIM_TIMEOUT_S,
+             CONFIG_BMU_CHART_HISTORY_POINTS);
     return ESP_OK;
 }
 

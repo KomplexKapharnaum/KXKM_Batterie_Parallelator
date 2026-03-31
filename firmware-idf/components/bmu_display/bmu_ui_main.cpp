@@ -20,6 +20,9 @@ static lv_obj_t *voltage_labels[16] = {};
 static lv_obj_t *current_labels[16] = {};
 static lv_obj_t *status_indicators[16] = {};
 static lv_obj_t *summary_label = NULL;
+static lv_obj_t *s_grid_parent = NULL;
+static bmu_ui_ctx_t *s_ctx_ref = NULL;
+static bmu_nav_state_t *s_nav = NULL;
 
 static lv_color_t state_color(bmu_battery_state_t state) {
     switch (state) {
@@ -32,8 +35,33 @@ static lv_color_t state_color(bmu_battery_state_t state) {
     }
 }
 
+/* ── Callback tap sur cellule ─────────────────────────────────────── */
+
+static void cell_clicked_cb(lv_event_t *e)
+{
+    int idx = (int)(intptr_t)lv_event_get_user_data(e);
+    if (s_nav == NULL || s_ctx_ref == NULL || s_grid_parent == NULL) return;
+    if (s_nav->detail_visible) return; // deja en detail
+
+    ESP_LOGI(TAG, "Tap sur BAT %d → detail", idx + 1);
+
+    s_nav->detail_visible = true;
+    s_nav->detail_battery = idx;
+
+    /* Creer le detail en overlay sur le parent du tab */
+    bmu_ui_detail_create(s_grid_parent, s_ctx_ref, idx);
+}
+
+void bmu_ui_main_set_nav_state(bmu_nav_state_t *nav)
+{
+    s_nav = nav;
+}
+
 void bmu_ui_main_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx)
 {
+    s_grid_parent = parent;
+    s_ctx_ref = ctx;
+
     // Set dark background
     lv_obj_set_style_bg_color(parent, COL_BG, 0);
 
@@ -65,13 +93,17 @@ void bmu_ui_main_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx)
         lv_obj_set_style_border_width(cell, 0, 0);
         battery_cells[i] = cell;
 
+        /* Rendre la cellule clickable */
+        lv_obj_add_flag(cell, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_add_event_cb(cell, cell_clicked_cb, LV_EVENT_CLICKED, (void *)(intptr_t)i);
+
         // Battery number
         lv_obj_t *num = lv_label_create(cell);
         char buf[8];
         snprintf(buf, sizeof(buf), "B%d", i + 1);
         lv_label_set_text(num, buf);
         lv_obj_set_style_text_color(num, lv_color_white(), 0);
-        lv_obj_set_style_text_font(num, &lv_font_montserrat_10, 0);
+        lv_obj_set_style_text_font(num, &lv_font_montserrat_14, 0);
         lv_obj_align(num, LV_ALIGN_TOP_LEFT, 0, 0);
 
         // Status dot
@@ -87,7 +119,7 @@ void bmu_ui_main_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx)
         lv_obj_t *vlbl = lv_label_create(cell);
         lv_label_set_text(vlbl, "--.-V");
         lv_obj_set_style_text_color(vlbl, lv_color_white(), 0);
-        lv_obj_set_style_text_font(vlbl, &lv_font_montserrat_12, 0);
+        lv_obj_set_style_text_font(vlbl, &lv_font_montserrat_14, 0);
         lv_obj_align(vlbl, LV_ALIGN_BOTTOM_LEFT, 0, -10);
         voltage_labels[i] = vlbl;
 
@@ -95,7 +127,7 @@ void bmu_ui_main_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx)
         lv_obj_t *ilbl = lv_label_create(cell);
         lv_label_set_text(ilbl, "-.-A");
         lv_obj_set_style_text_color(ilbl, COL_GREY, 0);
-        lv_obj_set_style_text_font(ilbl, &lv_font_montserrat_10, 0);
+        lv_obj_set_style_text_font(ilbl, &lv_font_montserrat_14, 0);
         lv_obj_align(ilbl, LV_ALIGN_BOTTOM_LEFT, 0, 0);
         current_labels[i] = ilbl;
     }
@@ -104,12 +136,18 @@ void bmu_ui_main_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx)
     summary_label = lv_label_create(parent);
     lv_label_set_text(summary_label, "...");
     lv_obj_set_style_text_color(summary_label, COL_GREY, 0);
-    lv_obj_set_style_text_font(summary_label, &lv_font_montserrat_10, 0);
+    lv_obj_set_style_text_font(summary_label, &lv_font_montserrat_14, 0);
     lv_obj_align(summary_label, LV_ALIGN_BOTTOM_MID, 0, -2);
 }
 
 void bmu_ui_main_update(bmu_ui_ctx_t *ctx)
 {
+    /* Si le detail est visible, mettre a jour le detail, pas la grille */
+    if (s_nav != NULL && s_nav->detail_visible) {
+        bmu_ui_detail_update(ctx, s_nav->detail_battery);
+        return;
+    }
+
     int nb = ctx->nb_ina > 16 ? 16 : ctx->nb_ina;
     float total_i = 0;
     float sum_v = 0;
@@ -143,4 +181,6 @@ void bmu_ui_main_update(bmu_ui_ctx_t *ctx)
     char summary[64];
     snprintf(summary, sizeof(summary), "Avg:%.1fV  Active:%d/%d", avg_v, n_active, nb);
     lv_label_set_text(summary_label, summary);
+
+    (void)total_i;
 }

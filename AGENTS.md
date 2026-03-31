@@ -1,26 +1,56 @@
 # Project Guidelines
 
 ## Scope
-- This repository is an ESP32 PlatformIO battery management firmware (BMU) for parallelized battery packs (up to 16 channels).
+- This AGENTS.md is the workspace-wide instruction source; do not add a second global .github/copilot-instructions.md unless intentionally replacing it.
+- This repository contains a BMU firmware stack for parallelized battery packs (up to 16 channels): PlatformIO/Arduino in firmware/ and an ESP-IDF track in firmware-idf/ for ESP32-S3-BOX-3.
 - Keep behavior safe by default: battery protection logic must not be weakened.
-- Prefer focused changes in firmware/src/ and avoid unrelated edits in hardware design folders.
+- Prefer focused changes in firmware/src/ and firmware-idf/ and avoid unrelated edits in hardware design folders.
+
+## Copilot Workflow
+- Start by checking the scoped instruction file that matches the area you are editing.
+- For firmware safety changes, inspect the relevant code path and the closest sim-host tests before proposing edits.
+- Prefer minimal diffs, reuse existing validation/security helpers, and link to existing docs instead of rewriting them.
+- Before substantial firmware changes, run pio test -e sim-host; before large changes, also run scripts/check_memory_budget.sh --env kxkm-s3-16MB --ram-max 75 --flash-max 85.
+- For risk-focused review work, prefer .github/agents/bmu-safety-review.agent.md or other narrow agents over generic broad reviews.
+
+## Build, Upload, Test
+- For a default firmware build, use pio run -e kxkm-s3-16MB.
+- For upload to hardware, use pio run -e kxkm-s3-16MB --target upload only when the user explicitly asks to flash a connected board.
+- For host-side validation, prefer pio test -e sim-host before hardware-oriented actions.
+- For test diagnostics, use pio test -e sim-host -vv.
+- For hardware serial logs after upload, use pio device monitor -e kxkm-s3-16MB --baud 115200.
+- For ESP-IDF BOX-3 firmware builds, use: cd firmware-idf && idf.py build.
+- For ESP-IDF flashing on BOX-3, use: cd firmware-idf && idf.py -p /dev/cu.usbmodem* flash.
+- If ESP-IDF flashing fails with No serial data received, require manual BOOT+EN sequence before retrying.
+- For ESP-IDF serial logs, use: cd firmware-idf && idf.py -p /dev/cu.usbmodem* monitor.
+- If a change is broad enough to affect memory footprint, run scripts/check_memory_budget.sh --env kxkm-s3-16MB --ram-max 75 --flash-max 85 after a successful build.
 
 ## Build and Test
 - Main build (default): pio run -e kxkm-s3-16MB
 - Upload firmware: pio run -e kxkm-s3-16MB --target upload
+- ESP-IDF build (BOX-3): cd firmware-idf && idf.py build
+- ESP-IDF flash (BOX-3): cd firmware-idf && idf.py -p /dev/cu.usbmodem* flash
+- ESP-IDF monitor (BOX-3): cd firmware-idf && idf.py -p /dev/cu.usbmodem* monitor
 - Legacy v3 build: pio run -e kxkm-v3-16MB
 - Debug build: pio run -e esp-wrover-kit
 - Serial monitor: pio device monitor -e kxkm-s3-16MB --baud 115200
 - Host safety/security tests: pio test -e sim-host
+- Verbose host test diagnostics: pio test -e sim-host -vv
 - Memory guardrail (required before large changes): scripts/check_memory_budget.sh --env kxkm-s3-16MB --ram-max 75 --flash-max 85
 - Hardware test target (when relevant): pio test -e kxkm-s3-16MB
+- PlatformIO gotcha: keep framework=arduino only in [arduino_base] inside platformio.ini; setting it globally breaks the native/sim-host environments.
 
 ## Architecture
-- Main entrypoint and orchestration: firmware/src/main.cpp
+- Main entrypoint and orchestration (PlatformIO): firmware/src/main.cpp
 - Core battery logic: firmware/src/BatteryParallelator.cpp, firmware/src/BatteryManager.cpp
 - Sensor/actuator drivers: firmware/src/INAHandler.cpp, firmware/src/TCAHandler.cpp
 - Shared bus lock: firmware/src/I2CMutex.h
 - Logging and integrations: firmware/src/SD_Logger.cpp, firmware/src/InfluxDBHandler.cpp, firmware/src/WebServerHandler.cpp, firmware/src/TimeAndInfluxTask.cpp
+- Main entrypoint and orchestration (ESP-IDF): firmware-idf/main/main.cpp
+- ESP-IDF display path (BOX-3 BSP): firmware-idf/components/bmu_display/
+- ESP-IDF BMU I2C bus path: firmware-idf/components/bmu_i2c/
+- Topology is safety-critical: Nb_TCA * 4 must match Nb_INA or the firmware must stay fail-safe with batteries forced OFF.
+- firmware/src/config.h is the source of truth for protection thresholds and timing values.
 
 ## Conventions
 - The codebase is primarily French in comments and many identifiers; keep naming and phrasing consistent with surrounding code.
@@ -34,6 +64,16 @@
 - Do not bypass topology validation between INA and TCA counts in firmware/src/main.cpp.
 - Do not silently relax battery thresholds, reconnect delays, or current/voltage protections.
 - Keep task behavior non-blocking for FreeRTOS loops and avoid long blocking calls in periodic tasks.
+- On ESP-IDF BOX-3, do not create I2C bus 1 twice: BSP and BMU share DOCK pins (GPIO40/41). Initialize BSP I2C first, then reuse the existing DOCK bus handle in BMU I2C code.
+
+## Scoped Instructions
+- When editing firmware/src/**, follow .github/instructions/firmware-safety.instructions.md.
+- When editing firmware-idf/**, still apply the same BMU safety invariants (topology fail-safe, no threshold relaxation, non-blocking task behavior).
+- When editing firmware/src/Web*.{h,cpp}, WebRouteSecurity, WebMutationRateLimit, or BatteryRouteValidation, follow .github/instructions/webserver-safety.instructions.md.
+- When editing scripts/ml/**, models/**, or docs/ml-battery-health-spec.md, follow .github/instructions/ml-pipeline.instructions.md.
+- When editing plan/** or docs/superpowers/plans/**, follow .github/instructions/plan-todo-implementation.instructions.md.
+- When editing Python tests under firmware/test/**, follow .github/instructions/tests-python.instructions.md.
+- Prefer linking to the existing docs below instead of duplicating their content here.
 
 ## Audit Focus
 - Prioritize security and reliability risks before feature work.
@@ -55,13 +95,18 @@
 ## Key References (Link, do not duplicate)
 - Project architecture and operating notes: CLAUDE.md
 - Product and usage overview: README.md
+- Architecture diagrams and governance context: docs/governance/architecture-diagrams.md
+- Current repository context snapshot: docs/context/project-context-snapshot.md
 - ML battery health roadmap/spec: docs/ml-battery-health-spec.md
 - Credentials template: firmware/src/credentials.h.example
 - Platform/build configuration: platformio.ini
 - Firmware safety instruction (applyTo src): .github/instructions/firmware-safety.instructions.md
+- Web safety instruction (applyTo web routes): .github/instructions/webserver-safety.instructions.md
 - ML pipeline instruction (applyTo scripts/ml, docs, models): .github/instructions/ml-pipeline.instructions.md
 - BMU safety review agent: .github/agents/bmu-safety-review.agent.md
+- Battery protection review agent: .github/agents/battery-protection-review.agent.md
 - BMU audit prompt: .github/prompts/audit-bmu.prompt.md
+- BMU preflight prompt: .github/prompts/preflight-bmu-change.prompt.md
 
 ## Areas to Avoid Unless Requested
 - Legacy hardware folder marked as untouchable: hardware/battery-management-unit/PCB V1 (don't touch)/

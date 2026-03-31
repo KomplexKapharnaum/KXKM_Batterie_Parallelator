@@ -74,7 +74,7 @@ void bmu_ui_debug_create(lv_obj_t *parent)
     lv_obj_t *title = lv_label_create(parent);
     lv_label_set_text(title, "Debug I2C");
     lv_obj_set_style_text_color(title, lv_color_hex(0xFF9100), 0);
-    lv_obj_set_style_text_font(title, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_font(title, &lv_font_montserrat_14, 0);
     lv_obj_align(title, LV_ALIGN_TOP_LEFT, 8, 4);
 
     /* Bouton CLEAR */
@@ -84,7 +84,7 @@ void bmu_ui_debug_create(lv_obj_t *parent)
     lv_obj_set_style_bg_color(btn_clear, lv_color_hex(0x424242), 0);
     lv_obj_t *btn_lbl = lv_label_create(btn_clear);
     lv_label_set_text(btn_lbl, "CLEAR");
-    lv_obj_set_style_text_font(btn_lbl, &lv_font_montserrat_10, 0);
+    lv_obj_set_style_text_font(btn_lbl, &lv_font_montserrat_14, 0);
     lv_obj_center(btn_lbl);
     lv_obj_add_event_cb(btn_clear, [](lv_event_t *e) {
         (void)e;
@@ -101,14 +101,14 @@ void bmu_ui_debug_create(lv_obj_t *parent)
     status_label = lv_label_create(parent);
     lv_label_set_text(status_label, "Bus: GPIO40/41 50kHz  Devices: 0");
     lv_obj_set_style_text_color(status_label, lv_color_hex(0x9E9E9E), 0);
-    lv_obj_set_style_text_font(status_label, &lv_font_montserrat_10, 0);
+    lv_obj_set_style_text_font(status_label, &lv_font_montserrat_14, 0);
     lv_obj_align(status_label, LV_ALIGN_TOP_LEFT, 8, 26);
 
     /* Compteurs d'erreurs */
     error_label = lv_label_create(parent);
     lv_label_set_text(error_label, "Errors: 0  NACK: 0  Timeout: 0");
     lv_obj_set_style_text_color(error_label, lv_color_hex(0xFF1744), 0);
-    lv_obj_set_style_text_font(error_label, &lv_font_montserrat_10, 0);
+    lv_obj_set_style_text_font(error_label, &lv_font_montserrat_14, 0);
     lv_obj_align(error_label, LV_ALIGN_TOP_LEFT, 8, 40);
 
     /* Conteneur scrollable pour le log */
@@ -161,7 +161,7 @@ void bmu_ui_debug_update(void)
             color = lv_color_hex(0x00C853); /* vert */
         }
         lv_obj_set_style_text_color(line, color, 0);
-        lv_obj_set_style_text_font(line, &lv_font_montserrat_10, 0);
+        lv_obj_set_style_text_font(line, &lv_font_montserrat_14, 0);
     }
 
     /* Scroll vers le haut (plus recent) */

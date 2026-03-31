@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KXKM BMU — Bluetooth</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-family: Arial, Helvetica, sans-serif; }
+body { background: #111; color: #eee; font-size: 14px; padding: 10px; }
+h1 { font-size: 1.4rem; color: #fff; text-align: center; margin: 10px 0; }
+h2 { font-size: 1.1rem; color: #ccc; margin: 12px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+
+/* ── Banner compatibilite ────────────────────────────────────── */
+#no-ble-banner { display: none; background: #a33; color: #fff; text-align: center; padding: 12px; border-radius: 6px; margin-bottom: 10px; }
+
+/* ── Connexion ───────────────────────────────────────────────── */
+#conn-bar { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap; margin-bottom: 12px; }
+button { background: #2a6; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+button:hover { filter: brightness(1.2); }
+button:disabled { background: #555; cursor: not-allowed; }
+button.danger { background: #a33; }
+button.warn { background: #c80; }
+#conn-status { font-size: 12px; color: #888; }
+
+/* ── Grille batteries ────────────────────────────────────────── */
+.bat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+@media (max-width: 600px) { .bat-grid { grid-template-columns: repeat(2, 1fr); } }
+
+.bat-card { background: #1a1a1a; border: 1px solid #333; border-radius: 6px; padding: 8px; text-align: center; min-height: 100px; }
+.bat-card .idx { font-weight: bold; font-size: 13px; margin-bottom: 4px; }
+.bat-card .voltage { font-size: 1.3rem; font-weight: bold; }
+.bat-card .detail { font-size: 11px; color: #aaa; margin-top: 2px; }
+
+.bat-card.st-connected    { border-color: #2a6; }
+.bat-card.st-disconnected { border-color: #555; opacity: 0.6; }
+.bat-card.st-reconnecting { border-color: #c80; }
+.bat-card.st-error        { border-color: #d44; }
+.bat-card.st-locked       { border-color: #d44; background: #2a1010; }
+
+/* ── System info ─────────────────────────────────────────────── */
+.sys-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 6px; }
+.sys-item { background: #1a1a1a; border: 1px solid #333; border-radius: 6px; padding: 8px; }
+.sys-item .label { font-size: 11px; color: #888; }
+.sys-item .value { font-size: 1rem; font-weight: bold; margin-top: 2px; }
+
+/* ── Solar ────────────────────────────────────────────────────── */
+#solar-section { display: none; }
+
+/* ── Control ──────────────────────────────────────────────────── */
+#control-section { display: none; }
+.ctrl-row { display: flex; gap: 6px; align-items: center; margin: 4px 0; flex-wrap: wrap; }
+.ctrl-row label { min-width: 80px; font-size: 12px; color: #aaa; }
+.ctrl-row input { width: 80px; background: #222; border: 1px solid #444; color: #eee; padding: 4px; border-radius: 3px; font-size: 12px; }
+.ctrl-row select { background: #222; border: 1px solid #444; color: #eee; padding: 4px; border-radius: 3px; font-size: 12px; }
+#ctrl-status { font-size: 12px; color: #888; margin-top: 6px; padding: 6px; background: #1a1a1a; border-radius: 4px; }
+
+/* ── Toggle buttons grille ────────────────────────────────────── */
+.toggle-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin: 8px 0; }
+@media (max-width: 600px) { .toggle-grid { grid-template-columns: repeat(2, 1fr); } }
+.toggle-btn { font-size: 11px; padding: 6px 4px; border-radius: 3px; }
+.toggle-btn.on  { background: #2a6; }
+.toggle-btn.off { background: #555; }
+</style>
+</head>
+<body>
+
+<div id="no-ble-banner">Web Bluetooth non supporte — utilisez Chrome ou Edge</div>
+
+<h1>KXKM BMU — Bluetooth</h1>
+
+<div id="conn-bar">
+  <button id="btn-scan" onclick="doScan()">Scan BLE</button>
+  <button id="btn-disconnect" onclick="doDisconnect()" disabled class="danger">Deconnecter</button>
+  <span id="conn-status">Non connecte</span>
+</div>
+
+<!-- Batteries -->
+<h2>Batteries</h2>
+<div class="bat-grid" id="bat-grid"></div>
+
+<!-- System -->
+<h2>Systeme</h2>
+<div class="sys-grid" id="sys-grid">
+  <div class="sys-item"><div class="label">Firmware</div><div class="value" id="sys-fw">—</div></div>
+  <div class="sys-item"><div class="label">Heap libre</div><div class="value" id="sys-heap">—</div></div>
+  <div class="sys-item"><div class="label">Uptime</div><div class="value" id="sys-uptime">—</div></div>
+  <div class="sys-item"><div class="label">WiFi IP</div><div class="value" id="sys-ip">—</div></div>
+  <div class="sys-item"><div class="label">Topologie</div><div class="value" id="sys-topo">—</div></div>
+</div>
+
+<!-- Solar -->
+<div id="solar-section">
+  <h2>Solaire (VE.Direct)</h2>
+  <div class="sys-grid">
+    <div class="sys-item"><div class="label">Batterie</div><div class="value" id="sol-bat">—</div></div>
+    <div class="sys-item"><div class="label">Panneau</div><div class="value" id="sol-panel">—</div></div>
+    <div class="sys-item"><div class="label">Puissance</div><div class="value" id="sol-power">—</div></div>
+    <div class="sys-item"><div class="label">Etat charge</div><div class="value" id="sol-cs">—</div></div>
+    <div class="sys-item"><div class="label">Yield aujourd'hui</div><div class="value" id="sol-yield">—</div></div>
+    <div class="sys-item"><div class="label">Erreur</div><div class="value" id="sol-err">—</div></div>
+  </div>
+</div>
+
+<!-- Control -->
+<div id="control-section">
+  <h2>Controle</h2>
+  <p style="font-size:11px;color:#888;margin-bottom:8px;">Pairing BLE requis pour les commandes.</p>
+
+  <h3 style="font-size:12px;color:#aaa;margin:6px 0;">Switch ON/OFF</h3>
+  <div class="toggle-grid" id="toggle-grid"></div>
+
+  <h3 style="font-size:12px;color:#aaa;margin:6px 0;">Reset compteur switch</h3>
+  <div class="toggle-grid" id="reset-grid"></div>
+
+  <h3 style="font-size:12px;color:#aaa;margin:6px 0;">Configuration (NVS — prise en compte au reboot)</h3>
+  <div class="ctrl-row">
+    <label>Min (mV)</label><input id="cfg-min" type="number" value="24000" min="20000" max="30000">
+    <label>Max (mV)</label><input id="cfg-max" type="number" value="30000" min="25000" max="35000">
+  </div>
+  <div class="ctrl-row">
+    <label>Max I (mA)</label><input id="cfg-maxI" type="number" value="20000" min="1000" max="50000">
+    <label>Diff (mV)</label><input id="cfg-diff" type="number" value="500" min="100" max="5000">
+  </div>
+  <div class="ctrl-row">
+    <button onclick="doSendConfig()">Envoyer config</button>
+  </div>
+
+  <div id="ctrl-status">Aucune commande envoyee</div>
+</div>
+
+<script>
+/* ── UUID base KXKM-BMU ─────────────────────────────────────── */
+const UUID_BASE = '4b584b4d-XXXX-4b4d-424d-55424c450000';
+function uuid(suffix) { return UUID_BASE.replace('XXXX', suffix.toString(16).padStart(4,'0')); }
+
+const SVC_BATTERY = uuid(0x0001);
+const SVC_SYSTEM  = uuid(0x0002);
+const SVC_CONTROL = uuid(0x0003);
+
+function batChrUuid(i) { return uuid(0x0010 + i); }
+const CHR_FW     = uuid(0x0020);
+const CHR_HEAP   = uuid(0x0021);
+const CHR_UPTIME = uuid(0x0022);
+const CHR_IP     = uuid(0x0023);
+const CHR_TOPO   = uuid(0x0024);
+const CHR_SOLAR  = uuid(0x0025);
+const CHR_SWITCH = uuid(0x0030);
+const CHR_RESET  = uuid(0x0031);
+const CHR_CONFIG = uuid(0x0032);
+const CHR_STATUS = uuid(0x0033);
+
+/* ── State names ─────────────────────────────────────────────── */
+const STATE_NAMES = ['connected','disconnected','reconnecting','error','locked'];
+const CS_NAMES = {0:'Off',3:'Bulk',4:'Absorption',5:'Float',6:'Equalize'};
+
+/* ── Globals ─────────────────────────────────────────────────── */
+let gattServer = null;
+let svcBat = null, svcSys = null, svcCtrl = null;
+let chrSwitch = null, chrReset = null, chrConfig = null, chrStatus = null;
+let nbBat = 16;
+
+/* ── Compatibility check ─────────────────────────────────────── */
+if (!navigator.bluetooth) {
+  document.getElementById('no-ble-banner').style.display = 'block';
+  document.getElementById('btn-scan').disabled = true;
+}
+
+/* ── Build battery grid ──────────────────────────────────────── */
+(function buildGrid() {
+  const g = document.getElementById('bat-grid');
+  const tg = document.getElementById('toggle-grid');
+  const rg = document.getElementById('reset-grid');
+  for (let i = 0; i < 16; i++) {
+    // Battery card
+    const c = document.createElement('div');
+    c.className = 'bat-card st-disconnected';
+    c.id = 'bat-' + i;
+    c.innerHTML = '<div class="idx">Bat ' + (i+1) + '</div>'
+      + '<div class="voltage" id="bat-v-'+i+'">—</div>'
+      + '<div class="detail" id="bat-i-'+i+'">—</div>'
+      + '<div class="detail" id="bat-ah-'+i+'">—</div>'
+      + '<div class="detail" id="bat-sw-'+i+'">—</div>';
+    g.appendChild(c);
+
+    // Toggle button
+    const tb = document.createElement('button');
+    tb.className = 'toggle-btn off';
+    tb.id = 'tog-' + i;
+    tb.textContent = 'Bat ' + (i+1) + ': OFF';
+    tb.onclick = () => doSwitch(i);
+    tg.appendChild(tb);
+
+    // Reset button
+    const rb = document.createElement('button');
+    rb.className = 'toggle-btn warn';
+    rb.textContent = 'Reset ' + (i+1);
+    rb.onclick = () => doResetSwitch(i);
+    rg.appendChild(rb);
+  }
+})();
+
+/* ── Scan + Connect ──────────────────────────────────────────── */
+async function doScan() {
+  try {
+    const device = await navigator.bluetooth.requestDevice({
+      filters: [{ namePrefix: 'KXKM' }],
+      optionalServices: [SVC_BATTERY, SVC_SYSTEM, SVC_CONTROL]
+    });
+    device.addEventListener('gattserverdisconnected', onDisconnected);
+    setStatus('Connexion a ' + device.name + '...');
+
+    gattServer = await device.gatt.connect();
+    setStatus('Connecte: ' + device.name);
+    document.getElementById('btn-scan').disabled = true;
+    document.getElementById('btn-disconnect').disabled = false;
+
+    // Discover services
+    try { svcBat  = await gattServer.getPrimaryService(SVC_BATTERY); } catch(e) { console.warn('No battery svc', e); }
+    try { svcSys  = await gattServer.getPrimaryService(SVC_SYSTEM);  } catch(e) { console.warn('No system svc', e); }
+    try { svcCtrl = await gattServer.getPrimaryService(SVC_CONTROL); } catch(e) { console.warn('No control svc', e); }
+
+    // Battery notifications
+    if (svcBat) {
+      for (let i = 0; i < 16; i++) {
+        try {
+          const chr = await svcBat.getCharacteristic(batChrUuid(i));
+          chr.addEventListener('characteristicvaluechanged', (ev) => parseBattery(i, ev.target.value));
+          await chr.startNotifications();
+          // Initial read
+          const val = await chr.readValue();
+          parseBattery(i, val);
+        } catch(e) { /* Batterie non presente */ }
+      }
+    }
+
+    // System reads + notifications
+    if (svcSys) {
+      await readSystemInfo();
+      // Heap notify
+      try {
+        const heapChr = await svcSys.getCharacteristic(CHR_HEAP);
+        heapChr.addEventListener('characteristicvaluechanged', (ev) => {
+          document.getElementById('sys-heap').textContent = ev.target.value.getUint32(0, true).toLocaleString() + ' B';
+        });
+        await heapChr.startNotifications();
+      } catch(e) {}
+      // Solar notify
+      try {
+        const solarChr = await svcSys.getCharacteristic(CHR_SOLAR);
+        solarChr.addEventListener('characteristicvaluechanged', (ev) => parseSolar(ev.target.value));
+        await solarChr.startNotifications();
+      } catch(e) {}
+    }
+
+    // Control service
+    if (svcCtrl) {
+      document.getElementById('control-section').style.display = 'block';
+      try { chrSwitch = await svcCtrl.getCharacteristic(CHR_SWITCH); } catch(e) {}
+      try { chrReset  = await svcCtrl.getCharacteristic(CHR_RESET);  } catch(e) {}
+      try { chrConfig = await svcCtrl.getCharacteristic(CHR_CONFIG); } catch(e) {}
+      try {
+        chrStatus = await svcCtrl.getCharacteristic(CHR_STATUS);
+        chrStatus.addEventListener('characteristicvaluechanged', (ev) => parseControlStatus(ev.target.value));
+        await chrStatus.startNotifications();
+      } catch(e) {}
+    }
+
+  } catch (err) {
+    console.error('BLE error:', err);
+    setStatus('Erreur: ' + err.message);
+  }
+}
+
+function doDisconnect() {
+  if (gattServer && gattServer.connected) gattServer.disconnect();
+}
+
+function onDisconnected() {
+  setStatus('Deconnecte');
+  document.getElementById('btn-scan').disabled = false;
+  document.getElementById('btn-disconnect').disabled = true;
+  document.getElementById('control-section').style.display = 'none';
+  gattServer = null; svcBat = null; svcSys = null; svcCtrl = null;
+  chrSwitch = null; chrReset = null; chrConfig = null; chrStatus = null;
+}
+
+function setStatus(msg) { document.getElementById('conn-status').textContent = msg; }
+
+/* ── Parse battery characteristic (15 bytes packed) ──────────── */
+function parseBattery(idx, dv) {
+  if (dv.byteLength < 15) return;
+  const v_mv   = dv.getInt32(0, true);
+  const i_ma   = dv.getInt32(4, true);
+  const state  = dv.getUint8(8);
+  const ahD_mah = dv.getInt32(9, true);
+  const ahC_mah = dv.getInt32(13, true);
+  /* nb_switch can be at offset 17 but struct is 15 bytes with 2 uint8 */
+  /* Recalculate: int32(4)+int32(4)+uint8(1)+int32(4)+int32(4)+uint8(1) = 18 bytes total */
+  /* Wait, the C struct is packed: 4+4+1+4+4+1 = 18 bytes, not 15 */
+  /* Plan says 15 but actual packed is 18 */
+  const nbSw = dv.byteLength >= 18 ? dv.getUint8(17) : 0;
+
+  const card = document.getElementById('bat-' + idx);
+  const stName = STATE_NAMES[state] || 'unknown';
+  card.className = 'bat-card st-' + stName;
+
+  document.getElementById('bat-v-' + idx).textContent = (v_mv / 1000).toFixed(2) + ' V';
+  document.getElementById('bat-i-' + idx).textContent = (i_ma / 1000).toFixed(2) + ' A';
+  document.getElementById('bat-ah-' + idx).textContent = 'D:' + (ahD_mah/1000).toFixed(2) + ' C:' + (ahC_mah/1000).toFixed(2) + ' Ah';
+  document.getElementById('bat-sw-' + idx).textContent = 'sw:' + nbSw;
+
+  // Update toggle button
+  const tb = document.getElementById('tog-' + idx);
+  if (state === 0) { tb.className = 'toggle-btn on'; tb.textContent = 'Bat '+(idx+1)+': ON'; }
+  else { tb.className = 'toggle-btn off'; tb.textContent = 'Bat '+(idx+1)+': OFF'; }
+}
+
+/* ── Read system info ────────────────────────────────────────── */
+async function readSystemInfo() {
+  if (!svcSys) return;
+  try {
+    const fw = await (await svcSys.getCharacteristic(CHR_FW)).readValue();
+    document.getElementById('sys-fw').textContent = new TextDecoder().decode(fw);
+  } catch(e) {}
+  try {
+    const heap = await (await svcSys.getCharacteristic(CHR_HEAP)).readValue();
+    document.getElementById('sys-heap').textContent = heap.getUint32(0, true).toLocaleString() + ' B';
+  } catch(e) {}
+  try {
+    const up = await (await svcSys.getCharacteristic(CHR_UPTIME)).readValue();
+    const s = up.getUint32(0, true);
+    const h = Math.floor(s/3600); const m = Math.floor((s%3600)/60);
+    document.getElementById('sys-uptime').textContent = h + 'h ' + m + 'm';
+  } catch(e) {}
+  try {
+    const ip = await (await svcSys.getCharacteristic(CHR_IP)).readValue();
+    document.getElementById('sys-ip').textContent = new TextDecoder().decode(ip);
+  } catch(e) {}
+  try {
+    const topo = await (await svcSys.getCharacteristic(CHR_TOPO)).readValue();
+    if (topo.byteLength >= 3) {
+      const ni = topo.getUint8(0), nt = topo.getUint8(1), v = topo.getUint8(2);
+      document.getElementById('sys-topo').textContent = ni + ' INA / ' + nt + ' TCA ' + (v ? 'OK' : 'FAIL');
+      nbBat = ni;
+    }
+  } catch(e) {}
+  try {
+    const sol = await (await svcSys.getCharacteristic(CHR_SOLAR)).readValue();
+    parseSolar(sol);
+  } catch(e) {}
+}
+
+/* ── Parse solar ─────────────────────────────────────────────── */
+function parseSolar(dv) {
+  if (dv.byteLength < 13) return;
+  const valid = dv.getUint8(12);
+  const sec = document.getElementById('solar-section');
+  if (!valid) { sec.style.display = 'none'; return; }
+  sec.style.display = 'block';
+
+  const batV = dv.getInt16(0, true);
+  const batI = dv.getInt16(2, true);
+  const panV = dv.getUint16(4, true);
+  const panP = dv.getUint16(6, true);
+  const cs   = dv.getUint8(8);
+  const err  = dv.getUint8(9);
+  const yld  = dv.getUint32(10, true); /* wait: offset 10 is uint32 yield, then valid at 14 → 15 bytes total */
+  /* Recheck: int16(2)+int16(2)+uint16(2)+uint16(2)+uint8(1)+uint8(1)+uint32(4)+uint8(1) = 15 bytes */
+
+  document.getElementById('sol-bat').textContent = (batV/1000).toFixed(2) + ' V / ' + (batI/1000).toFixed(2) + ' A';
+  document.getElementById('sol-panel').textContent = (panV/1000).toFixed(2) + ' V';
+  document.getElementById('sol-power').textContent = panP + ' W';
+  document.getElementById('sol-cs').textContent = CS_NAMES[cs] || ('CS=' + cs);
+  document.getElementById('sol-yield').textContent = yld + ' Wh';
+  document.getElementById('sol-err').textContent = err === 0 ? 'Aucune' : ('ERR ' + err);
+}
+
+/* ── Control commands ────────────────────────────────────────── */
+async function doSwitch(idx) {
+  if (!chrSwitch) return;
+  const card = document.getElementById('bat-' + idx);
+  const isOn = card.classList.contains('st-connected');
+  const buf = new Uint8Array([idx, isOn ? 0 : 1]);
+  try {
+    await chrSwitch.writeValue(buf);
+    setCtrlStatus('Switch bat ' + (idx+1) + ' -> ' + (isOn ? 'OFF' : 'ON'));
+  } catch(e) {
+    setCtrlStatus('Erreur switch: ' + e.message);
+  }
+}
+
+async function doResetSwitch(idx) {
+  if (!chrReset) return;
+  try {
+    await chrReset.writeValue(new Uint8Array([idx]));
+    setCtrlStatus('Reset switch count bat ' + (idx+1));
+  } catch(e) {
+    setCtrlStatus('Erreur reset: ' + e.message);
+  }
+}
+
+async function doSendConfig() {
+  if (!chrConfig) return;
+  const min = parseInt(document.getElementById('cfg-min').value);
+  const max = parseInt(document.getElementById('cfg-max').value);
+  const maxI = parseInt(document.getElementById('cfg-maxI').value);
+  const diff = parseInt(document.getElementById('cfg-diff').value);
+
+  if (isNaN(min)||isNaN(max)||isNaN(maxI)||isNaN(diff)) {
+    setCtrlStatus('Valeurs invalides'); return;
+  }
+
+  const buf = new ArrayBuffer(8);
+  const dv = new DataView(buf);
+  dv.setUint16(0, min, true);
+  dv.setUint16(2, max, true);
+  dv.setUint16(4, maxI, true);
+  dv.setUint16(6, diff, true);
+
+  try {
+    await chrConfig.writeValue(buf);
+    setCtrlStatus('Config envoyee: min=' + min + ' max=' + max + ' maxI=' + maxI + ' diff=' + diff);
+  } catch(e) {
+    setCtrlStatus('Erreur config: ' + e.message);
+  }
+}
+
+function parseControlStatus(dv) {
+  if (dv.byteLength < 3) return;
+  const cmd = dv.getUint8(0);
+  const idx = dv.getUint8(1);
+  const res = dv.getUint8(2);
+  const cmdNames = ['switch','reset','config'];
+  const resNames = ['OK','index invalide','batterie verrouillee','erreur'];
+  let msg = 'Cmd: ' + (cmdNames[cmd]||cmd);
+  if (idx !== 0xFF) msg += ' bat ' + (idx+1);
+  msg += ' -> ' + (resNames[res]||('code '+res));
+  setCtrlStatus(msg);
+}
+
+function setCtrlStatus(msg) {
+  document.getElementById('ctrl-status').textContent = msg;
+}
+</script>
+</body>
+</html>

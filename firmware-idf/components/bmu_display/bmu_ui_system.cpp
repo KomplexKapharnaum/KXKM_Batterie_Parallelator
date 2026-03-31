@@ -4,6 +4,7 @@
 #include "bmu_storage.h"
 #include "bmu_sntp.h"
 #include "esp_system.h"
+#include "esp_timer.h"
 #include "esp_app_desc.h"
 #include <cstdio>
 
@@ -16,7 +17,7 @@ void bmu_ui_system_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx)
     lv_obj_t *title = lv_label_create(parent);
     lv_label_set_text(title, "Systeme");
     lv_obj_set_style_text_color(title, lv_color_hex(0x2979FF), 0);
-    lv_obj_set_style_text_font(title, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_font(title, &lv_font_montserrat_14, 0);
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 4);
 
     const char *rows[] = {
@@ -40,7 +41,7 @@ void bmu_ui_system_update(bmu_ui_ctx_t *ctx)
 {
     char buf[48];
     const esp_app_desc_t *desc = esp_app_get_description();
-    snprintf(buf, sizeof(buf), "%s (%s)", desc->version, desc->date);
+    snprintf(buf, sizeof(buf), "%.20s (%.20s)", desc->version, desc->date);
     lv_label_set_text(sys_labels[0], buf);
 
     snprintf(buf, sizeof(buf), "%lu KB", (unsigned long)(esp_get_free_heap_size() / 1024));

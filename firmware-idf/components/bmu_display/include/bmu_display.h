@@ -1,18 +1,17 @@
 #pragma once
 #include "esp_err.h"
-#include "lvgl.h"
+#include "bmu_protection.h"
+#include "bmu_battery_manager.h"
+
+typedef struct _lv_obj_t lv_obj_t;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-// Forward declarations
-struct bmu_protection_ctx_t;
-struct bmu_battery_manager_t;
-
 typedef struct {
-    struct bmu_protection_ctx_t    *prot;
-    struct bmu_battery_manager_t   *mgr;
+    bmu_protection_ctx_t           *prot;
+    bmu_battery_manager_t          *mgr;
     uint8_t                         nb_ina;
 } bmu_display_ctx_t;
 
