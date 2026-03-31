@@ -1,9 +1,9 @@
 /**
  * @file main.cpp
- * @brief KXKM BMU — ESP-IDF v5.3 (Phase 6+7: Full firmware + Display + VE.Direct)
+ * @brief KXKM BMU — ESP-IDF v5.3 (Phase 6+7+9: Full firmware + Display + VE.Direct + BLE)
  *
- * Init: NVS → WiFi → SPIFFS → SD → SNTP → I2C → Protection → MQTT → InfluxDB → Display → VE.Direct → Web
- * Tasks: protection (main), Ah tracking (per battery), cloud telemetry, LVGL render, VE.Direct RX
+ * Init: NVS → WiFi → SPIFFS → SD → SNTP → I2C → Protection → MQTT → InfluxDB → Display → VE.Direct → BLE → OTA → Web
+ * Tasks: protection (main), Ah tracking (per battery), cloud telemetry, LVGL render, VE.Direct RX, NimBLE host
  */
 #include "bmu_i2c.h"
 #include "bmu_ina237.h"
@@ -22,6 +22,9 @@
 #include "bsp/esp-bsp.h"
 #include "bmu_vedirect.h"
 #include "bmu_ota.h"
+#ifdef CONFIG_BMU_BLE_ENABLED
+#include "bmu_ble.h"
+#endif
 #include "esp_log.h"
 #include "esp_spiffs.h"
 #include "freertos/FreeRTOS.h"
@@ -217,6 +220,16 @@ extern "C" void app_main(void)
     } else {
         ESP_LOGI(TAG, "VE.Direct: no charger (will auto-detect)");
     }
+
+    /* ── 10b. Bluetooth BLE (NimBLE) ─────────────────────────────────── */
+#ifdef CONFIG_BMU_BLE_ENABLED
+    esp_err_t ble_ret = bmu_ble_init(&prot, &mgr, nb_ina);
+    if (ble_ret == ESP_OK) {
+        ESP_LOGI(TAG, "BLE: advertising as '%s'", CONFIG_BMU_BLE_DEVICE_NAME);
+    } else {
+        ESP_LOGE(TAG, "BLE init failed: %s", esp_err_to_name(ble_ret));
+    }
+#endif
 
     /* ── 11. OTA validation ─────────────────────────────────────────── */
     esp_err_t ota_ret = bmu_ota_mark_valid();
