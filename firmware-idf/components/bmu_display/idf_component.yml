@@ -1,4 +1,4 @@
 dependencies:
-  espressif/esp-box-3:
-    version: "*"
-    override_path: ../../../external/esp-bsp/bsp/esp-box-3
+  espressif/esp-box-3: ">=1.0.0"
+  lvgl/lvgl: "~9.1.0"
+  espressif/esp_lvgl_port: "~2.4"
