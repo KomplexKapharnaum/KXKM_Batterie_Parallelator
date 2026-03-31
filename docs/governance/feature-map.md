@@ -1,65 +1,69 @@
 # Feature Map BMU
 
-Date: 2026-03-30
-Statut: post-audit
+Date: 2026-03-31
+Statut: post-migration ESP-IDF v5.4
 
-## Inventaire F01-F11
+## Inventaire F01-F11 + extensions
 
-| Feature | Priorité | Module | Test principal | Statut audit |
-|---|---|---|---|---|
-| F01 Mesure tension | MUST | INAHandler | test_protection | ✅ OK |
-| F02 Mesure courant | MUST | INAHandler | test_protection | ✅ OK |
-| F03 Coupure sur surtension | MUST | BatteryParallelator | test_protection | ⚠️ CRIT-A: unité mV/V cassée |
-| F04 Coupure sur sous-tension | MUST | BatteryParallelator | test_protection | ⚠️ CRIT-A: unité mV/V cassée |
-| F05 Coupure sur sur-courant | MUST | BatteryParallelator | test_protection | ⚠️ HIGH-1: négatif non couvert |
-| F06 Coupure sur déséquilibre | MUST | BatteryParallelator | test_protection | ⚠️ CRIT-B: compare config au lieu de fleet max |
-| F07 Reconnexion automatique | MUST | BatteryParallelator | test_protection | ⚠️ MED-1: pas de lock permanent implémenté |
-| F08 Verrouillage permanent | MUST | BatteryParallelator | test_protection | ⚠️ MED-1: nb_switch=5 tombe dans CONNECTED |
-| F09 Observabilité logs | SHOULD | KxLogger/SD_Logger | validation runtime | ✅ OK |
-| F10 Supervision web | COULD | WebServerHandler | test_web_route_security | ⚠️ CRIT-C/D: deadlock + auth cassée |
-| F11 Support 16 batteries | MUST | main/BatteryManager | tests intégration | ✅ OK |
+| Feature | Priorite | Module ESP-IDF | Status |
+|---|---|---|---|
+| F01 Mesure tension | MUST | bmu_ina237 | Done (datasheet TI) |
+| F02 Mesure courant | MUST | bmu_ina237 | Done |
+| F03 Coupure sur surtension | MUST | bmu_protection | Done (30000mV) |
+| F04 Coupure sur sous-tension | MUST | bmu_protection | Done (24000mV) |
+| F05 Coupure sur sur-courant | MUST | bmu_protection | Done (10A, fabs) |
+| F06 Coupure sur desequilibre | MUST | bmu_protection | Done (fleet max) |
+| F07 Reconnexion automatique | MUST | bmu_protection | Done (delay 10s) |
+| F08 Verrouillage permanent | MUST | bmu_protection | Done (>5 coupures) |
+| F09 Observabilite logs | SHOULD | ESP_LOGx + SD | Done |
+| F10 Supervision web | COULD | bmu_web | Done (POST auth) |
+| F11 Support 16 batteries | MUST | bmu_i2c scan | Done |
+| F12 Dashboard ecran | NEW | bmu_display | Done (4 tabs LVGL) |
+| F13 Cloud telemetrie | NEW | bmu_mqtt + bmu_influx | Done |
+| F14 OTA securisee | NEW | bmu_ota | Done (A/B rollback) |
+| F15 VE.Direct Victron | NEW | bmu_vedirect | Done (parser UART) |
+| F16 Graphique V/I ecran | NEW | bmu_ui_detail | Phase 8 planifie |
+| F17 Onglet Solar ecran | NEW | bmu_ui_solar | Phase 8 planifie |
+| F18 Bluetooth BLE | NEW | bmu_ble | Phase 9 planifie |
 
-## Matrice de couverture tests
+## Couverture tests
 
-| Feature | L1 Unitaire | L2 Simulation | L3 Hardware | Audit |
-|---|---|---|---|---|
-| F01-F02 | ✅ | ✅ | ⬜ TB02-03 | OK |
-| F03-F04 | ✅ stub | ✅ | ⬜ TB05-06 | CRIT-A bloquant |
-| F05 | ✅ stub | ✅ | ⬜ TB07 | HIGH-1 partiel |
-| F06 | ✅ stub | ✅ | ⬜ TB08 | CRIT-B bloquant |
-| F07-F08 | ✅ stub | ✅ | ⬜ TB09-10 | MED-1 incomplet |
-| F09 | — | — | ⬜ TB12 | OK |
-| F10 | ✅ web tests | — | ⬜ TB13 | CRIT-C/D bloquant |
-| F11 | — | ✅ | ⬜ TB11 | OK |
+| Feature | Host Unity | Rust cargo test | Hardware |
+|---|---|---|---|
+| F03-F08 | 13 tests (Arduino) | 10 tests (Rust) | BOX-3 boot OK |
+| F10 | rate limit + auth tests | — | — |
+| F12-F15 | — | — | BOX-3 boot OK |
 
-**Note:** "stub" = les tests vérifient une logique correcte re-implémentée, pas le code réel de BatteryParallelator.
-
-## Gaps prioritaires (post-audit 2026-03-30)
-
-1. **P0 — CRIT-A/B:** Corriger unités mV/V dans BatteryParallelator + main.cpp (bloque F03-F06)
-2. **P1 — CRIT-C:** Supprimer double I2CLockGuard dans validateBatteryVoltageForSwitch (bloque F10)
-3. **P2 — CRIT-D:** Migrer routes web vers POST + câbler token JS (bloque F10)
-4. **P3 — HIGH-1:** Ajouter `fabs()` dans ERROR handler overcurrent (bloque F05 négatif)
-5. **P4 — MED-1:** Implémenter verrouillage permanent quand nb_switch > max (bloque F08)
-6. **P5:** Réaligner tests avec code réel (pas de stub isolé) — ou ajouter tests d'intégration
-7. **P6:** Préparer banc hardware L3 (2 PSUs + charges + multimètres)
-
-## Dépendances croisées
+## Architecture composants ESP-IDF
 
 ```mermaid
 flowchart TD
-  CRITA[CRIT-A\nUnités mV/V] --> F03[F03 Surtension]
-  CRITA --> F04[F04 Sous-tension]
-  CRITB[CRIT-B\nFleet max] --> F06[F06 Déséquilibre]
-  CRITC[CRIT-C\nDeadlock] --> F10[F10 Web]
-  CRITD[CRIT-D\nAuth web] --> F10
-  HIGH1[HIGH-1\nNégatif] --> F05[F05 Sur-courant]
-  MED1[MED-1\nLock] --> F08[F08 Verrouillage]
-
-  F03 --> S3[S3 Validation terrain]
-  F04 --> S3
-  F05 --> S3
-  F06 --> S3
-  F08 --> S3
-  F10 -.-> S3
+  CFG[bmu_config] --> PROT[bmu_protection]
+  INA[bmu_ina237] --> PROT
+  TCA[bmu_tca9535] --> PROT
+  I2C[bmu_i2c] --> INA & TCA
+  PROT --> WEB[bmu_web]
+  PROT --> DISP[bmu_display]
+  PROT --> CLOUD[bmu_mqtt\nbmu_influx]
+  WIFI[bmu_wifi] --> WEB & CLOUD
+  SNTP[bmu_sntp] --> CLOUD
+  STOR[bmu_storage] --> WEB
+  OTA[bmu_ota] --> WEB
+  VEDR[bmu_vedirect] --> DISP
+  BMGR[bmu_battery_manager] --> WEB & DISP & CLOUD
 ```
+
+## Roadmap
+
+| Phase | Contenu | Status |
+|-------|---------|--------|
+| 0-1 | Scaffold + I2C drivers | Done |
+| 2 | Protection + Battery Manager | Done |
+| 3 | WiFi + Web + Storage | Done |
+| 4 | MQTT + InfluxDB + SNTP | Done |
+| 5 | Tests CI + OTA | Done |
+| 6 | Display LVGL tabview | Done |
+| 7 | VE.Direct Victron | Done |
+| 8 | Display enhanced (chart, detail tap, solar tab) | Planifie |
+| 9 | Bluetooth BLE (NimBLE, GATT, Web Bluetooth) | Planifie |
+| 10 | TinyML edge SOH (futur) | Spec existante |

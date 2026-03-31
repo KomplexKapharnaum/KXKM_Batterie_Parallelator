@@ -4,105 +4,104 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Projet
 - Client : KompleX KapharnaüM (Villeurbanne) — contact : nicolas.guichard@lehoop.fr
-- BMU (Battery Management Unit) ESP32 — gestion sécurisée de batteries en parallèle 24–30 V
+- BMU (Battery Management Unit) — gestion sécurisée de batteries en parallèle 24–30 V
+- Deux stacks firmware : Arduino/PlatformIO (legacy) + ESP-IDF v5.4 (BOX-3, actif)
+- Firmware Rust no_std hybride (state machine protection + FFI bridge C)
 - Intégré au workflow Kill_LIFE (spec-first, gates S0–S3)
 
 ## Build & Test Commands
 
+### ESP-IDF (firmware actif — ESP32-S3-BOX-3)
 ```bash
-# Production build (ESP32-S3)
-pio run -e kxkm-s3-16MB
+cd firmware-idf
+export IDF_PATH=$HOME/esp/esp-idf && . $IDF_PATH/export.sh
 
-# Upload to board
-pio run -e kxkm-s3-16MB --target upload
-
-# Serial monitor
-pio device monitor -e kxkm-s3-16MB --baud 115200
-
-# Run all host-based unit tests (no hardware needed)
-pio test -e sim-host
-
-# Verbose test output
-pio test -e sim-host -vv
-
-# Memory budget check (required before large changes)
-scripts/check_memory_budget.sh --env kxkm-s3-16MB --ram-max 75 --flash-max 85
-
-# Legacy build (deprecated)
-pio run -e kxkm-v3-16MB
+idf.py build                                       # Build standard
+idf.py -v build                                    # Build verbose
+idf.py -p /dev/cu.usbmodem* flash                  # Flash (BOOT+EN si "No serial data received")
+idf.py -p /dev/cu.usbmodem* monitor                # Monitor (Ctrl+] pour quitter)
+idf.py -p /dev/cu.usbmodem* flash monitor          # Flash + monitor enchainé
+idf.py menuconfig                                  # Config WiFi, MQTT, seuils, fonts LVGL
+rm -rf build && idf.py set-target esp32s3 && idf.py build  # Clean rebuild (lent — re-télécharge managed components)
 ```
 
-**PlatformIO gotcha:** `[arduino_base]` in platformio.ini holds `framework=arduino`. Do NOT put `framework=arduino` in the global `[env]` — it breaks the `native`/`sim-host` test environments.
+### PlatformIO (legacy Arduino)
+```bash
+pio run -e kxkm-s3-16MB                            # Build ESP32-S3
+pio test -e sim-host                                # Tests unitaires host (sans hardware)
+pio test -e sim-host -vv                            # Tests verbose
+scripts/check_memory_budget.sh --env kxkm-s3-16MB --ram-max 75 --flash-max 85
+```
+
+### Rust (hybrid no_std)
+```bash
+cd firmware-rs/crates/bmu-protection && cargo test  # 10 tests protection logic (host)
+```
+
+**PlatformIO gotcha:** `[arduino_base]` dans platformio.ini contient `framework=arduino`. Ne PAS mettre `framework=arduino` dans `[env]` global — ça casse les envs `native`/`sim-host`.
 
 ## Architecture
 
-### Execution Flow
-1. `main.cpp` setup: Serial → Wire (SDA=32, SCL=33, 50kHz) → i2cMutexInit → INAHandler.begin → TCAHandler.begin → topology check → BattParallelator config
-2. `main.cpp` loop (500ms): iterates all INAs via `BattParallelator.check_battery_connected_status(i)`. If topology invalid, forces all batteries OFF (fail-safe).
+### Trois firmware stacks
 
-### Core Modules
-- **BatteryParallelator** — protection state machine: 5 criteria (under/over-voltage, over-current, voltage imbalance, reconnect logic with switch counting). Reconnect: immediate if nb_switch<5, 10s delay at 5, permanent lock >5.
-- **BatteryManager** — aggregate battery state, energy accounting (Ah via FreeRTOS task), min/max/avg voltage.
-- **INAHandler** — manages up to 16 INA237 sensors (I2C 0x40–0x4F). `read_voltage_current()` is the atomic dual-read method.
-- **TCAHandler** — manages up to 8 TCA9535 GPIO expanders (I2C 0x20–0x27). Pin mapping per TCA: pins 0–3 = battery MOSFET switches, pins 8–15 = LED pairs (red/green).
-- **I2CMutex.h** — global FreeRTOS semaphore + RAII `I2CLockGuard`. ALL I2C access must go through this. `i2cBusRecovery()` on 5+ consecutive failures.
-- **WebServerHandler** — AsyncWebServer on port 80 + WebSocket on 81. Mutation routes (`/api/battery/:id/switch_on|off`) require auth token + rate limiting (10 reqs/10s per IP).
+**`firmware-idf/`** (ESP-IDF v5.4, actif) — ESP32-S3-BOX-3 (16MB flash, 8MB PSRAM, écran tactile 2.4")
+- 14 composants dans `components/` : bmu_i2c, bmu_ina237, bmu_tca9535, bmu_config, bmu_protection, bmu_display, bmu_wifi, bmu_web, bmu_storage, bmu_mqtt, bmu_influx, bmu_sntp, bmu_ota, bmu_vedirect
+- LVGL v9 display avec tabview 4 onglets (Batt/Sys/Alert/I2C)
+- Binary ~1.52 MB, partition OTA 2 MB (27% libre)
+
+**`firmware/`** (Arduino/PlatformIO, legacy) — ESP32-S3 générique
+- Sources dans `firmware/src/`, tests Unity dans `firmware/test/`
+
+**`firmware-rs/`** (Rust no_std) — state machine protection pure + FFI bridge
+- 5 crates : bmu-i2c, bmu-ina237, bmu-tca9535, bmu-protection (10 tests), bmu-ffi (staticlib)
+
+### I2C Architecture (double bus BOX-3)
+- **I2C_NUM_0** (GPIO8/18, 400kHz) : BOX-3 interne (écran, codec, IMU) — géré par BSP, ne pas toucher
+- **I2C_NUM_1** (GPIO40/41, 50kHz) : BMU dédié (INA237 0x40-0x4F, TCA9535 0x20-0x27) — géré par `bmu_i2c`
+- **Ne pas créer I2C_NUM_1 deux fois** : le BSP crée le bus DOCK, `bmu_i2c` récupère le handle via `i2c_master_get_bus_handle()`
+- Pull-ups 4.7kΩ **externes requises** sur GPIO40/41 (non montées sur dock)
 
 ### Topology Constraint
-Hard validation: `Nb_TCA * 4 == Nb_INA`. Mismatch → fail-safe (all batteries OFF). Typical: 4 TCA + 16 INA.
+`Nb_TCA * 4 == Nb_INA`. Mismatch → fail-safe (toutes batteries OFF). Typique : 4 TCA + 16 INA.
 
-### Thread Safety
-- `I2CLockGuard` wraps all I2C operations (INAHandler, TCAHandler, WebServerHandler)
-- `stateMutex` in BatteryParallelator and BatteryManager for shared state access across FreeRTOS tasks
-- `reconnect_time[]` access is mutex-protected
+### Protection State Machine (F01-F08)
+5 états : CONNECTED / DISCONNECTED / RECONNECTING / ERROR / LOCKED
+- Seuils Kconfig : 24000mV–30000mV, 10000mA, 1000mV diff, 5 coupures max, 10s delay
+- LOCKED = permanent (reboot requis)
+- Web mutations passent par `bmu_protection_web_switch()` — jamais direct TCA
 
-## Structure
-- `specs/` — Kill_LIFE gates: intake (S0), spec (S1), arch (S2), plan (S3)
-- `firmware/src/` — firmware Arduino/PlatformIO (main.cpp + headers)
-- `firmware/test/` — Unity native tests (sim-host): test_protection, test_battery_route_validation, test_influx_buffer_codec, test_web_mutation_rate_limit, test_web_route_security, test_emulation_bench
-- `firmware/lib/INA237/` — local INA237 driver fork
-- `firmware/data/` — web UI assets (served via embedded headers: WebServerFilesHtml.h, etc.)
-- `hardware/PCB/` — BMU v1 (manufactured, legacy)
-- `hardware/pcb-bmu-v2/` — BMU v2 (KiCad 8.0, ERC 0 violations, BOM 107 components)
+## Hardware — ESP32-S3-BOX-3
 
-## Hardware (KiCad)
+### GPIOs occupés (ne pas utiliser)
+- Display SPI : 4, 5, 6, 7, 47, 48
+- Audio : 2, 15, 16, 17, 45, 46
+- Touch/Boutons : 0, 1, 3
+- USB : 19, 20
 
-KiCad-cli via Docker (repo is outside Kill_LIFE root, use direct Docker):
-```bash
-docker run --rm --user $(id -u):$(id -g) -e HOME=/tmp \
-  -v "/home/clems/KXKM_Batterie_Parallelator:/project" \
-  -w /project kicad/kicad:10.0 kicad-cli sch erc \
-  --format json --output "/project/hardware/pcb-bmu-v2/erc_report.json" \
-  "/project/hardware/pcb-bmu-v2/BMU v2.kicad_sch"
-```
-
-### ICs clés
-- INA237 (VSSOP-10) — mesure V/I/P via I²C @ 0x40–0x4F (16 max)
-- TCA9535PWR (TSSOP-24) — GPIO expander relais via I²C @ 0x20–0x27 (8 max)
-- ISO1540 (SOIC-8) — isolateur I²C galvanique
-- Adressage via solder jumpers JP2–JP20
+### Flash BOX-3
+Si `No serial data received` : maintenir BOOT, appuyer EN, relâcher BOOT, puis re-flasher.
 
 ## Safety-Critical Rules
 - **Never** weaken voltage/current thresholds, reconnect delays, or topology guards
-- **Never** bypass INA/TCA topology validation in main.cpp
-- **All** I2C access must use `I2CLockGuard` from I2CMutex.h
-- Validate sensor/battery indexes before array or driver access
+- **Never** bypass INA/TCA topology validation
+- **All** I2C multi-register reads must use `bmu_i2c_lock()`/`bmu_i2c_unlock()` (ESP-IDF) ou `I2CLockGuard` (Arduino)
+- Web mutation routes require auth token — passer par `bmu_protection_web_switch()`, jamais direct TCA
 - Preserve NAN/early-return fault semantics for sensor failures
 - Keep FreeRTOS tasks non-blocking — no long blocking calls in periodic tasks
-- Web mutation routes require auth token — no unauthenticated ON/OFF paths
 
 ## Conventions
-- French comments and identifiers throughout — maintain consistency with surrounding code
-- Arduino/ESP32 C++ style, fixed-size arrays where already used
-- Use `DebugLogger` categories (KxLogger.h) instead of ad-hoc `Serial.print`
-- CSV logging uses `;` separator — keep unchanged
-- Config thresholds in `firmware/src/config.h` (values in mV/mA)
-- WiFi/MQTT secrets go in `firmware/src/credentials.h` (template: `credentials.h.example`)
+- French comments and identifiers — maintain consistency
+- ESP-IDF : `ESP_LOGx(TAG, ...)` avec TAG par fichier (BATT, I2C, INA, TCA, WEB, SD, MQTT, INFLUX, SNTP)
+- Arduino legacy : `KxLogger` categories
+- CSV logging : `;` separator — ne pas changer
+- Config thresholds : tout en mV/mA (pas de mélange V/mV)
+- Seule `lv_font_montserrat_14` activée dans LVGL — les autres (10/12/16/20) nécessitent `idf.py menuconfig` → Component config → LVGL → Font
 
 ## CI/CD
-- GitHub Actions: `ci.yml` runs `pio test -e native` on push/PR
-- `sim-host-tests.yml`: matrix of sim-host tests + S3 build + memory budget gate
-- ESP32 hardware build is local-only (not in CI)
+- `ci.yml` : PlatformIO `pio test -e native` on push/PR
+- `esp-idf-ci.yml` : ESP-IDF build ESP32-S3 + host tests Unity
+- `rust-tests.yml` : `cargo test` bmu-protection on host
+- ESP32 hardware build/flash is local-only
 
 ## Gates Kill_LIFE
 - S0 ✅ intake + specs
@@ -111,6 +110,7 @@ docker run --rm --user $(id -u):$(id -g) -e HOME=/tmp \
 - S3 ⬜ validation terrain (batteries réelles)
 
 ## Known Technical Debt
-- MED-010: mV/V unit inconsistency between config.h and documentation — standardize to mV throughout
+- MED-010: mV/V unit inconsistency in Arduino firmware — standardize to mV throughout
 - Legacy headers (INA_Func.h, BatterySwitchCtrl.h) contain duplicated logic — refactoring candidates
-- Web UI assets are embedded as string literals in headers — consider SPIFFS/LittleFS migration
+- Arduino web UI assets embedded as string literals — migré vers SPIFFS dans ESP-IDF
+- LVGL fonts : seule montserrat_14 activée, les écrans UI utilisent tous cette taille
