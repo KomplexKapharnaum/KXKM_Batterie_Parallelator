@@ -19,81 +19,54 @@ esp_err_t bmu_battery_manager_init(bmu_battery_manager_t *mgr,
     return ESP_OK;
 }
 
-typedef struct {
-    int idx;
-    bmu_battery_manager_t *mgr;
-} ah_task_ctx_t;
-
 static void ah_task(void *pv)
 {
-    ah_task_ctx_t *ctx = (ah_task_ctx_t *)pv;
-    const int idx = ctx->idx;
-    bmu_battery_manager_t *mgr = ctx->mgr;
-    free(ctx);
-
-    float total_discharge = 0, total_charge = 0;
+    bmu_battery_manager_t *mgr = (bmu_battery_manager_t *)pv;
     int64_t last_us = esp_timer_get_time();
     int sample = 0;
 
     for (;;) {
         vTaskDelay(pdMS_TO_TICKS(1000));
-
-        float current_a = 0;
-        esp_err_t ret = bmu_ina237_read_current(&mgr->ina_devices[idx], &current_a);
-        if (ret != ESP_OK || isnan(current_a)) continue;
-
         int64_t now_us = esp_timer_get_time();
         float elapsed_h = (float)(now_us - last_us) / 3.6e9f;
         last_us = now_us;
 
-        if (elapsed_h > 0) {
-            if (current_a > 0) total_discharge += current_a * elapsed_h;
-            else if (current_a < 0) total_charge += (-current_a) * elapsed_h;
+        for (int i = 0; i < mgr->nb_ina; i++) {
+            float current_a = 0;
+            if (bmu_ina237_read_current(&mgr->ina_devices[i], &current_a) != ESP_OK
+                || std::isnan(current_a))
+                continue;
+
+            if (elapsed_h > 0) {
+                if (current_a > 0)       mgr->ah_discharge[i] += current_a * elapsed_h;
+                else if (current_a < 0)  mgr->ah_charge[i]    += (-current_a) * elapsed_h;
+            }
         }
 
-        if (xSemaphoreTake(mgr->mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
-            mgr->ah_discharge[idx] = total_discharge;
-            mgr->ah_charge[idx] = total_charge;
-            xSemaphoreGive(mgr->mutex);
-        }
-
+        /* Periodic log every ~100s */
         if (++sample % 100 == 0) {
-            ESP_LOGI(TAG, "BAT[%d] Ah discharge=%.3f charge=%.3f",
-                     idx + 1, total_discharge, total_charge);
+            for (int i = 0; i < mgr->nb_ina; i++) {
+                ESP_LOGI(TAG, "BAT[%d] Ah discharge=%.3f charge=%.3f",
+                         i + 1, mgr->ah_discharge[i], mgr->ah_charge[i]);
+            }
         }
     }
 }
 
-esp_err_t bmu_battery_manager_start_ah_task(bmu_battery_manager_t *mgr, int idx)
+esp_err_t bmu_battery_manager_start(bmu_battery_manager_t *mgr)
 {
-    if (idx < 0 || idx >= mgr->nb_ina) return ESP_ERR_INVALID_ARG;
+    if (mgr == NULL) return ESP_ERR_INVALID_ARG;
 
-    bool already = false;
-    if (xSemaphoreTake(mgr->mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
-        already = mgr->ah_running[idx];
-        xSemaphoreGive(mgr->mutex);
-    }
-    if (already) return ESP_OK;
+    if (mgr->ah_running) return ESP_OK;
 
-    ah_task_ctx_t *ctx = (ah_task_ctx_t *)malloc(sizeof(ah_task_ctx_t));
-    if (!ctx) return ESP_ERR_NO_MEM;
-    ctx->idx = idx;
-    ctx->mgr = mgr;
-
-    char name[16];
-    snprintf(name, sizeof(name), "Ah_%d", idx);
     TaskHandle_t handle = NULL;
-    if (xTaskCreate(ah_task, name, 3072, ctx, 1, &handle) != pdPASS) {
-        free(ctx);
+    if (xTaskCreate(ah_task, "Ah_all", 4096, mgr, 1, &handle) != pdPASS) {
         return ESP_FAIL;
     }
 
-    if (xSemaphoreTake(mgr->mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
-        mgr->ah_tasks[idx] = handle;
-        mgr->ah_running[idx] = true;
-        xSemaphoreGive(mgr->mutex);
-    }
-    ESP_LOGI(TAG, "Ah task started for BAT[%d]", idx + 1);
+    mgr->ah_task_handle = handle;
+    mgr->ah_running = true;
+    ESP_LOGI(TAG, "Ah task started (single task, %d batteries)", mgr->nb_ina);
     return ESP_OK;
 }
 
@@ -160,7 +133,7 @@ float bmu_battery_manager_get_total_current_a(bmu_battery_manager_t *mgr)
     float total = 0;
     for (int i = 0; i < mgr->nb_ina; i++) {
         float c = 0;
-        if (bmu_ina237_read_current(&mgr->ina_devices[i], &c) == ESP_OK && !isnan(c))
+        if (bmu_ina237_read_current(&mgr->ina_devices[i], &c) == ESP_OK && !std::isnan(c))
             total += c;
     }
     return total;

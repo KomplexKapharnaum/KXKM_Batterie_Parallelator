@@ -28,6 +28,16 @@ esp_err_t bmu_i2c_lock(void);
  */
 void bmu_i2c_unlock(void);
 
+/**
+ * @brief Record a successful I2C operation (resets failure counter).
+ */
+void bmu_i2c_record_success(void);
+
+/**
+ * @brief Record an I2C failure. After 5 consecutive failures, triggers bus reset.
+ */
+void bmu_i2c_record_failure(void);
+
 #ifdef __cplusplus
 }
 #endif

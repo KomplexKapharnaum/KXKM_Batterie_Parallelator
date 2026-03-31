@@ -175,7 +175,11 @@ esp_err_t bmu_ina237_read_bus_voltage(const bmu_ina237_t *ctx, float *voltage_mv
 
     uint16_t raw = 0;
     esp_err_t ret = ina237_read_reg16(ctx->dev, INA237_REG_VBUS, &raw);
-    if (ret != ESP_OK) return ret;
+    if (ret != ESP_OK) {
+        bmu_i2c_record_failure();
+        return ret;
+    }
+    bmu_i2c_record_success();
 
     /* Bus voltage : unsigned, LSB = 3.125 mV */
     *voltage_mv = (float)raw * 3.125f;
@@ -188,7 +192,11 @@ esp_err_t bmu_ina237_read_current(const bmu_ina237_t *ctx, float *current_a)
 
     uint16_t raw = 0;
     esp_err_t ret = ina237_read_reg16(ctx->dev, INA237_REG_CURRENT, &raw);
-    if (ret != ESP_OK) return ret;
+    if (ret != ESP_OK) {
+        bmu_i2c_record_failure();
+        return ret;
+    }
+    bmu_i2c_record_success();
 
     /* Current : signed 16-bit, LSB = CURRENT_LSB A/bit */
     *current_a = (float)(int16_t)raw * ctx->current_lsb;

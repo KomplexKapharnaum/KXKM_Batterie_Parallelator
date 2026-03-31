@@ -13,6 +13,7 @@
 
 #include "bmu_tca9535.h"
 #include "bmu_i2c.h"
+#include "freertos/FreeRTOS.h"
 #include "esp_log.h"
 #include <string.h>
 
@@ -29,8 +30,11 @@ static const char *TAG = "bmu_tca9535";
 static esp_err_t tca9535_write_reg8(i2c_master_dev_handle_t dev,
                                     uint8_t reg, uint8_t data)
 {
+    if (bmu_i2c_lock() != ESP_OK) return ESP_ERR_TIMEOUT;
     uint8_t buf[2] = { reg, data };
-    return i2c_master_transmit(dev, buf, sizeof(buf), pdMS_TO_TICKS(50));
+    esp_err_t ret = i2c_master_transmit(dev, buf, sizeof(buf), pdMS_TO_TICKS(50));
+    bmu_i2c_unlock();
+    return ret;
 }
 
 /**
@@ -41,8 +45,11 @@ static esp_err_t tca9535_write_reg16(i2c_master_dev_handle_t dev,
                                      uint8_t reg,
                                      uint8_t data_p0, uint8_t data_p1)
 {
+    if (bmu_i2c_lock() != ESP_OK) return ESP_ERR_TIMEOUT;
     uint8_t buf[3] = { reg, data_p0, data_p1 };
-    return i2c_master_transmit(dev, buf, sizeof(buf), pdMS_TO_TICKS(50));
+    esp_err_t ret = i2c_master_transmit(dev, buf, sizeof(buf), pdMS_TO_TICKS(50));
+    bmu_i2c_unlock();
+    return ret;
 }
 
 /**
@@ -52,7 +59,10 @@ static esp_err_t tca9535_write_reg16(i2c_master_dev_handle_t dev,
 static esp_err_t tca9535_read_reg8(i2c_master_dev_handle_t dev,
                                    uint8_t reg, uint8_t *data)
 {
-    return i2c_master_transmit_receive(dev, &reg, 1, data, 1, pdMS_TO_TICKS(50));
+    if (bmu_i2c_lock() != ESP_OK) return ESP_ERR_TIMEOUT;
+    esp_err_t ret = i2c_master_transmit_receive(dev, &reg, 1, data, 1, pdMS_TO_TICKS(50));
+    bmu_i2c_unlock();
+    return ret;
 }
 
 /* ========================================================================

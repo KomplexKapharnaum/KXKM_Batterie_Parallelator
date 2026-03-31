@@ -180,9 +180,7 @@ extern "C" void app_main(void)
 
     static bmu_battery_manager_t mgr = {};
     bmu_battery_manager_init(&mgr, ina, nb_ina);
-    for (int i = 0; i < nb_ina; i++) {
-        bmu_battery_manager_start_ah_task(&mgr, i);
-    }
+    bmu_battery_manager_start(&mgr);
 
     /* ── 7. MQTT + InfluxDB ────────────────────────────────────────── */
     if (bmu_wifi_is_connected()) {
@@ -231,6 +229,7 @@ extern "C" void app_main(void)
     ESP_LOGI(TAG, "Init complete — protection loop (%d ms)", BMU_LOOP_PERIOD_MS);
 
     /* ── Main protection loop ──────────────────────────────────────── */
+    uint32_t loop_count = 0;
     while (true) {
         if (!topology_ok) {
             bmu_protection_all_off(&prot);
@@ -239,6 +238,14 @@ extern "C" void app_main(void)
                 bmu_protection_check_battery(&prot, i);
             }
         }
+
+        /* Log status toutes les 10s (20 loops x 500ms) */
+        if (++loop_count % 20 == 0) {
+            ESP_LOGI(TAG, "STATUS: INA=%d TCA=%d topo=%s heap=%lu",
+                     nb_ina, nb_tca, topology_ok ? "OK" : "FAIL",
+                     (unsigned long)esp_get_free_heap_size());
+        }
+
         vTaskDelay(pdMS_TO_TICKS(BMU_LOOP_PERIOD_MS));
     }
 }
