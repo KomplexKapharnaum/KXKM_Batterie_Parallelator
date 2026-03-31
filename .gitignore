@@ -103,3 +103,10 @@ data/
 models/*.pt
 models/*.onnx
 .failsafe/
+
+firmware-idf/managed_components/
+firmware-idf/build/
+firmware-idf/sdkconfig
+firmware-idf/sdkconfig.old
+firmware-idf/.cache/
+external/
