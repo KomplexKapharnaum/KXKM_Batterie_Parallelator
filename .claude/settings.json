@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pio test:*)",
+      "Bash(git log:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:circuitdigest.com)",
+      "WebFetch(domain:www.ti.com)"
+    ]
+  }
+}

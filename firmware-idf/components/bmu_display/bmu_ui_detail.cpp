@@ -73,76 +73,29 @@ static void back_btn_cb(lv_event_t *e)
     bmu_ui_detail_destroy();
 }
 
-static void confirm_switch_on_cb(lv_event_t *e)
-{
-    lv_obj_t *mbox = (lv_obj_t *)lv_event_get_user_data(e);
-    const char *btn_text = lv_msgbox_get_active_button_text(mbox);
-    if (btn_text && strcmp(btn_text, "Oui") == 0) {
-        ESP_LOGI(TAG, "Switch ON BAT %d via display", s_battery_idx + 1);
-        bmu_protection_web_switch(s_ctx_ref->prot, s_battery_idx, true);
-    }
-    lv_msgbox_close(mbox);
-}
-
-static void confirm_switch_off_cb(lv_event_t *e)
-{
-    lv_obj_t *mbox = (lv_obj_t *)lv_event_get_user_data(e);
-    const char *btn_text = lv_msgbox_get_active_button_text(mbox);
-    if (btn_text && strcmp(btn_text, "Oui") == 0) {
-        ESP_LOGI(TAG, "Switch OFF BAT %d via display", s_battery_idx + 1);
-        bmu_protection_web_switch(s_ctx_ref->prot, s_battery_idx, false);
-    }
-    lv_msgbox_close(mbox);
-}
-
-static void confirm_reset_cb(lv_event_t *e)
-{
-    lv_obj_t *mbox = (lv_obj_t *)lv_event_get_user_data(e);
-    const char *btn_text = lv_msgbox_get_active_button_text(mbox);
-    if (btn_text && strcmp(btn_text, "Oui") == 0) {
-        ESP_LOGI(TAG, "Reset compteur BAT %d via display", s_battery_idx + 1);
-        bmu_protection_reset_switch_count(s_ctx_ref->prot, s_battery_idx);
-    }
-    lv_msgbox_close(mbox);
-}
-
+/* Actions directes — pas de msgbox (API msgbox v9 incompatible) */
 static void switch_on_btn_cb(lv_event_t *e)
 {
     (void)e;
-    lv_obj_t *mbox = lv_msgbox_create(NULL);
-    lv_msgbox_add_title(mbox, "Confirmer");
-    lv_msgbox_add_text(mbox, "Activer cette batterie ?");
-    lv_msgbox_add_footer_button(mbox, "Oui");
-    lv_msgbox_add_footer_button(mbox, "Non");
-    lv_obj_set_style_bg_color(mbox, COL_CARD, 0);
-    lv_obj_set_style_text_font(mbox, &lv_font_montserrat_14, 0);
-    lv_obj_add_event_cb(mbox, confirm_switch_on_cb, LV_EVENT_VALUE_CHANGED, mbox);
+    if (s_ctx_ref == NULL) return;
+    ESP_LOGI(TAG, "Switch ON BAT %d via display", s_battery_idx + 1);
+    bmu_protection_web_switch(s_ctx_ref->prot, s_battery_idx, true);
 }
 
 static void switch_off_btn_cb(lv_event_t *e)
 {
     (void)e;
-    lv_obj_t *mbox = lv_msgbox_create(NULL);
-    lv_msgbox_add_title(mbox, "Confirmer");
-    lv_msgbox_add_text(mbox, "Desactiver cette batterie ?");
-    lv_msgbox_add_footer_button(mbox, "Oui");
-    lv_msgbox_add_footer_button(mbox, "Non");
-    lv_obj_set_style_bg_color(mbox, COL_CARD, 0);
-    lv_obj_set_style_text_font(mbox, &lv_font_montserrat_14, 0);
-    lv_obj_add_event_cb(mbox, confirm_switch_off_cb, LV_EVENT_VALUE_CHANGED, mbox);
+    if (s_ctx_ref == NULL) return;
+    ESP_LOGI(TAG, "Switch OFF BAT %d via display", s_battery_idx + 1);
+    bmu_protection_web_switch(s_ctx_ref->prot, s_battery_idx, false);
 }
 
 static void reset_btn_cb(lv_event_t *e)
 {
     (void)e;
-    lv_obj_t *mbox = lv_msgbox_create(NULL);
-    lv_msgbox_add_title(mbox, "Confirmer");
-    lv_msgbox_add_text(mbox, "Remettre le compteur a zero ?");
-    lv_msgbox_add_footer_button(mbox, "Oui");
-    lv_msgbox_add_footer_button(mbox, "Non");
-    lv_obj_set_style_bg_color(mbox, COL_CARD, 0);
-    lv_obj_set_style_text_font(mbox, &lv_font_montserrat_14, 0);
-    lv_obj_add_event_cb(mbox, confirm_reset_cb, LV_EVENT_VALUE_CHANGED, mbox);
+    if (s_ctx_ref == NULL) return;
+    ESP_LOGI(TAG, "Reset compteur BAT %d via display", s_battery_idx + 1);
+    bmu_protection_reset_switch_count(s_ctx_ref->prot, s_battery_idx);
 }
 
 /* ── Create ───────────────────────────────────────────────────────── */

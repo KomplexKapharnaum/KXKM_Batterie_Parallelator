@@ -230,8 +230,8 @@ static struct ble_gatt_chr_def s_ctrl_chr_defs[] = {
         .uuid       = &s_status_chr_uuid.u,
         .access_cb  = control_chr_access_cb,
         .arg        = (void *)(intptr_t)CTRL_CHR_STATUS,
-        .val_handle = &s_status_val_handle,
         .flags      = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY,
+        .val_handle = &s_status_val_handle,
     },
     { 0 }, /* Terminateur */
 };

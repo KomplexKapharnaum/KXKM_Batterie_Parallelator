@@ -1,7 +1,7 @@
-// test_tca_ina.cpp
+// test_TCA_INA.cpp
 
-#include "../../src/INAHandler.h"
-#include "../../src/TCAHandler.h"
+#include "../../src/INA_NRJ_lib.h"
+#include "../../src/TCA_NRJ_lib.h"
 #include <Arduino.h>
 #include <KxLogger.h>
 #include <Wire.h>

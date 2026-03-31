@@ -206,8 +206,8 @@ static struct ble_gatt_chr_def s_sys_chr_defs[] = {
         .uuid       = &s_heap_chr_uuid.u,
         .access_cb  = system_chr_access_cb,
         .arg        = (void *)(intptr_t)SYS_CHR_HEAP,
-        .val_handle = &s_heap_val_handle,
         .flags      = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY,
+        .val_handle = &s_heap_val_handle,
     },
     {
         .uuid       = &s_uptime_chr_uuid.u,
@@ -231,8 +231,8 @@ static struct ble_gatt_chr_def s_sys_chr_defs[] = {
         .uuid       = &s_solar_chr_uuid.u,
         .access_cb  = system_chr_access_cb,
         .arg        = (void *)(intptr_t)SYS_CHR_SOLAR,
-        .val_handle = &s_solar_val_handle,
         .flags      = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY,
+        .val_handle = &s_solar_val_handle,
     },
     { 0 }, /* Terminateur */
 };
