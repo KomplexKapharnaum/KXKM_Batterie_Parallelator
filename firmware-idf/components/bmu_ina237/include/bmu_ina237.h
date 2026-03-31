@@ -8,7 +8,6 @@
  * Adresses I2C : 0x40-0x4F (16 capteurs max via solder jumpers JP17-JP20).
  */
 
-#include "driver/i2c_master.h"
 #include "esp_err.h"
 #include <stdint.h>
 
@@ -68,7 +67,6 @@ extern "C" {
  * @brief Contexte d'un capteur INA237 initialise.
  */
 typedef struct {
-    i2c_master_dev_handle_t dev;     /**< Handle I2C device ESP-IDF          */
     uint8_t                 addr;    /**< Adresse 7-bit (0x40-0x4F)         */
     float                   current_lsb; /**< CURRENT_LSB en A/bit          */
     bool                    ready;   /**< true si init+calibration OK       */
@@ -79,14 +77,13 @@ typedef struct {
 /**
  * @brief Initialise un INA237 : reset, verification ID, calibration, config ADC.
  *
- * @param bus       Handle du bus I2C maitre (bmu_i2c)
  * @param addr      Adresse 7-bit du capteur (0x40-0x4F)
  * @param r_shunt_uohm Resistance shunt en micro-ohms (2000 pour 2 mOhm)
  * @param max_current_a Courant max attendu en A (pour calcul CURRENT_LSB)
  * @param[out] ctx  Contexte capteur rempli si ESP_OK
  * @return ESP_OK ou code erreur
  */
-esp_err_t bmu_ina237_init(i2c_master_bus_handle_t bus, uint8_t addr,
+esp_err_t bmu_ina237_init(uint8_t addr,
                           uint32_t r_shunt_uohm, float max_current_a,
                           bmu_ina237_t *ctx);
 
@@ -133,15 +130,13 @@ esp_err_t bmu_ina237_read_diag_alert(const bmu_ina237_t *ctx, uint16_t *flags);
 /**
  * @brief Scanne le bus I2C 0x40-0x4F, initialise tous les INA237 detectes.
  *
- * @param bus           Handle du bus I2C maitre
  * @param r_shunt_uohm Resistance shunt en micro-ohms
  * @param max_current_a Courant max attendu en A
  * @param[out] devices  Tableau de INA237_MAX_DEVICES contextes
  * @param[out] count    Nombre de capteurs initialises
  * @return ESP_OK si au moins 1 capteur trouve, ESP_ERR_NOT_FOUND sinon
  */
-esp_err_t bmu_ina237_scan_init(i2c_master_bus_handle_t bus,
-                               uint32_t r_shunt_uohm, float max_current_a,
+esp_err_t bmu_ina237_scan_init(uint32_t r_shunt_uohm, float max_current_a,
                                bmu_ina237_t devices[], uint8_t *count);
 
 #ifdef __cplusplus

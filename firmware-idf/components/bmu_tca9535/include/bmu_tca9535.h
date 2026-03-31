@@ -1,6 +1,5 @@
 #pragma once
 
-#include "driver/i2c_master.h"
 #include "esp_err.h"
 #include <stdint.h>
 
@@ -41,7 +40,6 @@ extern "C" {
  * Handle — un par TCA9535 detecte sur le bus
  * -------------------------------------------------------------------------- */
 typedef struct {
-    i2c_master_dev_handle_t dev;    /* handle I2C du device                   */
     uint8_t                 addr;   /* adresse I2C (0x20-0x27)                */
     uint8_t                 out_p0; /* cache local du registre Output Port 0  */
     uint8_t                 out_p1; /* cache local du registre Output Port 1  */
@@ -58,14 +56,12 @@ typedef struct {
  * directions (Config Port 0/1) et force toutes les sorties a LOW
  * (switches OFF, LEDs OFF).
  *
- * @param bus         Handle du bus I2C maitre
  * @param handles     Tableau de sortie (au moins TCA9535_MAX_DEVICES elements)
  * @param max_devices Taille du tableau handles
  * @param found       [out] nombre de TCA9535 detectes
  * @return ESP_OK si au moins un device trouve, ESP_ERR_NOT_FOUND sinon
  */
-esp_err_t bmu_tca9535_scan_init(i2c_master_bus_handle_t bus,
-                                bmu_tca9535_handle_t   *handles,
+esp_err_t bmu_tca9535_scan_init(bmu_tca9535_handle_t   *handles,
                                 uint8_t                 max_devices,
                                 uint8_t                *found);
 
@@ -74,13 +70,11 @@ esp_err_t bmu_tca9535_scan_init(i2c_master_bus_handle_t bus,
  *
  * Configure les directions et force les sorties a LOW.
  *
- * @param bus     Handle du bus I2C maitre
  * @param addr    Adresse I2C (0x20-0x27)
  * @param handle  [out] handle initialise
  * @return ESP_OK en cas de succes
  */
-esp_err_t bmu_tca9535_init(i2c_master_bus_handle_t bus,
-                           uint8_t                 addr,
+esp_err_t bmu_tca9535_init(uint8_t                 addr,
                            bmu_tca9535_handle_t   *handle);
 
 /* --------------------------------------------------------------------------

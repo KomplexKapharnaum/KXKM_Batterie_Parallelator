@@ -133,13 +133,13 @@ extern "C" void app_main(void)
     }
 
     /* ── 5. I2C + sensors ──────────────────────────────────────────── */
-    /* Le BSP BOX-3 cree les deux bus I2C (I2C_NUM_0 interne + I2C_NUM_1 DOCK/PMOD)
-     * → doit imperativement etre appele AVANT bmu_i2c_init qui recupere le bus DOCK */
+    /* Le BSP BOX-3 cree le bus I2C_NUM_0 (interne display/touch) avec l'ancien driver.
+     * Notre bmu_i2c_init() cree I2C_NUM_1 (DOCK GPIO40/41) avec le meme ancien driver.
+     * Les deux coexistent sans conflit. BSP doit etre init AVANT bmu_i2c. */
     ESP_ERROR_CHECK(bsp_i2c_init());
 
-    i2c_master_bus_handle_t i2c_bus = NULL;
-    ESP_ERROR_CHECK(bmu_i2c_init(&i2c_bus));
-    int i2c_dev_count = bmu_i2c_scan(i2c_bus);
+    ESP_ERROR_CHECK(bmu_i2c_init());
+    int i2c_dev_count = bmu_i2c_scan();
     bmu_ui_debug_log("I2C bus init OK");
     bmu_ui_debug_set_device_count(i2c_dev_count);
     {
@@ -150,7 +150,7 @@ extern "C" void app_main(void)
 
     static bmu_ina237_t ina[BMU_MAX_BATTERIES] = {};
     uint8_t nb_ina = 0;
-    bmu_ina237_scan_init(i2c_bus, 2000, 10.0f, ina, &nb_ina);
+    bmu_ina237_scan_init(2000, 10.0f, ina, &nb_ina);
     for (int i = 0; i < nb_ina; i++) {
         bmu_ina237_set_bus_voltage_alerts(&ina[i], BMU_MAX_VOLTAGE_MV, BMU_MIN_VOLTAGE_MV);
     }
@@ -162,7 +162,7 @@ extern "C" void app_main(void)
 
     static bmu_tca9535_handle_t tca[BMU_MAX_TCA] = {};
     uint8_t nb_tca = 0;
-    bmu_tca9535_scan_init(i2c_bus, tca, BMU_MAX_TCA, &nb_tca);
+    bmu_tca9535_scan_init(tca, BMU_MAX_TCA, &nb_tca);
     {
         char msg[40];
         snprintf(msg, sizeof(msg), "TCA9535: %d found", nb_tca);

@@ -9,6 +9,8 @@
  *
  * Les registres Output sont cachés localement pour éviter les
  * read-modify-write sur le bus I2C.
+ *
+ * Utilise l'ancien driver I2C via bmu_i2c_write/write_read.
  */
 
 #include "bmu_tca9535.h"
@@ -27,12 +29,11 @@ static const char *TAG = "bmu_tca9535";
  * Ecriture d'un octet dans un registre du TCA9535.
  * Protocole : START | ADDR+W | reg | data | STOP
  */
-static esp_err_t tca9535_write_reg8(i2c_master_dev_handle_t dev,
-                                    uint8_t reg, uint8_t data)
+static esp_err_t tca9535_write_reg8(uint8_t addr, uint8_t reg, uint8_t data)
 {
     if (bmu_i2c_lock() != ESP_OK) return ESP_ERR_TIMEOUT;
     uint8_t buf[2] = { reg, data };
-    esp_err_t ret = i2c_master_transmit(dev, buf, sizeof(buf), pdMS_TO_TICKS(50));
+    esp_err_t ret = bmu_i2c_write(addr, buf, sizeof(buf), 50);
     bmu_i2c_unlock();
     return ret;
 }
@@ -41,13 +42,12 @@ static esp_err_t tca9535_write_reg8(i2c_master_dev_handle_t dev,
  * Ecriture de deux octets consecutifs (Port0 + Port1) via auto-increment.
  * Protocole : START | ADDR+W | reg | data_p0 | data_p1 | STOP
  */
-static esp_err_t tca9535_write_reg16(i2c_master_dev_handle_t dev,
-                                     uint8_t reg,
+static esp_err_t tca9535_write_reg16(uint8_t addr, uint8_t reg,
                                      uint8_t data_p0, uint8_t data_p1)
 {
     if (bmu_i2c_lock() != ESP_OK) return ESP_ERR_TIMEOUT;
     uint8_t buf[3] = { reg, data_p0, data_p1 };
-    esp_err_t ret = i2c_master_transmit(dev, buf, sizeof(buf), pdMS_TO_TICKS(50));
+    esp_err_t ret = bmu_i2c_write(addr, buf, sizeof(buf), 50);
     bmu_i2c_unlock();
     return ret;
 }
@@ -56,11 +56,10 @@ static esp_err_t tca9535_write_reg16(i2c_master_dev_handle_t dev,
  * Lecture d'un octet depuis un registre du TCA9535.
  * Protocole : START | ADDR+W | reg | RESTART | ADDR+R | data | STOP
  */
-static esp_err_t tca9535_read_reg8(i2c_master_dev_handle_t dev,
-                                   uint8_t reg, uint8_t *data)
+static esp_err_t tca9535_read_reg8(uint8_t addr, uint8_t reg, uint8_t *data)
 {
     if (bmu_i2c_lock() != ESP_OK) return ESP_ERR_TIMEOUT;
-    esp_err_t ret = i2c_master_transmit_receive(dev, &reg, 1, data, 1, pdMS_TO_TICKS(50));
+    esp_err_t ret = bmu_i2c_write_read(addr, &reg, 1, data, 1, 50);
     bmu_i2c_unlock();
     return ret;
 }
@@ -83,7 +82,7 @@ static esp_err_t tca9535_configure(bmu_tca9535_handle_t *handle)
      */
     handle->out_p0 = 0x00;
     handle->out_p1 = 0x00;
-    ret = tca9535_write_reg16(handle->dev,
+    ret = tca9535_write_reg16(handle->addr,
                               TCA9535_REG_OUTPUT_PORT0,
                               handle->out_p0, handle->out_p1);
     if (ret != ESP_OK) {
@@ -96,7 +95,7 @@ static esp_err_t tca9535_configure(bmu_tca9535_handle_t *handle)
      * Port 0 : 0xF0 = bits 7-4 input (alertes), bits 3-0 output (switches)
      * Port 1 : 0x00 = tout en output (LEDs)
      */
-    ret = tca9535_write_reg16(handle->dev,
+    ret = tca9535_write_reg16(handle->addr,
                               TCA9535_REG_CONFIG_PORT0,
                               BMU_TCA_CONFIG_PORT0, BMU_TCA_CONFIG_PORT1);
     if (ret != ESP_OK) {
@@ -106,7 +105,7 @@ static esp_err_t tca9535_configure(bmu_tca9535_handle_t *handle)
     }
 
     /* Pas d'inversion de polarite */
-    ret = tca9535_write_reg16(handle->dev,
+    ret = tca9535_write_reg16(handle->addr,
                               TCA9535_REG_POLARITY_INV0,
                               0x00, 0x00);
     if (ret != ESP_OK) {
@@ -120,8 +119,7 @@ static esp_err_t tca9535_configure(bmu_tca9535_handle_t *handle)
     return ESP_OK;
 }
 
-esp_err_t bmu_tca9535_init(i2c_master_bus_handle_t bus,
-                           uint8_t                 addr,
+esp_err_t bmu_tca9535_init(uint8_t                 addr,
                            bmu_tca9535_handle_t   *handle)
 {
     if (handle == NULL) {
@@ -135,18 +133,10 @@ esp_err_t bmu_tca9535_init(i2c_master_bus_handle_t bus,
     memset(handle, 0, sizeof(*handle));
     handle->addr = addr;
 
-    esp_err_t ret = bmu_i2c_add_device(bus, addr, &handle->dev);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Impossible d'ajouter device I2C @ 0x%02X : %s",
-                 addr, esp_err_to_name(ret));
-        return ret;
-    }
-
     return tca9535_configure(handle);
 }
 
-esp_err_t bmu_tca9535_scan_init(i2c_master_bus_handle_t bus,
-                                bmu_tca9535_handle_t   *handles,
+esp_err_t bmu_tca9535_scan_init(bmu_tca9535_handle_t   *handles,
                                 uint8_t                 max_devices,
                                 uint8_t                *found)
 {
@@ -160,17 +150,9 @@ esp_err_t bmu_tca9535_scan_init(i2c_master_bus_handle_t bus,
         uint8_t addr = TCA9535_BASE_ADDR + i;
 
         /* Tenter de lire le registre Input Port 0 pour detecter la presence */
-        i2c_master_dev_handle_t dev;
-        esp_err_t ret = bmu_i2c_add_device(bus, addr, &dev);
-        if (ret != ESP_OK) {
-            continue;
-        }
-
         uint8_t dummy;
-        ret = tca9535_read_reg8(dev, TCA9535_REG_INPUT_PORT0, &dummy);
+        esp_err_t ret = tca9535_read_reg8(addr, TCA9535_REG_INPUT_PORT0, &dummy);
         if (ret != ESP_OK) {
-            /* Device non present a cette adresse — liberer le handle et continuer */
-            i2c_master_bus_rm_device(dev);
             ESP_LOGD(TAG, "Pas de TCA9535 @ 0x%02X", addr);
             continue;
         }
@@ -178,7 +160,6 @@ esp_err_t bmu_tca9535_scan_init(i2c_master_bus_handle_t bus,
         /* Device detecte — configurer */
         bmu_tca9535_handle_t *h = &handles[*found];
         memset(h, 0, sizeof(*h));
-        h->dev  = dev;
         h->addr = addr;
 
         ret = tca9535_configure(h);
@@ -239,7 +220,7 @@ esp_err_t bmu_tca9535_switch_battery(bmu_tca9535_handle_t *handle,
         handle->out_p0 &= ~(1 << bit);
     }
 
-    esp_err_t ret = tca9535_write_reg8(handle->dev,
+    esp_err_t ret = tca9535_write_reg8(handle->addr,
                                        TCA9535_REG_OUTPUT_PORT0,
                                        handle->out_p0);
     if (ret != ESP_OK) {
@@ -274,7 +255,7 @@ esp_err_t bmu_tca9535_set_led(bmu_tca9535_handle_t *handle,
         handle->out_p1 &= ~(1 << green_bit);
     }
 
-    esp_err_t ret = tca9535_write_reg8(handle->dev,
+    esp_err_t ret = tca9535_write_reg8(handle->addr,
                                        TCA9535_REG_OUTPUT_PORT1,
                                        handle->out_p1);
     if (ret != ESP_OK) {
@@ -293,7 +274,7 @@ esp_err_t bmu_tca9535_read_alert(bmu_tca9535_handle_t *handle,
     }
 
     uint8_t input_p0;
-    esp_err_t ret = tca9535_read_reg8(handle->dev,
+    esp_err_t ret = tca9535_read_reg8(handle->addr,
                                       TCA9535_REG_INPUT_PORT0,
                                       &input_p0);
     if (ret != ESP_OK) {
@@ -319,7 +300,7 @@ esp_err_t bmu_tca9535_all_off(bmu_tca9535_handle_t *handle)
     handle->out_p1 = 0x00;
 
     /* Ecriture bulk des deux ports en une transaction */
-    esp_err_t ret = tca9535_write_reg16(handle->dev,
+    esp_err_t ret = tca9535_write_reg16(handle->addr,
                                         TCA9535_REG_OUTPUT_PORT0,
                                         handle->out_p0, handle->out_p1);
     if (ret != ESP_OK) {
