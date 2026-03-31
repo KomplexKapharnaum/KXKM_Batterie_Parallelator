@@ -289,17 +289,14 @@ function setStatus(msg) { document.getElementById('conn-status').textContent = m
 
 /* ── Parse battery characteristic (15 bytes packed) ──────────── */
 function parseBattery(idx, dv) {
-  if (dv.byteLength < 15) return;
-  const v_mv   = dv.getInt32(0, true);
-  const i_ma   = dv.getInt32(4, true);
-  const state  = dv.getUint8(8);
+  /* Packed struct: int32(4)+int32(4)+uint8(1)+int32(4)+int32(4)+uint8(1) = 18 bytes */
+  if (dv.byteLength < 18) return;
+  const v_mv    = dv.getInt32(0, true);
+  const i_ma    = dv.getInt32(4, true);
+  const state   = dv.getUint8(8);
   const ahD_mah = dv.getInt32(9, true);
   const ahC_mah = dv.getInt32(13, true);
-  /* nb_switch can be at offset 17 but struct is 15 bytes with 2 uint8 */
-  /* Recalculate: int32(4)+int32(4)+uint8(1)+int32(4)+int32(4)+uint8(1) = 18 bytes total */
-  /* Wait, the C struct is packed: 4+4+1+4+4+1 = 18 bytes, not 15 */
-  /* Plan says 15 but actual packed is 18 */
-  const nbSw = dv.byteLength >= 18 ? dv.getUint8(17) : 0;
+  const nbSw    = dv.getUint8(17);
 
   const card = document.getElementById('bat-' + idx);
   const stName = STATE_NAMES[state] || 'unknown';
@@ -353,8 +350,9 @@ async function readSystemInfo() {
 
 /* ── Parse solar ─────────────────────────────────────────────── */
 function parseSolar(dv) {
-  if (dv.byteLength < 13) return;
-  const valid = dv.getUint8(12);
+  /* Packed: int16(2)+int16(2)+uint16(2)+uint16(2)+uint8(1)+uint8(1)+uint32(4)+uint8(1) = 15 bytes */
+  if (dv.byteLength < 15) return;
+  const valid = dv.getUint8(14);
   const sec = document.getElementById('solar-section');
   if (!valid) { sec.style.display = 'none'; return; }
   sec.style.display = 'block';
@@ -365,8 +363,7 @@ function parseSolar(dv) {
   const panP = dv.getUint16(6, true);
   const cs   = dv.getUint8(8);
   const err  = dv.getUint8(9);
-  const yld  = dv.getUint32(10, true); /* wait: offset 10 is uint32 yield, then valid at 14 → 15 bytes total */
-  /* Recheck: int16(2)+int16(2)+uint16(2)+uint16(2)+uint8(1)+uint8(1)+uint32(4)+uint8(1) = 15 bytes */
+  const yld  = dv.getUint32(10, true);
 
   document.getElementById('sol-bat').textContent = (batV/1000).toFixed(2) + ' V / ' + (batI/1000).toFixed(2) + ' A';
   document.getElementById('sol-panel').textContent = (panV/1000).toFixed(2) + ' V';
