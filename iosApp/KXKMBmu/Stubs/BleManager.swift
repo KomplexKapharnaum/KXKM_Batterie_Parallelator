@@ -40,11 +40,25 @@ private let kWifiStsUUID     = bmuUUID(0x0035)
 
 // MARK: - BLE Manager
 
+/// A discovered BMU device (not yet connected)
+struct DiscoveredBMU: Identifiable, Hashable {
+    let id: UUID  // CBPeripheral identifier
+    let name: String  // e.g. "KXKM-BMU-kryole"
+    let deviceName: String  // e.g. "kryole"
+    let rssi: Int
+    let peripheral: CBPeripheral
+
+    func hash(into hasher: inout Hasher) { hasher.combine(id) }
+    static func == (lhs: DiscoveredBMU, rhs: DiscoveredBMU) -> Bool { lhs.id == rhs.id }
+}
+
 class BleManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     static let shared = BleManager()
 
     @Published var isConnected = false
     @Published var isScanning = false
+    @Published var discoveredDevices: [DiscoveredBMU] = []
+    @Published var connectedDeviceName: String? = nil
     @Published var batteries: [BatteryState] = []
     @Published var systemInfo: SystemInfo?
     @Published var solarData: SolarData?
@@ -65,20 +79,34 @@ class BleManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
     func startScan() {
         guard central.state == .poweredOn else { return }
         isScanning = true
-        // Scan sans filtre UUID — le scan response avec UUID custom n'est pas toujours visible
+        discoveredDevices = []
         central.scanForPeripherals(withServices: nil, options: [CBCentralManagerScanOptionAllowDuplicatesKey: false])
-        // Timeout scan after 10s
-        DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
+        // Timeout scan after 15s
+        DispatchQueue.main.asyncAfter(deadline: .now() + 15) { [weak self] in
             guard let self, self.isScanning else { return }
-            self.central.stopScan()
-            self.isScanning = false
+            self.stopScan()
         }
+    }
+
+    func stopScan() {
+        central.stopScan()
+        isScanning = false
+    }
+
+    /// Connect to a specific discovered BMU
+    func connectTo(_ device: DiscoveredBMU) {
+        stopScan()
+        peripheral = device.peripheral
+        peripheral?.delegate = self
+        connectedDeviceName = device.deviceName
+        central.connect(device.peripheral, options: nil)
     }
 
     func disconnect() {
         if let p = peripheral {
             central.cancelPeripheralConnection(p)
         }
+        connectedDeviceName = nil
     }
 
     func switchBattery(index: Int, on: Bool) {
@@ -140,11 +168,26 @@ class BleManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
         let name = peripheral.name ?? advertisementData[CBAdvertisementDataLocalNameKey] as? String ?? ""
         guard name.hasPrefix("KXKM-BMU") else { return }
 
-        central.stopScan()
-        isScanning = false
-        self.peripheral = peripheral
-        peripheral.delegate = self
-        central.connect(peripheral, options: nil)
+        // Extract device name: "KXKM-BMU-kryole" → "kryole"
+        let deviceName = name.hasPrefix("KXKM-BMU-")
+            ? String(name.dropFirst("KXKM-BMU-".count))
+            : name
+
+        let discovered = DiscoveredBMU(
+            id: peripheral.identifier,
+            name: name,
+            deviceName: deviceName,
+            rssi: RSSI.intValue,
+            peripheral: peripheral
+        )
+
+        DispatchQueue.main.async {
+            if let idx = self.discoveredDevices.firstIndex(where: { $0.id == discovered.id }) {
+                self.discoveredDevices[idx] = discovered  // Update RSSI
+            } else {
+                self.discoveredDevices.append(discovered)
+            }
+        }
     }
 
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
@@ -155,9 +198,10 @@ class BleManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
 
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
         isConnected = false
+        connectedDeviceName = nil
         batteries = []
         controlChars = [:]
-        // Auto-reconnect after 2s
+        // Rescan for devices
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
             self?.startScan()
         }
