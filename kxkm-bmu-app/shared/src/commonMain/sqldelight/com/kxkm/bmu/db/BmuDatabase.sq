@@ -1,0 +1,114 @@
+-- Battery history snapshots (10s interval)
+CREATE TABLE battery_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp INTEGER NOT NULL,
+    battery_index INTEGER NOT NULL,
+    voltage_mv INTEGER NOT NULL,
+    current_ma INTEGER NOT NULL,
+    state TEXT NOT NULL,
+    ah_discharge_mah INTEGER NOT NULL DEFAULT 0,
+    ah_charge_mah INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX idx_history_time ON battery_history(timestamp);
+CREATE INDEX idx_history_battery ON battery_history(battery_index, timestamp);
+
+-- Audit trail (append-only)
+CREATE TABLE audit_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp INTEGER NOT NULL,
+    user_id TEXT NOT NULL,
+    action TEXT NOT NULL,
+    target INTEGER,
+    detail TEXT,
+    synced INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX idx_audit_time ON audit_events(timestamp);
+CREATE INDEX idx_audit_synced ON audit_events(synced);
+
+-- User profiles
+CREATE TABLE user_profiles (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    role TEXT NOT NULL,
+    pin_hash TEXT NOT NULL,
+    salt TEXT NOT NULL
+);
+
+-- Sync queue
+CREATE TABLE sync_queue (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    type TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    retry_count INTEGER NOT NULL DEFAULT 0
+);
+
+-- Queries: battery_history
+insertHistory:
+INSERT INTO battery_history (timestamp, battery_index, voltage_mv, current_ma, state, ah_discharge_mah, ah_charge_mah)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+
+getHistory:
+SELECT * FROM battery_history
+WHERE battery_index = ? AND timestamp > ?
+ORDER BY timestamp ASC;
+
+purgeOldHistory:
+DELETE FROM battery_history WHERE timestamp < ?;
+
+-- Queries: audit_events
+insertAudit:
+INSERT INTO audit_events (timestamp, user_id, action, target, detail)
+VALUES (?, ?, ?, ?, ?);
+
+getAuditEvents:
+SELECT * FROM audit_events
+ORDER BY timestamp DESC
+LIMIT ?;
+
+getAuditFiltered:
+SELECT * FROM audit_events
+WHERE (? IS NULL OR action LIKE ?)
+  AND (? IS NULL OR target = ?)
+ORDER BY timestamp DESC
+LIMIT ?;
+
+getUnsyncedAudit:
+SELECT * FROM audit_events WHERE synced = 0 ORDER BY timestamp ASC LIMIT ?;
+
+markAuditSynced:
+UPDATE audit_events SET synced = 1 WHERE id IN ?;
+
+countUnsyncedAudit:
+SELECT COUNT(*) FROM audit_events WHERE synced = 0;
+
+-- Queries: user_profiles
+insertUser:
+INSERT INTO user_profiles (id, name, role, pin_hash, salt) VALUES (?, ?, ?, ?, ?);
+
+getUserByHash:
+SELECT * FROM user_profiles WHERE pin_hash = ?;
+
+getAllUsers:
+SELECT * FROM user_profiles ORDER BY name;
+
+deleteUser:
+DELETE FROM user_profiles WHERE id = ?;
+
+countUsers:
+SELECT COUNT(*) FROM user_profiles;
+
+-- Queries: sync_queue
+enqueueSync:
+INSERT INTO sync_queue (type, payload, created_at) VALUES (?, ?, ?);
+
+dequeueSync:
+SELECT * FROM sync_queue ORDER BY created_at ASC LIMIT ?;
+
+deleteSyncItems:
+DELETE FROM sync_queue WHERE id IN ?;
+
+countPendingSync:
+SELECT COUNT(*) FROM sync_queue;
