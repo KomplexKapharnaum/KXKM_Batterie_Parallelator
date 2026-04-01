@@ -1,5 +1,5 @@
 import SwiftUI
-// import Shared — using Stubs
+import Combine
 
 struct StatusBarView: View {
     @StateObject private var transport = TransportStatusViewModel()
@@ -45,10 +45,24 @@ class TransportStatusViewModel: ObservableObject {
     @Published var deviceName: String? = nil
     @Published var rssi: Int? = nil
 
+    private let ble = BleManager.shared
+    private var cancellables = Set<AnyCancellable>()
+
     init() {
-        // Subscribe to shared TransportManager state
-        let manager = SharedFactory.companion.createTransportManager()
-        // KMP Flow → Combine bridge (via SKIE or manual collector)
-        // This will be wired when Plan 2 defines the exact Flow API
+        ble.$isConnected
+            .receive(on: RunLoop.main)
+            .sink { [weak self] connected in
+                self?.isConnected = connected
+                self?.channel = connected ? .ble : .offline
+                self?.deviceName = connected ? "KXKM-BMU" : nil
+            }
+            .store(in: &cancellables)
+
+        ble.$rssi
+            .receive(on: RunLoop.main)
+            .sink { [weak self] r in
+                self?.rssi = r != 0 ? r : nil
+            }
+            .store(in: &cancellables)
     }
 }

@@ -1,49 +1,51 @@
 import SwiftUI
-// import Shared — using Stubs
+import Combine
 
 class BatteryDetailViewModel: ObservableObject {
     @Published var battery: BatteryState?
     @Published var history: [BatteryHistoryPoint] = []
-    @Published var events: [AuditEvent] = []
     @Published var commandResult: String? = nil
 
     let batteryIndex: Int
-    private let monitorUseCase: MonitoringUseCase
-    private let controlUseCase: ControlUseCase
+    private let ble = BleManager.shared
+    private var cancellables = Set<AnyCancellable>()
 
     init(batteryIndex: Int) {
         self.batteryIndex = batteryIndex
-        self.monitorUseCase = SharedFactory.companion.createMonitoringUseCase()
-        self.controlUseCase = SharedFactory.companion.createControlUseCase()
-        startObserving()
-        loadHistory()
-    }
 
-    private func startObserving() {
-        monitorUseCase.observeBattery(index: Int32(batteryIndex)) { [weak self] state in
-            DispatchQueue.main.async { self?.battery = state }
-        }
-    }
+        ble.$batteries
+            .receive(on: RunLoop.main)
+            .map { $0.first { $0.index == batteryIndex } }
+            .sink { [weak self] state in self?.battery = state }
+            .store(in: &cancellables)
 
-    private func loadHistory() {
-        monitorUseCase.getHistory(batteryIndex: Int32(batteryIndex), hours: 24) { [weak self] points in
-            DispatchQueue.main.async { self?.history = points }
-        }
+        ble.$lastCommandResult
+            .receive(on: RunLoop.main)
+            .compactMap { $0 }
+            .sink { [weak self] r in
+                self?.commandResult = r.isSuccess ? "OK" : (r.errorMessage ?? "Erreur")
+            }
+            .store(in: &cancellables)
+
+        loadMockHistory()
     }
 
     func switchBattery(on: Bool) {
-        controlUseCase.switchBattery(index: Int32(batteryIndex), on: on) { [weak self] result in
-            DispatchQueue.main.async {
-                self?.commandResult = result.isSuccess ? "OK" : "Erreur: \(result.errorMessage ?? "")"
-            }
-        }
+        ble.switchBattery(index: batteryIndex, on: on)
     }
 
     func resetSwitchCount() {
-        controlUseCase.resetSwitchCount(index: Int32(batteryIndex)) { [weak self] result in
-            DispatchQueue.main.async {
-                self?.commandResult = result.isSuccess ? "Compteur remis à zéro" : "Erreur"
-            }
+        ble.resetSwitchCount(index: batteryIndex)
+    }
+
+    private func loadMockHistory() {
+        let now = Int64(Date().timeIntervalSince1970 * 1000)
+        history = (0..<100).reversed().map { i in
+            BatteryHistoryPoint(
+                timestamp: now - Int64(i) * 360_000,
+                voltageMv: 25500 + Int.random(in: -500...500),
+                currentMa: 1200 + Int.random(in: -300...300)
+            )
         }
     }
 }

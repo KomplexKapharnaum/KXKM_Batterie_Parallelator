@@ -10,6 +10,7 @@
 		060D8D2D855935F1BEE1685A /* VoltageChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC4206F6FB0F6D4D71FB7E1 /* VoltageChartView.swift */; };
 		09E4CDA758805B415798A71F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2529217A25EC1127FC4F407B /* Assets.xcassets */; };
 		0BD37194240F3BB825307DE8 /* AuthViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67569C52BE7C0220A33602F3 /* AuthViewModel.swift */; };
+		1CB962253F34CB57297753CE /* BleManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE257666F33DBD732F1CC882 /* BleManager.swift */; };
 		277B3071844DE6613999C275 /* DashboardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B9D6B53715C3C3816871C /* DashboardViewModel.swift */; };
 		2C3413C1C8D39F1E75A2F8FA /* PinEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B1BC15FB87AD4B3275CA564 /* PinEntryView.swift */; };
 		3067F6041FCF8ADEC46CFAFC /* SharedStubs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22D533824F25FC1723431BE6 /* SharedStubs.swift */; };
@@ -67,6 +68,7 @@
 		C151C1366A79ABE7EB64BA9C /* AuditViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuditViewModel.swift; sourceTree = "<group>"; };
 		D12AA57315D84A3AB1984D9A /* AuditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuditView.swift; sourceTree = "<group>"; };
 		D953460FDF153340A26278A8 /* ConfirmationDialog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfirmationDialog.swift; sourceTree = "<group>"; };
+		DE257666F33DBD732F1CC882 /* BleManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BleManager.swift; sourceTree = "<group>"; };
 		E464456652975B25B35B2979 /* SystemView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemView.swift; sourceTree = "<group>"; };
 		E48424398EFB6CEBE108E575 /* BatteryCellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatteryCellView.swift; sourceTree = "<group>"; };
 		EE22B0AF292CA5AF61FF5904 /* SyncConfigView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncConfigView.swift; sourceTree = "<group>"; };
@@ -196,6 +198,7 @@
 		D4610350977FCED847EAE825 /* Stubs */ = {
 			isa = PBXGroup;
 			children = (
+				DE257666F33DBD732F1CC882 /* BleManager.swift */,
 				22D533824F25FC1723431BE6 /* SharedStubs.swift */,
 			);
 			path = Stubs;
@@ -313,6 +316,7 @@
 				459A5367660722950BB68784 /* BatteryDetailViewModel.swift in Sources */,
 				A09612E54B3E699CED12E21F /* BatteryStateIcon.swift in Sources */,
 				875AE5419BC47B9EE9881F1F /* BiometricAuth.swift in Sources */,
+				1CB962253F34CB57297753CE /* BleManager.swift in Sources */,
 				A86627D3775D942FC4D5A045 /* ConfigView.swift in Sources */,
 				987036656FACD4C5E8C7E862 /* ConfigViewModel.swift in Sources */,
 				D127C965AFF5882BACBE29BA /* ConfirmationDialog.swift in Sources */,

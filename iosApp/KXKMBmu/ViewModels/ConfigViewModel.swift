@@ -28,43 +28,27 @@ class ConfigViewModel: ObservableObject {
 
     @Published var statusMessage: String? = nil
 
-    private let configUseCase: ConfigUseCase
-    private let authUseCase: AuthUseCase
+    private let ble = BleManager.shared
+    private let authUseCase = AuthUseCase()
 
     init() {
-        self.configUseCase = SharedFactory.companion.createConfigUseCase()
-        self.authUseCase = SharedFactory.companion.createAuthUseCase()
-        loadAll()
+        activeChannel = ble.isConnected ? .ble : .offline
+        users = authUseCase.getAllUsers()
     }
 
     func loadAll() {
-        let cfg = configUseCase.getCurrentConfig()
-        minMv = Int(cfg.minMv)
-        maxMv = Int(cfg.maxMv)
-        maxMa = Int(cfg.maxMa)
-        diffMv = Int(cfg.diffMv)
-
         users = authUseCase.getAllUsers()
-        syncPending = Int(configUseCase.getPendingSyncCount())
     }
 
     func saveProtection() {
-        configUseCase.setProtectionConfig(
-            minMv: Int32(minMv), maxMv: Int32(maxMv),
-            maxMa: Int32(maxMa), diffMv: Int32(diffMv)
-        ) { [weak self] result in
-            DispatchQueue.main.async {
-                self?.statusMessage = result.isSuccess ? "Seuils mis à jour" : "Erreur"
-            }
-        }
+        let config = ProtectionConfig(minMv: minMv, maxMv: maxMv, maxMa: maxMa, diffMv: diffMv)
+        ble.setProtectionConfig(config)
+        statusMessage = "Envoyé via BLE"
     }
 
     func sendWifiConfig() {
-        configUseCase.setWifiConfig(ssid: wifiSsid, password: wifiPassword) { [weak self] result in
-            DispatchQueue.main.async {
-                self?.statusMessage = result.isSuccess ? "WiFi configuré" : "Erreur (BLE requis)"
-            }
-        }
+        ble.setWifiConfig(ssid: wifiSsid, password: wifiPassword)
+        statusMessage = ble.isConnected ? "WiFi configuré" : "BLE non connecté"
     }
 
     func deleteUser(_ user: UserProfile) {
