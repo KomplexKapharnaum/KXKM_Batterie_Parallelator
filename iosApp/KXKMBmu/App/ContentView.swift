@@ -38,6 +38,8 @@ struct ContentView: View {
                         }
                 }
             }
+            .tint(.green)
         }
+        .preferredColorScheme(.dark)
     }
 }

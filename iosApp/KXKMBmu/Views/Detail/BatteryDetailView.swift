@@ -13,7 +13,7 @@ struct BatteryDetailView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 24) {
                 // Current state card
                 if let bat = vm.battery {
                     stateCard(bat)
@@ -68,12 +68,26 @@ struct BatteryDetailView: View {
                 BatteryStateIcon(state: bat.state)
                     .font(.title)
                 Text(bat.state.displayName)
-                    .font(.caption)
+                    .font(.caption.bold())
+                    .foregroundColor(bat.state.color)
             }
         }
         .padding()
-        .background(Color(.systemGray6))
+        .background(
+            LinearGradient(
+                colors: [
+                    bat.state.color.opacity(0.15),
+                    Color(.systemGray6)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
         .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(bat.state.color.opacity(0.4), lineWidth: 1)
+        )
     }
 
     private func countersSection(_ bat: BatteryState) -> some View {

@@ -4,12 +4,24 @@ import Combine
 struct StatusBarView: View {
     @StateObject private var transport = TransportStatusViewModel()
 
+    private let ble = BleManager.shared
+
     var body: some View {
         HStack {
             Image(systemName: transport.channel.icon)
                 .foregroundColor(transport.isConnected ? .green : .orange)
             Text(transport.channel.displayName)
                 .font(.caption.bold())
+
+            // BLE scanning indicator
+            if ble.isScanning {
+                ProgressView()
+                    .scaleEffect(0.7)
+                    .padding(.leading, 4)
+                Text("Recherche BMU...")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
 
             Spacer()
 

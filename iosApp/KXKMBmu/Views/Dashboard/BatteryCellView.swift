@@ -4,37 +4,61 @@ import SwiftUI
 struct BatteryCellView: View {
     let battery: BatteryState
 
+    private var stateColor: Color {
+        battery.state.color
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text("Bat \(battery.index + 1)")
-                    .font(.caption.bold())
-                Spacer()
-                BatteryStateIcon(state: battery.state)
-            }
+        HStack(spacing: 0) {
+            // Colored left border strip
+            RoundedRectangle(cornerRadius: 2)
+                .fill(stateColor)
+                .frame(width: 4)
+                .padding(.vertical, 4)
 
-            Text(battery.voltageMv.voltageDisplay)
-                .font(.title3.monospacedDigit().bold())
-                .foregroundColor(voltageColor)
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text("Bat \(battery.index + 1)")
+                        .font(.caption.bold())
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    BatteryStateIcon(state: battery.state)
+                }
 
-            Text(battery.currentMa.currentDisplay)
-                .font(.caption.monospacedDigit())
+                Text(battery.voltageMv.voltageDisplay)
+                    .font(.system(.title2, design: .monospaced).bold())
+                    .foregroundColor(voltageColor)
+
+                Text(battery.currentMa.currentDisplay)
+                    .font(.caption.monospacedDigit())
+                    .foregroundColor(.secondary)
+
+                HStack {
+                    Image(systemName: "arrow.up.arrow.down")
+                        .font(.caption2)
+                    Text("\(battery.nbSwitch)")
+                        .font(.caption2)
+                }
                 .foregroundColor(.secondary)
-
-            HStack {
-                Image(systemName: "arrow.up.arrow.down")
-                    .font(.caption2)
-                Text("\(battery.nbSwitch)")
-                    .font(.caption2)
             }
-            .foregroundColor(.secondary)
+            .padding(.leading, 8)
+            .padding(.trailing, 10)
+            .padding(.vertical, 10)
         }
-        .padding(10)
-        .background(Color(.systemGray6))
+        .background(
+            LinearGradient(
+                colors: [
+                    Color(.systemGray6),
+                    Color(.systemGray6).opacity(0.7)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
         .cornerRadius(12)
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(battery.state.color.opacity(0.5), lineWidth: 2)
+                .stroke(stateColor.opacity(0.3), lineWidth: 1)
         )
     }
 

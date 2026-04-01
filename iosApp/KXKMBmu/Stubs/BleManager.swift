@@ -8,11 +8,10 @@ import SwiftUI
 // MARK: - KXKM BMU UUIDs
 
 private func bmuUUID(_ suffix: UInt16) -> CBUUID {
-    // Base: 4b584b4d-xxxx-4b4d-424d-55424c450000
-    // suffix inserted at bytes 4-5 (big-endian)
-    let hi = UInt8((suffix >> 8) & 0xFF)
-    let lo = UInt8(suffix & 0xFF)
-    let s = String(format: "4B584B4D-%02X%02X-4B4D-424D-55424C450000", lo, hi)
+    // NimBLE BLE_UUID128_INIT stores bytes in little-endian.
+    // In UUID string format (big-endian): suffix goes as-is in position 2.
+    // Example: suffix 0x0001 → "4B584B4D-0001-4B4D-424D-55424C450000"
+    let s = String(format: "4B584B4D-%04X-4B4D-424D-55424C450000", suffix)
     return CBUUID(string: s)
 }
 
@@ -66,7 +65,8 @@ class BleManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
     func startScan() {
         guard central.state == .poweredOn else { return }
         isScanning = true
-        central.scanForPeripherals(withServices: [kBatterySvcUUID], options: nil)
+        // Scan sans filtre UUID — le scan response avec UUID custom n'est pas toujours visible
+        central.scanForPeripherals(withServices: nil, options: [CBCentralManagerScanOptionAllowDuplicatesKey: false])
         // Timeout scan after 10s
         DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
             guard let self, self.isScanning else { return }
