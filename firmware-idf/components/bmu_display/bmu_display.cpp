@@ -124,8 +124,18 @@ esp_err_t bmu_display_init(bmu_display_ctx_t *ctx)
 
     ESP_LOGI(TAG, "=== Initialisation affichage BMU via BSP BOX-3 ===");
 
-    /* Init display via BSP */
-    s_disp = bsp_display_start();
+    /* Init display via BSP — utiliser PSRAM pour le buffer LVGL
+     * (la RAM interne est trop petite pour un framebuffer 320x240x2=150KB) */
+    bsp_display_cfg_t disp_cfg = {
+        .lvgl_port_cfg = ESP_LVGL_PORT_INIT_CONFIG(),
+        .buffer_size = BSP_LCD_H_RES * 20, /* 20 lignes = 12.8 KB — petit buffer en RAM interne */
+        .double_buffer = 0,
+        .flags = {
+            .buff_dma = true,      /* DMA en RAM interne */
+            .buff_spiram = false,  /* Pas PSRAM (DMA SPI incompatible) */
+        }
+    };
+    s_disp = bsp_display_start_with_config(&disp_cfg);
     if (s_disp == NULL) {
         ESP_LOGE(TAG, "bsp_display_start a echoue");
         return ESP_FAIL;

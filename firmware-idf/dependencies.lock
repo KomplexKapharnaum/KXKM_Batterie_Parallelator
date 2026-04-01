@@ -1,18 +1,71 @@
 dependencies:
+  aht30:
+    dependencies:
+    - name: idf
+      version: '>=5.2'
+    - name: espressif/sensor_hub
+      public: true
+      version: ^0.1.4
+    source:
+      path: /Users/electron/Documents/Lelectron_rare/1-KXKM/KXKM_Batterie_Parallelator/external/esp-bsp/components/sensors/aht30
+      type: local
+    version: 1.0.0
+  esp_lcd_ili9341:
+    dependencies:
+    - name: idf
+      version: '>=5.2'
+    - name: espressif/cmake_utilities
+      version: 0.*
+    source:
+      path: /Users/electron/Documents/Lelectron_rare/1-KXKM/KXKM_Batterie_Parallelator/external/esp-bsp/components/lcd/esp_lcd_ili9341
+      type: local
+    version: 2.0.2
+  esp_lcd_touch:
+    dependencies:
+    - name: idf
+      version: '>=5.2'
+    source:
+      path: /Users/electron/Documents/Lelectron_rare/1-KXKM/KXKM_Batterie_Parallelator/external/esp-bsp/components/lcd_touch/esp_lcd_touch
+      type: local
+    version: 1.2.1
+  esp_lcd_touch_gt911:
+    dependencies:
+    - name: idf
+      version: '>=5.2'
+    - name: esp_lcd_touch
+      override_path: ../esp_lcd_touch
+      public: true
+      version: ^1.2.0
+    source:
+      path: /Users/electron/Documents/Lelectron_rare/1-KXKM/KXKM_Batterie_Parallelator/external/esp-bsp/components/lcd_touch/esp_lcd_touch_gt911
+      type: local
+    version: 1.2.0~2
+  esp_lcd_touch_tt21100:
+    dependencies:
+    - name: idf
+      version: '>=5.2'
+    - name: esp_lcd_touch
+      override_path: ../esp_lcd_touch
+      public: true
+      version: ^1.2.0
+    source:
+      path: /Users/electron/Documents/Lelectron_rare/1-KXKM/KXKM_Batterie_Parallelator/external/esp-bsp/components/lcd_touch/esp_lcd_touch_tt21100
+      type: local
+    version: 1.2.0~1
   espressif/button:
-    component_hash: 30a3f495c3862d505ce6e41adbbd218b2750e9723ab2151feff00e9fe685b326
+    component_hash: d0afa32f0e50d60bc0c6fc23f7eea98adc6b02cfe70b590bc52c23c506745287
     dependencies:
     - name: espressif/cmake_utilities
       registry_url: https://components.espressif.com
       require: private
-      version: 0.*
+      version: '*'
     - name: idf
       require: private
       version: '>=4.0'
     source:
       registry_url: https://components.espressif.com/
       type: service
-    version: 3.5.0
+    version: 4.1.6
   espressif/cjson:
     component_hash: 002c6d1872ee4c97d333938ebe107a29841cc847f9de89e676714bd2844057ea
     dependencies:
@@ -30,153 +83,124 @@ dependencies:
       require: private
       version: '>=4.1'
     source:
-      registry_url: https://components.espressif.com
+      registry_url: https://components.espressif.com/
       type: service
     version: 0.5.3
   espressif/esp-box-3:
-    component_hash: 9afc6dd09f779dfc9f7b1b15f129b5dbed6235a20c5991a4d30304c8705a48f4
     dependencies:
-    - name: espressif/button
-      registry_url: https://components.espressif.com
-      require: public
-      version: '>=2.5'
+    - name: idf
+      version: '>=5.3'
+    - name: esp_lcd_touch_tt21100
+      override_path: ../../components/lcd_touch/esp_lcd_touch_tt21100
+      version: ^1
+    - name: esp_lcd_touch_gt911
+      override_path: ../../components/lcd_touch/esp_lcd_touch_gt911
+      version: ^1
+    - name: esp_lcd_ili9341
+      override_path: ../../components/lcd/esp_lcd_ili9341
+      version: ^2.0.1
+    - name: espressif/esp_lvgl_port
+      override_path: ../../components/esp_lvgl_port
+      public: true
+      version: ^2
     - name: espressif/esp_codec_dev
-      registry_url: https://components.espressif.com
-      require: public
-      version: ^1,<1.2
-    - name: espressif/esp_lcd_ili9341
-      registry_url: https://components.espressif.com
-      require: private
-      version: ^1
-    - name: espressif/esp_lcd_touch_gt911
-      registry_url: https://components.espressif.com
-      require: private
-      version: ^1
-    - name: espressif/esp_lcd_touch_tt21100
-      registry_url: https://components.espressif.com
-      require: private
-      version: ^1
+      public: true
+      version: ~1.5
+    - name: espressif/button
+      public: true
+      version: ^4
+    - name: icm42670
+      override_path: ../../components/sensors/icm42670
+      public: true
+      version: ^2.0.2
+    - name: aht30
+      override_path: ../../components/sensors/aht30
+      version: ^1.0.0
+    source:
+      path: /Users/electron/Documents/Lelectron_rare/1-KXKM/KXKM_Batterie_Parallelator/external/esp-bsp/bsp/esp-box-3
+      type: local
+    targets:
+    - esp32s3
+    version: 3.2.0
+  espressif/esp_codec_dev:
+    component_hash: d67021bdb3f619cebabdfabd4507d978dfa5cddf3ae8db4752b23843cf2cc2d9
+    dependencies:
     - name: idf
       require: private
-      version: '>=4.4.5'
-    - name: espressif/esp_lvgl_port
-      registry_url: https://components.espressif.com
-      require: public
-      version: ^2
-    - name: espressif/icm42670
-      registry_url: https://components.espressif.com
-      require: public
-      version: ^1
+      version: '>=4.0'
     source:
       registry_url: https://components.espressif.com/
       type: service
-    targets:
-    - esp32s3
-    version: 1.2.0~2
-  espressif/esp_codec_dev:
-    component_hash: 1a3a2e518cd8b52e8796ec393a4050977f8f113599056faf085a02a57e194f86
+    version: 1.5.6
+  espressif/esp_lvgl_port:
     dependencies:
+    - name: idf
+      version: '>=5.2'
+    - name: lvgl/lvgl
+      public: true
+      version: '>=8,<10'
+    source:
+      path: /Users/electron/Documents/Lelectron_rare/1-KXKM/KXKM_Batterie_Parallelator/external/esp-bsp/components/esp_lvgl_port
+      type: local
+    version: 2.7.2
+  espressif/i2c_bus:
+    component_hash: 804ec068d163570fd367b279a310ca383484630d2310c586b50def0bcf21de13
+    dependencies:
+    - name: espressif/cmake_utilities
+      registry_url: https://components.espressif.com
+      require: private
+      version: '*'
     - name: idf
       require: private
       version: '>=4.0'
     source:
       registry_url: https://components.espressif.com
       type: service
-    version: 1.1.0
-  espressif/esp_lcd_ili9341:
-    component_hash: 31f1b793aa2110dd2ae071c21ccbff0a4eb20d9a4ee40b6294c0dc0ad9552c4e
+    version: 1.5.1
+  espressif/sensor_hub:
+    component_hash: b3e72f3e2d10e165b972b17fff889f294b1a685769efacf73ec8f1e92152d1d5
     dependencies:
-    - name: idf
-      require: private
-      version: '>=4.4'
     - name: espressif/cmake_utilities
       registry_url: https://components.espressif.com
       require: private
       version: 0.*
-    source:
-      registry_url: https://components.espressif.com
-      type: service
-    version: 1.2.0
-  espressif/esp_lcd_touch:
-    component_hash: 3f85a7d95af876f1a6ecca8eb90a81614890d0f03a038390804e5a77e2caf862
-    dependencies:
-    - name: idf
-      require: private
-      version: '>=4.4.2'
-    source:
-      registry_url: https://components.espressif.com
-      type: service
-    version: 1.2.1
-  espressif/esp_lcd_touch_gt911:
-    component_hash: 6029febef66eefd0910d527d7f30292779ccbf22a8dedd2bd69466acf0068a7b
-    dependencies:
-    - name: espressif/esp_lcd_touch
+    - name: espressif/i2c_bus
       registry_url: https://components.espressif.com
       require: public
-      version: ^1.2.0
-    - name: idf
-      require: private
-      version: '>=5.2'
-    source:
-      registry_url: https://components.espressif.com
-      type: service
-    version: 1.2.0~2
-  espressif/esp_lcd_touch_tt21100:
-    component_hash: 2177cdba2d86d555bd8fa76c842a65d60d0e7df0f68f301e5ef296e5c0863d35
-    dependencies:
-    - name: espressif/esp_lcd_touch
-      registry_url: https://components.espressif.com
-      require: public
-      version: ^1.2.0
-    - name: idf
-      require: private
-      version: '>=5.2'
-    source:
-      registry_url: https://components.espressif.com
-      type: service
-    version: 1.2.0~1
-  espressif/esp_lvgl_port:
-    component_hash: 8c57ca912f5c52ed29cd0fb5c9709f1ed65a91ec4c02f947d90e524bd9358433
-    dependencies:
+      version: 1.*
     - name: idf
       require: private
       version: '>=4.4'
-    - name: lvgl/lvgl
-      registry_url: https://components.espressif.com
-      require: public
-      version: '>=8,<10'
     source:
       registry_url: https://components.espressif.com/
       type: service
-    version: 2.3.3
-  espressif/icm42670:
-    component_hash: 3327870e7a125e7278f318297726138278f0cda2898f2461c01af0423d4afcda
+    version: 0.1.4
+  icm42670:
     dependencies:
     - name: idf
-      require: private
-      version: '>=4.4'
+      version: '>=5.2'
+    - name: espressif/sensor_hub
+      public: true
+      version: ^0.1.4
     source:
-      registry_url: https://components.espressif.com
-      type: service
-    version: 1.0.0
+      path: /Users/electron/Documents/Lelectron_rare/1-KXKM/KXKM_Batterie_Parallelator/external/esp-bsp/components/sensors/icm42670
+      type: local
+    version: 2.1.0
   idf:
     source:
       type: idf
     version: 5.4.0
   lvgl/lvgl:
-    component_hash: 2a8f619b5c2b1c7ad116c33d43dae8989c76739068f406a7e8ba9221e1085f17
+    component_hash: 184e532558c1c45fefed631f3e235423d22582aafb4630f3e8885c35281a49ae
     dependencies: []
     source:
       registry_url: https://components.espressif.com/
       type: service
-    version: 9.1.0
+    version: 9.5.0
 direct_dependencies:
-- espressif/button
 - espressif/cjson
 - espressif/esp-box-3
-- espressif/esp_lvgl_port
 - idf
-- lvgl/lvgl
-manifest_hash: f80b58679f3086794bfd0a05eb2b84cddc054fb87f98ba6f4bc9e0483b9c54f8
+manifest_hash: 5575a269825b6ac6c9c455a91fcc5f04d0a7ac7deb2bf4bbf380585fad830a18
 target: esp32s3
 version: 2.0.0

@@ -46,8 +46,10 @@ cd firmware-rs/crates/bmu-protection && cargo test  # 10 tests protection logic 
 
 **`firmware-idf/`** (ESP-IDF v5.4, actif) — ESP32-S3-BOX-3 (16MB flash, 8MB PSRAM, écran tactile 2.4")
 - 14 composants dans `components/` : bmu_i2c, bmu_ina237, bmu_tca9535, bmu_config, bmu_protection, bmu_display, bmu_wifi, bmu_web, bmu_storage, bmu_mqtt, bmu_influx, bmu_sntp, bmu_ota, bmu_vedirect
-- LVGL v9 display avec tabview 4 onglets (Batt/Sys/Alert/I2C)
+- LVGL v9 display avec tabview 5 onglets (Batt/Sys/Alert/I2C/Debug)
 - Binary ~1.52 MB, partition OTA 2 MB (27% libre)
+- Style C avec handles opaques (`*_init()` / `*_deinit()`),
+  pas de classes C++ — seule exception : `std::atomic` dans bmu_ble
 
 **`firmware/`** (Arduino/PlatformIO, legacy) — ESP32-S3 générique
 - Sources dans `firmware/src/`, tests Unity dans `firmware/test/`
@@ -60,6 +62,24 @@ cd firmware-rs/crates/bmu-protection && cargo test  # 10 tests protection logic 
 - **I2C_NUM_1** (GPIO40/41, 50kHz) : BMU dédié (INA237 0x40-0x4F, TCA9535 0x20-0x27) — géré par `bmu_i2c`
 - **Ne pas créer I2C_NUM_1 deux fois** : le BSP crée le bus DOCK, `bmu_i2c` récupère le handle via `i2c_master_get_bus_handle()`
 - Pull-ups 4.7kΩ **externes requises** sur GPIO40/41 (non montées sur dock)
+
+### Boot Sequence (main.cpp)
+
+NVS → SPIFFS → Display(BSP) → WiFi → SD → SNTP → I2C(BMU) →
+INA/TCA scan → Topology check → Protection → Battery Manager →
+MQTT/Influx → Web → VE.Direct → OTA mark valid.
+I2C failure does NOT block boot — system runs degraded sans capteurs.
+
+### BSP & Managed Components
+
+- `bmu_display/idf_component.yml` utilise `override_path` vers
+  `external/esp-bsp/bsp/esp-box-3` (BSP local modifié)
+- **Ne pas supprimer** `external/esp-bsp/` — c'est la version qui
+  fonctionne avec l'ancien driver I2C (`i2c_driver_install`)
+- Clean rebuild (`rm -rf build managed_components`) re-télécharge
+  les versions registry — risque d'écran noir si override manquant
+- Touch drivers aussi en override local dans
+  `external/esp-bsp/components/`
 
 ### Topology Constraint
 `Nb_TCA * 4 == Nb_INA`. Mismatch → fail-safe (toutes batteries OFF). Typique : 4 TCA + 16 INA.
@@ -80,6 +100,55 @@ cd firmware-rs/crates/bmu-protection && cargo test  # 10 tests protection logic 
 
 ### Flash BOX-3
 Si `No serial data received` : maintenir BOOT, appuyer EN, relâcher BOOT, puis re-flasher.
+
+## Memory Architecture & OOM Prevention
+
+### PSRAM (8 MB Octal, sdkconfig.defaults)
+
+- `CONFIG_SPIRAM_USE_MALLOC=y` — malloc() redirigé vers PSRAM
+- `SPIRAM_MALLOC_ALWAYSINTERNAL=16384` — allocs ≤16 KB restent
+  en SRAM interne (perf critique WiFi/BLE)
+- `SPIRAM_MALLOC_RESERVE_INTERNAL=32768` — réserve 32 KB interne
+
+### LVGL (64 KB pool interne)
+
+- `CONFIG_LV_MEM_SIZE_KILOBYTES=64` — pool LVGL serré
+- Chart history : 16 batteries × 600 points × 2 floats = ~77 KB
+  (statique dans `bmu_display_ctx_t`, hors pool LVGL)
+- **Ne pas ajouter de widgets lourds** sans vérifier la marge
+  LVGL (`lv_mem_monitor()`)
+
+### FreeRTOS Tasks
+
+| Tâche                | Stack | Prio | Période |
+| -------------------- | ----- | ---- | ------- |
+| Ah_all (battery mgr) | 4096  | 1    | 1 s     |
+| ws_push (websocket)  | 4096  | 3    | 500 ms  |
+| vedirect (UART)      | 4096  | 5    | 100 ms  |
+| main task            | 3584  | 1    | 100 ms  |
+
+### Règles allocation
+
+- **Toujours vérifier** le retour de malloc/calloc (`nullptr`)
+- Stack buffers bornés (max 1024, typiquement 256)
+- Pas de `new`/`delete` C++ — C structs + malloc/free
+- Pas d'Arduino `String` — utiliser `char[]` ou `snprintf`
+- cJSON : vérifier `cJSON_Print*()` != nullptr avant usage
+
+### Partition Flash (partitions.csv)
+
+| Nom         | Type   | Taille | Usage                          |
+| ----------- | ------ | ------ | ------------------------------ |
+| nvs         | data   | 24 KB  | Config WiFi/MQTT, credentials  |
+| ota_0/ota_1 | app    | 2×2 MB | Firmware OTA dual-slot         |
+| storage     | spiffs | 1 MB   | Assets web UI                  |
+| fatfs       | fat    | ~11 MB | Logs SD card                   |
+
+### NVS
+
+- Namespace unique `"bmu"` — `nvs_open("bmu", ...)`
+- Stocker uniquement strings config (SSID, tokens, seuils)
+- `nvs_flash_init()` avec auto-erase si version mismatch
 
 ## Safety-Critical Rules
 - **Never** weaken voltage/current thresholds, reconnect delays, or topology guards
