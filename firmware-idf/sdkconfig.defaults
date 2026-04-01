@@ -50,5 +50,8 @@ CONFIG_BMU_BLE_ENABLED=y
 CONFIG_BMU_WIFI_SSID="Les cils"
 CONFIG_BMU_WIFI_PASSWORD="mascarade"
 
+# ── MQTT ──────────────────────────────────────────────────────────────
+CONFIG_BMU_MQTT_BROKER_URI="mqtt://192.168.0.160:1883"
+
 # ── Disable LVGL port button (incompatible avec button v4) ─────────
 CONFIG_BSP_DISPLAY_LVGL_PORT_BUTTON=n
