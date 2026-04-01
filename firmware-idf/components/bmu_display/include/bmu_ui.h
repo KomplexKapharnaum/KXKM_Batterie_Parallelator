@@ -4,6 +4,23 @@
 #include "bmu_battery_manager.h"
 #include "bmu_config.h"
 
+/* ── High Contrast palette ──────────────────────────────────────── */
+#define UI_COLOR_BG          lv_color_hex(0x000000)
+#define UI_COLOR_CARD        lv_color_hex(0x0A0A0A)
+#define UI_COLOR_CARD_ALT    lv_color_hex(0x111111)
+#define UI_COLOR_TEXT         lv_color_hex(0xFFFFFF)
+#define UI_COLOR_TEXT_SEC     lv_color_hex(0xCCCCCC)
+#define UI_COLOR_TEXT_DIM     lv_color_hex(0x666666)
+#define UI_COLOR_OK           lv_color_hex(0x00FF66)
+#define UI_COLOR_WARN         lv_color_hex(0xFFAA00)
+#define UI_COLOR_ERR          lv_color_hex(0xFF0044)
+#define UI_COLOR_INFO         lv_color_hex(0x00AAFF)
+#define UI_COLOR_SOH          lv_color_hex(0x00FFCC)
+#define UI_COLOR_SOLAR        lv_color_hex(0xFFD600)
+#define UI_COLOR_BG_ERR       lv_color_hex(0x0A0000)
+#define UI_COLOR_BG_WARN      lv_color_hex(0x0A0800)
+#define UI_COLOR_BORDER       lv_color_hex(0x222222)
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -63,8 +80,18 @@ void bmu_ui_system_update(bmu_ui_ctx_t *ctx);
 
 /* ── Alerts screen ────────────────────────────────────────────────── */
 
+typedef enum {
+    ALERT_ERROR = 0,
+    ALERT_WARNING,
+    ALERT_INFO,
+    ALERT_SYSTEM
+} alert_type_t;
+
 void bmu_ui_alerts_create(lv_obj_t *parent);
 void bmu_ui_alerts_add(const char *timestamp, const char *message, lv_color_t color);
+void bmu_ui_alerts_add_ex(const char *timestamp, const char *title,
+                          const char *detail, alert_type_t type);
+int  bmu_ui_alerts_get_count(void);
 
 /* ── Debug I2C screen ─────────────────────────────────────────────── */
 
@@ -73,6 +100,12 @@ void bmu_ui_debug_update(void);
 void bmu_ui_debug_log(const char *msg);
 void bmu_ui_debug_log_i2c_error(uint8_t addr, const char *type);
 void bmu_ui_debug_set_device_count(int count);
+
+/* ── Debug helpers (used by system screen) ────────────────────────── */
+
+const char *bmu_ui_debug_get_log_line(int index); /* 0=newest */
+int         bmu_ui_debug_get_device_count(void);
+int         bmu_ui_debug_get_error_count(void);
 
 /* ── Solar VE.Direct screen ───────────────────────────────────────── */
 
@@ -83,6 +116,11 @@ void bmu_ui_solar_update(void);
 
 void bmu_ui_soh_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx);
 void bmu_ui_soh_update(bmu_ui_ctx_t *ctx);
+
+/* ── Config screen ───────────────────────────────────────────────── */
+
+void bmu_ui_config_create(lv_obj_t *parent);
+void bmu_ui_config_update(void);
 
 #ifdef __cplusplus
 }
