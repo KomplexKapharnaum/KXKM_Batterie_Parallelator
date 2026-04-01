@@ -90,6 +90,7 @@ static void display_periodic_cb(void *arg)
         bmu_ui_system_update(&s_ui_ctx);
         bmu_ui_debug_update();
         bmu_ui_solar_update();
+        bmu_ui_soh_update(&s_ui_ctx);
 
         if (s_update_req) {
             s_update_req = false;
@@ -171,6 +172,7 @@ esp_err_t bmu_display_init(bmu_display_ctx_t *ctx)
     lv_obj_t *tab_alerts = lv_tabview_add_tab(s_tabview, LV_SYMBOL_WARNING " Alert");
     lv_obj_t *tab_debug  = lv_tabview_add_tab(s_tabview, LV_SYMBOL_EYE_OPEN " I2C");
     lv_obj_t *tab_solar  = lv_tabview_add_tab(s_tabview, LV_SYMBOL_CHARGE " Solar");
+    lv_obj_t *tab_soh    = lv_tabview_add_tab(s_tabview, LV_SYMBOL_OK " SOH");
 
     /* Fond sombre pour chaque onglet */
     lv_obj_set_style_bg_color(tab_batt,   lv_color_hex(0x1E1E1E), 0);
@@ -178,6 +180,7 @@ esp_err_t bmu_display_init(bmu_display_ctx_t *ctx)
     lv_obj_set_style_bg_color(tab_alerts, lv_color_hex(0x1E1E1E), 0);
     lv_obj_set_style_bg_color(tab_debug,  lv_color_hex(0x1E1E1E), 0);
     lv_obj_set_style_bg_color(tab_solar,  lv_color_hex(0x1E1E1E), 0);
+    lv_obj_set_style_bg_color(tab_soh,    lv_color_hex(0x1E1E1E), 0);
 
     /* ── Creer le contenu de chaque ecran ─────────────────────────── */
     bmu_ui_main_set_nav_state(&s_nav);
@@ -186,6 +189,7 @@ esp_err_t bmu_display_init(bmu_display_ctx_t *ctx)
     bmu_ui_alerts_create(tab_alerts);
     bmu_ui_debug_create(tab_debug);
     bmu_ui_solar_create(tab_solar);
+    bmu_ui_soh_create(tab_soh, &s_ui_ctx);
 
     s_ui_ready = true;
     bsp_display_unlock();

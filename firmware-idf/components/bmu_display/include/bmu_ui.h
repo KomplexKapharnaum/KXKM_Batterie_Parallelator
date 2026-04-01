@@ -79,6 +79,11 @@ void bmu_ui_debug_set_device_count(int count);
 void bmu_ui_solar_create(lv_obj_t *parent);
 void bmu_ui_solar_update(void);
 
+/* ── SOH prediction screen ───────────────────────────────────────── */
+
+void bmu_ui_soh_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx);
+void bmu_ui_soh_update(bmu_ui_ctx_t *ctx);
+
 #ifdef __cplusplus
 }
 #endif

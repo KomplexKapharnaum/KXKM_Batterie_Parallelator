@@ -22,6 +22,7 @@
 #include "bmu_ui.h"
 #include "bmu_vedirect.h"
 #include "bmu_ota.h"
+// #include "bmu_soh.h"  // Disabled — TFLite build issues
 #ifdef CONFIG_BMU_BLE_ENABLED
 #include "bmu_ble.h"
 #endif
@@ -131,8 +132,21 @@ extern "C" void app_main(void)
         ESP_LOGW(TAG, "Display init failed: %s — continuing", esp_err_to_name(disp_ret));
     }
 
-    /* ── 4. WiFi (avant BLE — WiFi DMA a besoin de RAM interne en premier) */
+    /* ── 4. WiFi ───────────────────────────────────────────────────── */
     bmu_wifi_init();
+
+    /* Attendre la connexion WiFi avant de démarrer BLE (coex radio) */
+    if (strlen(CONFIG_BMU_WIFI_PASSWORD) > 0) {
+        ESP_LOGI(TAG, "Attente WiFi (max 8s)...");
+        for (int i = 0; i < 16 && !bmu_wifi_is_connected(); i++) {
+            vTaskDelay(pdMS_TO_TICKS(500));
+        }
+        if (bmu_wifi_is_connected()) {
+            ESP_LOGI(TAG, "WiFi connecté avant BLE");
+        } else {
+            ESP_LOGW(TAG, "WiFi timeout — BLE démarre quand même");
+        }
+    }
 
     /* ── 5. BLE (apres WiFi — coex NimBLE utilise la RAM restante) ── */
 #ifdef CONFIG_BMU_BLE_ENABLED
@@ -204,6 +218,8 @@ extern "C" void app_main(void)
         bmu_battery_manager_start(&mgr);
     }
 
+    /* SOH predictor disabled — TFLite build issues */
+
     /* Update display context avec nb_ina reel */
     disp_ctx.nb_ina = nb_ina;
 
@@ -249,6 +265,8 @@ extern "C" void app_main(void)
                 }
             }
         }
+        /* SOH disabled */
+
         vTaskDelay(pdMS_TO_TICKS(BMU_LOOP_PERIOD_MS));
     }
 }
