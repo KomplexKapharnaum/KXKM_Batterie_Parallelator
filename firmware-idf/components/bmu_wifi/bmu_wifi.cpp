@@ -147,3 +147,16 @@ esp_err_t bmu_wifi_get_ip(char *buf, size_t len)
     buf[len - 1] = '\0';
     return ESP_OK;
 }
+
+esp_err_t bmu_wifi_get_rssi(int8_t *rssi)
+{
+    if (!bmu_wifi_is_connected() || rssi == nullptr) {
+        return ESP_ERR_WIFI_NOT_CONNECT;
+    }
+    wifi_ap_record_t ap_info;
+    esp_err_t ret = esp_wifi_sta_get_ap_info(&ap_info);
+    if (ret == ESP_OK) {
+        *rssi = ap_info.rssi;
+    }
+    return ret;
+}

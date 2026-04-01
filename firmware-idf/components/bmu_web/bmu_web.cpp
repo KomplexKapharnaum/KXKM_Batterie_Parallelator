@@ -17,6 +17,8 @@
 #include "bmu_protection.h"
 #include "bmu_battery_manager.h"
 #include "bmu_config.h"
+#include "bmu_wifi.h"
+#include "bmu_vedirect.h"
 
 #include "esp_http_server.h"
 #include "esp_log.h"
@@ -565,6 +567,104 @@ static void ws_push_task(void *arg)
     }
 }
 #endif
+
+/* -------------------------------------------------------------------------- */
+/*  GET /api/system                                                           */
+/* -------------------------------------------------------------------------- */
+
+static esp_err_t handler_api_system(httpd_req_t *req)
+{
+    bmu_web_ctx_t *ctx = (bmu_web_ctx_t *)req->user_ctx;
+    if (ctx == nullptr) ctx = s_ctx;
+    cJSON *root = cJSON_CreateObject();
+    if (root == NULL) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "JSON alloc failed");
+        return ESP_FAIL;
+    }
+
+    /* Firmware version */
+    cJSON_AddStringToObject(root, "fw_version", CONFIG_APP_PROJECT_VER);
+
+    /* Uptime */
+    cJSON_AddNumberToObject(root, "uptime_s",
+                            (double)(esp_timer_get_time() / 1000000LL));
+
+    /* Heap */
+    cJSON_AddNumberToObject(root, "heap_free",
+                            (double)esp_get_free_heap_size());
+
+    /* Topology */
+    cJSON_AddNumberToObject(root, "nb_ina", ctx->prot->nb_ina);
+    cJSON_AddNumberToObject(root, "nb_tca", ctx->prot->nb_tca);
+    cJSON_AddBoolToObject(root, "topology_valid",
+                          (ctx->prot->nb_tca * 4 == ctx->prot->nb_ina)
+                          && ctx->prot->nb_ina > 0);
+
+    /* WiFi */
+    cJSON_AddBoolToObject(root, "wifi_connected", bmu_wifi_is_connected());
+    char ip[16] = {};
+    bmu_wifi_get_ip(ip, sizeof(ip));
+    cJSON_AddStringToObject(root, "wifi_ip", ip);
+    int8_t rssi = 0;
+    if (bmu_wifi_get_rssi(&rssi) == ESP_OK) {
+        cJSON_AddNumberToObject(root, "wifi_rssi", rssi);
+    }
+
+    char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (json == NULL) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "JSON print failed");
+        return ESP_FAIL;
+    }
+
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_sendstr(req, json);
+    free(json);
+    return ESP_OK;
+}
+
+/* -------------------------------------------------------------------------- */
+/*  GET /api/solar                                                            */
+/* -------------------------------------------------------------------------- */
+
+static esp_err_t handler_api_solar(httpd_req_t *req)
+{
+    const bmu_vedirect_data_t *solar = bmu_vedirect_get_data();
+    cJSON *root = cJSON_CreateObject();
+    if (root == NULL) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "JSON alloc failed");
+        return ESP_FAIL;
+    }
+
+    if (solar != NULL && solar->valid) {
+        cJSON_AddNumberToObject(root, "battery_mv",
+                                (int)(solar->battery_voltage_v * 1000.0f));
+        cJSON_AddNumberToObject(root, "battery_ma",
+                                (int)(solar->battery_current_a * 1000.0f));
+        cJSON_AddNumberToObject(root, "panel_mv",
+                                (int)(solar->panel_voltage_v * 1000.0f));
+        cJSON_AddNumberToObject(root, "panel_w", solar->panel_power_w);
+        cJSON_AddNumberToObject(root, "charge_state", solar->charge_state);
+        cJSON_AddStringToObject(root, "charge_state_name",
+                                bmu_vedirect_cs_name(solar->charge_state));
+        cJSON_AddNumberToObject(root, "yield_today_wh", solar->yield_today_wh);
+        cJSON_AddBoolToObject(root, "valid", true);
+    } else {
+        cJSON_AddBoolToObject(root, "valid", false);
+    }
+
+    char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (json == NULL) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "JSON print failed");
+        return ESP_FAIL;
+    }
+
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_sendstr(req, json);
+    free(json);
+    return ESP_OK;
+}
 
 /* -------------------------------------------------------------------------- */
 /*  Start / Stop                                                              */
