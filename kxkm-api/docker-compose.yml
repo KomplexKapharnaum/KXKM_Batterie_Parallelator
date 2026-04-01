@@ -1,8 +1,55 @@
-# KXKM BMU API — deployed on kxkm-ai server
+# KXKM BMU — Stack complète
 # Usage: docker compose up -d
-# Logs:  docker compose logs -f bmu-api
+# UI:    InfluxDB http://localhost:8086  |  Grafana http://localhost:3000  |  API http://localhost:8400
+# MQTT:  mqtt://localhost:1883
 
 services:
+  # ── MQTT Broker (Mosquitto) ───────────────────────────────────────
+  # Le firmware BMU publie sur bmu/battery/N, l'app s'abonne
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: kxkm-mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - mosquitto-data:/mosquitto/data
+      - mosquitto-log:/mosquitto/log
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+
+  # ── InfluxDB (time-series batteries) ──────────────────────────────
+  influxdb:
+    image: influxdb:2.7
+    container_name: kxkm-influxdb
+    restart: unless-stopped
+    ports:
+      - "8086:8086"
+    volumes:
+      - influx-data:/var/lib/influxdb2
+      - influx-config:/etc/influxdb2
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=kxkm
+      - DOCKER_INFLUXDB_INIT_PASSWORD=kxkm-bmu-2026
+      - DOCKER_INFLUXDB_INIT_ORG=kxkm
+      - DOCKER_INFLUXDB_INIT_BUCKET=bmu
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=kxkm-influx-token-2026
+
+  # ── Telegraf (MQTT → InfluxDB bridge) ─────────────────────────────
+  # Souscrit à bmu/battery/# et ecrit dans InfluxDB
+  telegraf:
+    image: telegraf:1.30
+    container_name: kxkm-telegraf
+    restart: unless-stopped
+    volumes:
+      - ./telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+    depends_on:
+      - mosquitto
+      - influxdb
+
+  # ── BMU API (FastAPI) ─────────────────────────────────────────────
+  # REST pour l'app smartphone (sync, historique, audit)
   bmu-api:
     build: .
     container_name: kxkm-bmu-api
@@ -12,11 +59,34 @@ services:
     env_file:
       - .env
     volumes:
-      - bmu-data:/data  # SQLite audit DB persisted here
+      - bmu-data:/data
     environment:
-      - INFLUX_URL=http://host.docker.internal:8086
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - INFLUX_URL=http://influxdb:8086
+      - INFLUX_TOKEN=kxkm-influx-token-2026
+      - INFLUX_ORG=kxkm
+      - INFLUX_BUCKET=bmu
+    depends_on:
+      - influxdb
+
+  # ── Grafana (dashboards monitoring) ───────────────────────────────
+  grafana:
+    image: grafana/grafana:11.0.0
+    container_name: kxkm-grafana
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=kxkm
+      - GF_SECURITY_ADMIN_PASSWORD=kxkm-bmu-2026
+    depends_on:
+      - influxdb
 
 volumes:
   bmu-data:
+  influx-data:
+  influx-config:
+  mosquitto-data:
+  mosquitto-log:
+  grafana-data:
