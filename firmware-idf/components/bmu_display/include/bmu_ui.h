@@ -69,6 +69,7 @@ void bmu_ui_main_set_nav_state(bmu_nav_state_t *nav);
 
 /* ── Detail screen ────────────────────────────────────────────────── */
 
+void bmu_ui_detail_set_nav_state(bmu_nav_state_t *nav);
 void bmu_ui_detail_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx, int battery_idx);
 void bmu_ui_detail_update(bmu_ui_ctx_t *ctx, int battery_idx);
 void bmu_ui_detail_destroy(void);

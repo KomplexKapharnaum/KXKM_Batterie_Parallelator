@@ -9,34 +9,24 @@
 #include "bmu_ui.h"
 #include "bmu_protection.h"
 #include "bmu_battery_manager.h"
+#include "bmu_climate.h"
 #include "esp_log.h"
 #include <cstdio>
 
 static const char *TAG = "UI_DETAIL";
 
-/* ── Couleurs ─────────────────────────────────────────────────────── */
-
-#define COL_BG          lv_color_hex(0x1E1E1E)
-#define COL_CARD        lv_color_hex(0x2D2D2D)
-#define COL_BLUE        lv_color_hex(0x2979FF)
-#define COL_GREEN       lv_color_hex(0x00C853)
-#define COL_RED         lv_color_hex(0xFF1744)
-#define COL_ORANGE      lv_color_hex(0xFF9100)
-#define COL_GREY        lv_color_hex(0x9E9E9E)
-#define COL_WHITE       lv_color_white()
-#define COL_CHART_V     lv_color_hex(0x42A5F5)  // bleu voltage
-#define COL_CHART_I     lv_color_hex(0x66BB6A)  // vert courant
-
 /* ── State statique ───────────────────────────────────────────────── */
 
-static lv_obj_t *s_panel = NULL;         // panneau overlay principal
-static lv_obj_t *s_chart = NULL;         // lv_chart widget
+static lv_obj_t *s_panel = NULL;          // panneau overlay principal
+static lv_obj_t *s_chart = NULL;          // lv_chart widget
 static lv_chart_series_t *s_ser_v = NULL; // serie tension
 static lv_chart_series_t *s_ser_i = NULL; // serie courant
 static lv_obj_t *s_val_labels[8] = {};    // labels valeurs numeriques
 static int s_battery_idx = -1;
 static bmu_ui_ctx_t *s_ctx_ref = NULL;
 static bmu_nav_state_t *s_nav_ref = NULL;
+static bmu_protection_ctx_t *s_prot = NULL;
+static bool s_switch_action = false;
 
 /* ── Noms d'etats ─────────────────────────────────────────────────── */
 
@@ -55,13 +45,69 @@ static const char *state_name(bmu_battery_state_t s)
 static lv_color_t state_color(bmu_battery_state_t s)
 {
     switch (s) {
-        case BMU_STATE_CONNECTED:    return COL_GREEN;
-        case BMU_STATE_DISCONNECTED: return COL_RED;
-        case BMU_STATE_RECONNECTING: return COL_ORANGE;
-        case BMU_STATE_ERROR:        return COL_RED;
-        case BMU_STATE_LOCKED:       return COL_GREY;
-        default:                     return COL_GREY;
+        case BMU_STATE_CONNECTED:    return UI_COLOR_OK;
+        case BMU_STATE_DISCONNECTED: return UI_COLOR_ERR;
+        case BMU_STATE_RECONNECTING: return UI_COLOR_WARN;
+        case BMU_STATE_ERROR:        return UI_COLOR_ERR;
+        case BMU_STATE_LOCKED:       return UI_COLOR_TEXT_DIM;
+        default:                     return UI_COLOR_TEXT_DIM;
     }
+}
+
+/* ── Auto-scale graphique Y ───────────────────────────────────────── */
+
+static void update_chart_range(bmu_chart_history_t *hist)
+{
+    if (hist->count == 0) return;
+    float v_min = 35000, v_max = 15000;
+    for (int i = 0; i < hist->count; i++) {
+        int idx = (hist->head - hist->count + i + CONFIG_BMU_CHART_HISTORY_POINTS) % CONFIG_BMU_CHART_HISTORY_POINTS;
+        float v = hist->voltage_mv[idx];
+        if (v > 0 && v < v_min) v_min = v;
+        if (v > v_max) v_max = v;
+    }
+    float margin = (v_max - v_min) * 0.1f;
+    if (margin < 500) margin = 500;
+    lv_chart_set_range(s_chart, LV_CHART_AXIS_PRIMARY_Y,
+                       (int)(v_min - margin), (int)(v_max + margin));
+}
+
+/* ── Dialog confirmation switch ──────────────────────────────────── */
+
+static void switch_confirm_cb(lv_event_t *e)
+{
+    lv_obj_t *btn = (lv_obj_t *)lv_event_get_target(e);
+    lv_obj_t *msgbox = lv_obj_get_parent(lv_obj_get_parent(btn)); /* btn -> footer -> msgbox */
+
+    const char *txt = lv_label_get_text(lv_obj_get_child(btn, 0));
+    if (txt && strcmp(txt, "Oui") == 0) {
+        bmu_protection_web_switch(s_prot, s_battery_idx, s_switch_action);
+        ESP_LOGI(TAG, "Switch bat[%d] -> %s (confirme)", s_battery_idx,
+                 s_switch_action ? "ON" : "OFF");
+    }
+    lv_msgbox_close(msgbox);
+}
+
+static void show_switch_confirm(bool on)
+{
+    s_switch_action = on;
+    s_prot = s_ctx_ref->prot;
+
+    lv_obj_t *msgbox = lv_msgbox_create(NULL);
+    lv_msgbox_add_title(msgbox, on ? "Switch ON" : "Switch OFF");
+
+    char msg[64];
+    snprintf(msg, sizeof(msg), "%s batterie %d ?",
+             on ? "Connecter" : "Deconnecter", s_battery_idx + 1);
+    lv_msgbox_add_text(msgbox, msg);
+    lv_msgbox_add_close_button(msgbox);
+
+    lv_obj_t *btn_yes = lv_msgbox_add_footer_button(msgbox, "Oui");
+    lv_obj_t *btn_no  = lv_msgbox_add_footer_button(msgbox, "Non");
+    lv_obj_add_event_cb(btn_yes, switch_confirm_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(btn_no,  switch_confirm_cb, LV_EVENT_CLICKED, NULL);
+
+    lv_obj_center(msgbox);
 }
 
 /* ── Callbacks boutons ────────────────────────────────────────────── */
@@ -73,22 +119,8 @@ static void back_btn_cb(lv_event_t *e)
     bmu_ui_detail_destroy();
 }
 
-/* Actions directes — pas de msgbox (API msgbox v9 incompatible) */
-static void switch_on_btn_cb(lv_event_t *e)
-{
-    (void)e;
-    if (s_ctx_ref == NULL) return;
-    ESP_LOGI(TAG, "Switch ON BAT %d via display", s_battery_idx + 1);
-    bmu_protection_web_switch(s_ctx_ref->prot, s_battery_idx, true);
-}
-
-static void switch_off_btn_cb(lv_event_t *e)
-{
-    (void)e;
-    if (s_ctx_ref == NULL) return;
-    ESP_LOGI(TAG, "Switch OFF BAT %d via display", s_battery_idx + 1);
-    bmu_protection_web_switch(s_ctx_ref->prot, s_battery_idx, false);
-}
+static void switch_on_btn_cb(lv_event_t *e)  { (void)e; show_switch_confirm(true);  }
+static void switch_off_btn_cb(lv_event_t *e) { (void)e; show_switch_confirm(false); }
 
 static void reset_btn_cb(lv_event_t *e)
 {
@@ -96,6 +128,13 @@ static void reset_btn_cb(lv_event_t *e)
     if (s_ctx_ref == NULL) return;
     ESP_LOGI(TAG, "Reset compteur BAT %d via display", s_battery_idx + 1);
     bmu_protection_reset_switch_count(s_ctx_ref->prot, s_battery_idx);
+}
+
+/* ── Set nav state (appele depuis bmu_display.cpp) ────────────────── */
+
+void bmu_ui_detail_set_nav_state(bmu_nav_state_t *nav)
+{
+    s_nav_ref = nav;
 }
 
 /* ── Create ───────────────────────────────────────────────────────── */
@@ -110,7 +149,7 @@ void bmu_ui_detail_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx, int idx)
     /* Panneau overlay couvrant tout le parent */
     s_panel = lv_obj_create(parent);
     lv_obj_set_size(s_panel, LV_PCT(100), LV_PCT(100));
-    lv_obj_set_style_bg_color(s_panel, COL_BG, 0);
+    lv_obj_set_style_bg_color(s_panel, UI_COLOR_BG, 0);
     lv_obj_set_style_border_width(s_panel, 0, 0);
     lv_obj_set_style_pad_all(s_panel, 4, 0);
     lv_obj_set_style_radius(s_panel, 0, 0);
@@ -120,7 +159,7 @@ void bmu_ui_detail_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx, int idx)
     lv_obj_t *btn_back = lv_button_create(s_panel);
     lv_obj_set_size(btn_back, 56, 22);
     lv_obj_align(btn_back, LV_ALIGN_TOP_LEFT, 0, 0);
-    lv_obj_set_style_bg_color(btn_back, COL_CARD, 0);
+    lv_obj_set_style_bg_color(btn_back, UI_COLOR_CARD, 0);
     lv_obj_t *btn_lbl = lv_label_create(btn_back);
     lv_label_set_text(btn_lbl, LV_SYMBOL_LEFT " Ret");
     lv_obj_set_style_text_font(btn_lbl, &lv_font_montserrat_14, 0);
@@ -131,7 +170,7 @@ void bmu_ui_detail_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx, int idx)
     snprintf(title, sizeof(title), "BAT %d", idx + 1);
     lv_obj_t *tlbl = lv_label_create(s_panel);
     lv_label_set_text(tlbl, title);
-    lv_obj_set_style_text_color(tlbl, COL_BLUE, 0);
+    lv_obj_set_style_text_color(tlbl, UI_COLOR_INFO, 0);
     lv_obj_set_style_text_font(tlbl, &lv_font_montserrat_14, 0);
     lv_obj_align(tlbl, LV_ALIGN_TOP_MID, 0, 2);
 
@@ -142,7 +181,7 @@ void bmu_ui_detail_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx, int idx)
     lv_chart_set_type(s_chart, LV_CHART_TYPE_LINE);
     lv_chart_set_point_count(s_chart, 60);  // affiche les 60 derniers points (30s)
     lv_obj_set_style_bg_color(s_chart, lv_color_hex(0x121212), 0);
-    lv_obj_set_style_border_color(s_chart, COL_GREY, 0);
+    lv_obj_set_style_border_color(s_chart, UI_COLOR_TEXT_DIM, 0);
     lv_obj_set_style_border_width(s_chart, 1, 0);
     lv_obj_set_style_line_width(s_chart, 2, LV_PART_ITEMS);
     lv_obj_set_style_size(s_chart, 0, 0, LV_PART_INDICATOR); // pas de points
@@ -150,11 +189,11 @@ void bmu_ui_detail_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx, int idx)
     lv_chart_set_div_line_count(s_chart, 3, 0);
 
     /* Serie tension (axe Y primaire) — bleu */
-    s_ser_v = lv_chart_add_series(s_chart, COL_CHART_V, LV_CHART_AXIS_PRIMARY_Y);
-    lv_chart_set_range(s_chart, LV_CHART_AXIS_PRIMARY_Y, 20000, 32000); // 20-32V en mV
+    s_ser_v = lv_chart_add_series(s_chart, UI_COLOR_INFO, LV_CHART_AXIS_PRIMARY_Y);
+    lv_chart_set_range(s_chart, LV_CHART_AXIS_PRIMARY_Y, 20000, 32000); // plage initiale, auto-scale apres
 
     /* Serie courant (axe Y secondaire) — vert */
-    s_ser_i = lv_chart_add_series(s_chart, COL_CHART_I, LV_CHART_AXIS_SECONDARY_Y);
+    s_ser_i = lv_chart_add_series(s_chart, UI_COLOR_OK, LV_CHART_AXIS_SECONDARY_Y);
     lv_chart_set_range(s_chart, LV_CHART_AXIS_SECONDARY_Y, -5000, 30000); // -5A..30A en mA
 
     /* ── Valeurs numeriques (moitie droite) ───────────────────────── */
@@ -165,13 +204,13 @@ void bmu_ui_detail_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx, int idx)
     for (int i = 0; i < 8; i++) {
         lv_obj_t *name = lv_label_create(s_panel);
         lv_label_set_text(name, labels[i]);
-        lv_obj_set_style_text_color(name, COL_GREY, 0);
+        lv_obj_set_style_text_color(name, UI_COLOR_TEXT_DIM, 0);
         lv_obj_set_style_text_font(name, &lv_font_montserrat_14, 0);
         lv_obj_align(name, LV_ALIGN_TOP_LEFT, 158, 26 + i * 16);
 
         s_val_labels[i] = lv_label_create(s_panel);
         lv_label_set_text(s_val_labels[i], "---");
-        lv_obj_set_style_text_color(s_val_labels[i], COL_WHITE, 0);
+        lv_obj_set_style_text_color(s_val_labels[i], UI_COLOR_TEXT, 0);
         lv_obj_set_style_text_font(s_val_labels[i], &lv_font_montserrat_14, 0);
         lv_obj_align(s_val_labels[i], LV_ALIGN_TOP_LEFT, 200, 26 + i * 16);
     }
@@ -180,7 +219,7 @@ void bmu_ui_detail_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx, int idx)
     lv_obj_t *btn_on = lv_button_create(s_panel);
     lv_obj_set_size(btn_on, 80, 26);
     lv_obj_align(btn_on, LV_ALIGN_BOTTOM_LEFT, 4, -2);
-    lv_obj_set_style_bg_color(btn_on, COL_GREEN, 0);
+    lv_obj_set_style_bg_color(btn_on, UI_COLOR_OK, 0);
     lv_obj_t *lbl_on = lv_label_create(btn_on);
     lv_label_set_text(lbl_on, "Switch ON");
     lv_obj_set_style_text_font(lbl_on, &lv_font_montserrat_14, 0);
@@ -191,18 +230,18 @@ void bmu_ui_detail_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx, int idx)
     lv_obj_t *btn_off = lv_button_create(s_panel);
     lv_obj_set_size(btn_off, 80, 26);
     lv_obj_align(btn_off, LV_ALIGN_BOTTOM_MID, 0, -2);
-    lv_obj_set_style_bg_color(btn_off, COL_RED, 0);
+    lv_obj_set_style_bg_color(btn_off, UI_COLOR_ERR, 0);
     lv_obj_t *lbl_off = lv_label_create(btn_off);
     lv_label_set_text(lbl_off, "Switch OFF");
     lv_obj_set_style_text_font(lbl_off, &lv_font_montserrat_14, 0);
-    lv_obj_set_style_text_color(lbl_off, COL_WHITE, 0);
+    lv_obj_set_style_text_color(lbl_off, UI_COLOR_TEXT, 0);
     lv_obj_center(lbl_off);
     lv_obj_add_event_cb(btn_off, switch_off_btn_cb, LV_EVENT_CLICKED, NULL);
 
     lv_obj_t *btn_reset = lv_button_create(s_panel);
     lv_obj_set_size(btn_reset, 80, 26);
     lv_obj_align(btn_reset, LV_ALIGN_BOTTOM_RIGHT, -4, -2);
-    lv_obj_set_style_bg_color(btn_reset, COL_ORANGE, 0);
+    lv_obj_set_style_bg_color(btn_reset, UI_COLOR_WARN, 0);
     lv_obj_t *lbl_rst = lv_label_create(btn_reset);
     lv_label_set_text(lbl_rst, "Reset");
     lv_obj_set_style_text_font(lbl_rst, &lv_font_montserrat_14, 0);
@@ -229,7 +268,7 @@ void bmu_ui_detail_update(bmu_ui_ctx_t *ctx, int idx)
     float ah_c = bmu_battery_manager_get_ah_charge(ctx->mgr, idx);
     int nb_sw = ctx->prot->nb_switch[idx];
 
-    /* Calculer courant et puissance depuis la tension et l'historique */
+    /* Calculer courant et puissance depuis l'historique */
     bmu_chart_history_t *h = &ctx->chart_hist[idx];
     float i_a = 0.0f;
     if (h->count > 0) {
@@ -249,7 +288,13 @@ void bmu_ui_detail_update(bmu_ui_ctx_t *ctx, int idx)
     snprintf(buf, sizeof(buf), "%.1f W", p_w);
     lv_label_set_text(s_val_labels[2], buf);
 
-    lv_label_set_text(s_val_labels[3], "---");  // Temperature — pas encore disponible
+    /* Temperature depuis AHT30 */
+    if (bmu_climate_is_available()) {
+        snprintf(buf, sizeof(buf), "%.1f C", bmu_climate_get_temperature());
+    } else {
+        snprintf(buf, sizeof(buf), "---");
+    }
+    lv_label_set_text(s_val_labels[3], buf);
 
     snprintf(buf, sizeof(buf), "%.3f", ah_c);
     lv_label_set_text(s_val_labels[4], buf);
@@ -278,6 +323,10 @@ void bmu_ui_detail_update(bmu_ui_ctx_t *ctx, int idx)
                 lv_chart_set_value_by_id(s_chart, s_ser_i, i, LV_CHART_POINT_NONE);
             }
         }
+
+        /* Auto-scale axe Y tension */
+        update_chart_range(h);
+
         lv_chart_refresh(s_chart);
     }
 }

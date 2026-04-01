@@ -182,6 +182,7 @@ esp_err_t bmu_display_init(bmu_display_ctx_t *ctx)
 
     /* ── Creer le contenu de chaque ecran ─────────────────────────── */
     bmu_ui_main_set_nav_state(&s_nav);
+    bmu_ui_detail_set_nav_state(&s_nav);
     bmu_ui_main_create(tab_batt, &s_ui_ctx);
     bmu_ui_soh_create(tab_soh, &s_ui_ctx);
     bmu_ui_system_create(tab_sys, &s_ui_ctx);
