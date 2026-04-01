@@ -14,4 +14,5 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "kxkm-bmu-app"
+include(":androidApp")
 include(":shared")
