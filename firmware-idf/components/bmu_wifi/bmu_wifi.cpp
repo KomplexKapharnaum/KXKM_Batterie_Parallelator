@@ -115,7 +115,8 @@ esp_err_t bmu_wifi_init(void)
                  CONFIG_BMU_WIFI_PASSWORD,
                  sizeof(wifi_config.sta.password) - 1);
     wifi_config.sta.threshold.authmode =
-        (std::strlen(CONFIG_BMU_WIFI_PASSWORD) > 0) ? WIFI_AUTH_WPA2_PSK : WIFI_AUTH_OPEN;
+        (std::strlen(CONFIG_BMU_WIFI_PASSWORD) > 0) ? WIFI_AUTH_WPA_PSK : WIFI_AUTH_OPEN;
+    wifi_config.sta.sae_pwe_h2e = WPA3_SAE_PWE_BOTH;  /* Support WPA3 transition */
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));

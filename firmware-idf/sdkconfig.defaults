@@ -46,5 +46,9 @@ CONFIG_BT_NIMBLE_ROLE_PERIPHERAL=y
 CONFIG_BT_NIMBLE_NVS_PERSIST=y
 CONFIG_BMU_BLE_ENABLED=y
 
+# ── WiFi ──────────────────────────────────────────────────────────────
+CONFIG_BMU_WIFI_SSID="Les cils"
+CONFIG_BMU_WIFI_PASSWORD="mascarade"
+
 # ── Disable LVGL port button (incompatible avec button v4) ─────────
 CONFIG_BSP_DISPLAY_LVGL_PORT_BUTTON=n
