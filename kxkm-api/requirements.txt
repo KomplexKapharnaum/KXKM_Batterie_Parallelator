@@ -1,0 +1,9 @@
+fastapi==0.115.*
+uvicorn[standard]==0.34.*
+influxdb-client==1.48.*
+pydantic==2.11.*
+pydantic-settings==2.9.*
+aiosqlite==0.21.*
+httpx==0.28.*
+pytest==8.3.*
+pytest-asyncio==0.25.*
