@@ -1,6 +1,14 @@
 idf_component_register(
-    SRCS "bmu_display.cpp" "bmu_ui_main.cpp" "bmu_ui_detail.cpp" "bmu_ui_system.cpp" "bmu_ui_alerts.cpp" "bmu_ui_debug.cpp" "bmu_ui_solar.cpp" "bmu_ui_soh.cpp"
+    SRCS "bmu_display.cpp"
+         "bmu_ui_main.cpp"
+         "bmu_ui_detail.cpp"
+         "bmu_ui_soh.cpp"
+         "bmu_ui_system.cpp"
+         "bmu_ui_alerts.cpp"
+         "bmu_ui_config.cpp"
     INCLUDE_DIRS "include"
     REQUIRES esp-box-3 esp_timer
-    PRIV_REQUIRES bmu_protection bmu_config bmu_wifi bmu_mqtt bmu_storage bmu_sntp bmu_vedirect bmu_soh esp_app_format
+    PRIV_REQUIRES bmu_protection bmu_config bmu_wifi bmu_mqtt
+                  bmu_storage bmu_sntp bmu_vedirect bmu_climate
+                  bmu_soh bmu_ble bmu_ina237 esp_app_format
 )

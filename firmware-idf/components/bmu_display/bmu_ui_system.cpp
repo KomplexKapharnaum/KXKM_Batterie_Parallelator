@@ -15,6 +15,61 @@
 
 static const char *TAG = "UI_SYS";
 
+/* ── Ring buffer pour les messages debug ─────────────────────────────── */
+#define DEBUG_LOG_MAX 30
+#define DEBUG_MSG_LEN 48
+
+static char debug_log[DEBUG_LOG_MAX][DEBUG_MSG_LEN] = {};
+static int debug_log_count = 0;
+static int debug_log_head = 0; // prochaine position d'ecriture
+static uint32_t error_count = 0;
+static uint32_t nack_count = 0;
+static uint32_t timeout_count = 0;
+static int device_count = 0;
+
+void bmu_ui_debug_log(const char *msg)
+{
+    if (msg == NULL) return;
+
+    /* Horodatage depuis le boot */
+    int64_t ms = esp_timer_get_time() / 1000;
+    int sec = (int)(ms / 1000) % 86400;
+    int h = sec / 3600;
+    int m = (sec % 3600) / 60;
+    int s = sec % 60;
+
+    snprintf(debug_log[debug_log_head], DEBUG_MSG_LEN,
+             "%02d:%02d:%02d %s", h, m, s, msg);
+    debug_log_head = (debug_log_head + 1) % DEBUG_LOG_MAX;
+    if (debug_log_count < DEBUG_LOG_MAX) debug_log_count++;
+}
+
+void bmu_ui_debug_log_i2c_error(uint8_t addr, const char *type)
+{
+    char buf[40];
+    snprintf(buf, sizeof(buf), "%s 0x%02X", type, addr);
+    bmu_ui_debug_log(buf);
+
+    if (strcmp(type, "NACK") == 0) nack_count++;
+    else if (strcmp(type, "TIMEOUT") == 0) timeout_count++;
+    error_count++;
+}
+
+void bmu_ui_debug_set_device_count(int count)
+{
+    device_count = count;
+}
+
+const char *bmu_ui_debug_get_log_line(int index)
+{
+    if (index < 0 || index >= debug_log_count) return NULL;
+    int idx = (debug_log_head - 1 - index + DEBUG_LOG_MAX) % DEBUG_LOG_MAX;
+    return debug_log[idx];
+}
+
+int bmu_ui_debug_get_device_count(void) { return device_count; }
+int bmu_ui_debug_get_error_count(void) { return (int)error_count; }
+
 /* Section CONNEXION */
 static lv_obj_t *s_ble_dot  = NULL, *s_ble_lbl  = NULL;
 static lv_obj_t *s_wifi_dot = NULL, *s_wifi_lbl = NULL;

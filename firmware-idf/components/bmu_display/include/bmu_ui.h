@@ -94,24 +94,14 @@ void bmu_ui_alerts_add_ex(const char *timestamp, const char *title,
                           const char *detail, alert_type_t type);
 int  bmu_ui_alerts_get_count(void);
 
-/* ── Debug I2C screen ─────────────────────────────────────────────── */
+/* ── Debug ring buffer (impl in system.cpp) ───────────────────────── */
 
-void bmu_ui_debug_create(lv_obj_t *parent);
-void bmu_ui_debug_update(void);
-void bmu_ui_debug_log(const char *msg);
-void bmu_ui_debug_log_i2c_error(uint8_t addr, const char *type);
-void bmu_ui_debug_set_device_count(int count);
-
-/* ── Debug helpers (used by system screen) ────────────────────────── */
-
+void        bmu_ui_debug_log(const char *msg);
+void        bmu_ui_debug_log_i2c_error(uint8_t addr, const char *type);
+void        bmu_ui_debug_set_device_count(int count);
 const char *bmu_ui_debug_get_log_line(int index); /* 0=newest */
 int         bmu_ui_debug_get_device_count(void);
 int         bmu_ui_debug_get_error_count(void);
-
-/* ── Solar VE.Direct screen ───────────────────────────────────────── */
-
-void bmu_ui_solar_create(lv_obj_t *parent);
-void bmu_ui_solar_update(void);
 
 /* ── SOH prediction screen ───────────────────────────────────────── */
 
