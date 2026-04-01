@@ -1,0 +1,314 @@
+<h2>Preview complète — 5 écrans LVGL refonte</h2>
+<p class="subtitle">320×240px · High Contrast · Noir pur · Font 14px</p>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<h3>⚡ Onglet 1 — BATT (Dashboard principal)</h3>
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="mockup">
+  <div class="mockup-header">⚡ BATT — Top bar + Liste batteries</div>
+  <div class="mockup-body" style="background:#000; padding:0; font-family:sans-serif; font-size:11px; display:flex; flex-direction:column; height:320px; overflow:hidden;">
+
+    <!-- TOP BAR -->
+    <div style="background:#0A0A0A; border-bottom:1px solid #222; padding:4px 6px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:3px;">
+        <span style="color:#00AAFF; font-weight:bold; font-size:11px;">⚡ kryole</span>
+        <div style="display:flex; gap:4px;">
+          <span style="color:#00FF66; font-size:8px;">● BLE</span>
+          <span style="color:#00FF66; font-size:8px;">● WiFi</span>
+          <span style="color:#FF4444; font-size:8px;">○ MQTT</span>
+        </div>
+      </div>
+      <div style="display:flex; gap:2px;">
+        <div style="flex:1; background:#111; border-radius:3px; padding:2px 4px; text-align:center;">
+          <div style="color:#00FF66; font-size:14px; font-weight:bold; line-height:1.1;">26.4V</div>
+          <div style="color:#555; font-size:7px;">V MOY</div>
+        </div>
+        <div style="flex:1; background:#111; border-radius:3px; padding:2px 4px; text-align:center;">
+          <div style="color:white; font-size:14px; font-weight:bold; line-height:1.1;">4.1A</div>
+          <div style="color:#555; font-size:7px;">I TOTAL</div>
+        </div>
+        <div style="flex:1; background:#111; border-radius:3px; padding:2px 4px; text-align:center;">
+          <div style="color:#4FC3F7; font-size:14px; font-weight:bold; line-height:1.1;">12.3</div>
+          <div style="color:#555; font-size:7px;">Ah IN</div>
+        </div>
+        <div style="flex:1; background:#111; border-radius:3px; padding:2px 4px; text-align:center;">
+          <div style="color:#FF9100; font-size:14px; font-weight:bold; line-height:1.1;">8.2</div>
+          <div style="color:#555; font-size:7px;">Ah OUT</div>
+        </div>
+        <div style="flex:1; background:#111; border-radius:3px; padding:2px 4px; text-align:center;">
+          <div style="color:#FFAA00; font-size:12px; font-weight:bold; line-height:1.3;">23°C</div>
+          <div style="color:#555; font-size:7px;">45% HR</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BATTERY LIST -->
+    <div style="flex:1; padding:4px 6px; display:flex; flex-direction:column; gap:2px; overflow-y:auto;">
+      <div style="background:#0A0A0A; padding:4px 6px; border-radius:4px; display:flex; align-items:center; gap:6px; border-left:3px solid #00FF66;">
+        <span style="color:#ccc; width:18px; font-size:10px; font-weight:bold;">B1</span>
+        <div style="flex:1; background:#1A1A1A; height:8px; border-radius:4px; overflow:hidden;"><div style="background:linear-gradient(90deg,#00CC44,#00FF66); width:88%; height:100%; border-radius:4px;"></div></div>
+        <span style="color:#FFF; font-size:12px; font-weight:bold; width:44px; text-align:right;">26.4V</span>
+        <span style="color:#CCC; font-size:10px; width:32px; text-align:right;">1.2A</span>
+      </div>
+      <div style="background:#0A0A0A; padding:4px 6px; border-radius:4px; display:flex; align-items:center; gap:6px; border-left:3px solid #00FF66;">
+        <span style="color:#ccc; width:18px; font-size:10px; font-weight:bold;">B2</span>
+        <div style="flex:1; background:#1A1A1A; height:8px; border-radius:4px; overflow:hidden;"><div style="background:linear-gradient(90deg,#00CC44,#00FF66); width:87%; height:100%; border-radius:4px;"></div></div>
+        <span style="color:#FFF; font-size:12px; font-weight:bold; width:44px; text-align:right;">26.3V</span>
+        <span style="color:#CCC; font-size:10px; width:32px; text-align:right;">0.8A</span>
+      </div>
+      <div style="background:#0A0000; padding:4px 6px; border-radius:4px; display:flex; align-items:center; gap:6px; border-left:3px solid #FF0044;">
+        <span style="color:#884444; width:18px; font-size:10px; font-weight:bold;">B3</span>
+        <div style="flex:1; background:#1A0000; height:8px; border-radius:4px;"></div>
+        <span style="color:#FF4466; font-size:12px; font-weight:bold; width:44px; text-align:right;">OFF</span>
+        <span style="color:#553333; font-size:10px; width:32px; text-align:right;">—</span>
+      </div>
+      <div style="background:#0A0A0A; padding:4px 6px; border-radius:4px; display:flex; align-items:center; gap:6px; border-left:3px solid #00FF66;">
+        <span style="color:#ccc; width:18px; font-size:10px; font-weight:bold;">B4</span>
+        <div style="flex:1; background:#1A1A1A; height:8px; border-radius:4px; overflow:hidden;"><div style="background:linear-gradient(90deg,#00CC44,#00FF66); width:88%; height:100%; border-radius:4px;"></div></div>
+        <span style="color:#FFF; font-size:12px; font-weight:bold; width:44px; text-align:right;">26.5V</span>
+        <span style="color:#CCC; font-size:10px; width:32px; text-align:right;">2.1A</span>
+      </div>
+      <div style="background:#0A0800; padding:4px 6px; border-radius:4px; display:flex; align-items:center; gap:6px; border-left:3px solid #FFAA00;">
+        <span style="color:#AA8800; width:18px; font-size:10px; font-weight:bold;">B5</span>
+        <div style="flex:1; background:#1A1800; height:8px; border-radius:4px; overflow:hidden;"><div style="background:linear-gradient(90deg,#FF8800,#FFAA00); width:82%; height:100%; border-radius:4px;"></div></div>
+        <span style="color:#FFCC44; font-size:12px; font-weight:bold; width:44px; text-align:right;">24.8V</span>
+        <span style="color:#AA9944; font-size:10px; width:32px; text-align:right;">0.3A</span>
+      </div>
+      <div style="background:#0A0A0A; padding:4px 6px; border-radius:4px; display:flex; align-items:center; gap:6px; border-left:3px solid #00FF66;">
+        <span style="color:#ccc; width:18px; font-size:10px; font-weight:bold;">B6</span>
+        <div style="flex:1; background:#1A1A1A; height:8px; border-radius:4px; overflow:hidden;"><div style="background:linear-gradient(90deg,#00CC44,#00FF66); width:86%; height:100%; border-radius:4px;"></div></div>
+        <span style="color:#FFF; font-size:12px; font-weight:bold; width:44px; text-align:right;">26.1V</span>
+        <span style="color:#CCC; font-size:10px; width:32px; text-align:right;">1.5A</span>
+      </div>
+    </div>
+
+    <!-- TAB BAR -->
+    <div style="display:flex; background:#0A0A0A; border-top:1px solid #222; padding:4px 0; flex-shrink:0;">
+      <div style="flex:1; text-align:center; color:#00FF66;"><div style="font-size:15px;">⚡</div><div style="font-size:7px; font-weight:bold;">BATT</div></div>
+      <div style="flex:1; text-align:center; color:#666;"><div style="font-size:15px;">🧠</div><div style="font-size:7px;">SOH</div></div>
+      <div style="flex:1; text-align:center; color:#666;"><div style="font-size:15px;">📊</div><div style="font-size:7px;">SYS</div></div>
+      <div style="flex:1; text-align:center; color:#FF0044; position:relative;"><div style="font-size:15px;">⚠️</div><div style="font-size:7px;">ALERT</div><div style="position:absolute; top:-2px; right:16%; background:#FF0044; color:white; font-size:7px; width:12px; height:12px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-weight:bold;">2</div></div>
+      <div style="flex:1; text-align:center; color:#666;"><div style="font-size:15px;">⚙️</div><div style="font-size:7px;">CONFIG</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<h3 style="margin-top:24px;">🧠 Onglet 2 — SOH (State of Health IA)</h3>
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="mockup">
+  <div class="mockup-header">🧠 SOH — Prédiction santé batteries TFLite</div>
+  <div class="mockup-body" style="background:#000; padding:8px; font-family:sans-serif; font-size:11px; display:flex; flex-direction:column; height:280px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+      <span style="color:#00FFCC; font-weight:bold; font-size:13px;">🧠 State of Health</span>
+      <span style="color:#555; font-size:9px;">il y a 10s</span>
+    </div>
+    <div style="background:#0A1A1A; border:1px solid #00FFCC; border-radius:6px; padding:6px; text-align:center; margin-bottom:6px;">
+      <div style="color:#00FFCC; font-size:9px;">SOH MOYEN</div>
+      <div style="color:white; font-size:24px; font-weight:bold;">78%</div>
+      <div style="background:#1A1A1A; height:8px; border-radius:4px; margin-top:4px; overflow:hidden;"><div style="background:linear-gradient(90deg,#00AA88,#00FFCC); width:78%; height:100%; border-radius:4px;"></div></div>
+    </div>
+    <div style="flex:1; display:flex; flex-direction:column; gap:3px; overflow-y:auto;">
+      <div style="background:#0A0A0A; padding:3px 6px; border-radius:3px; display:flex; align-items:center; gap:6px;">
+        <span style="color:#ccc; width:18px; font-size:10px;">B1</span>
+        <div style="flex:1; background:#1A1A1A; height:6px; border-radius:3px; overflow:hidden;"><div style="background:#00FF66; width:92%; height:100%;"></div></div>
+        <span style="color:#00FF66; font-size:11px; font-weight:bold; width:32px; text-align:right;">92%</span>
+      </div>
+      <div style="background:#0A0A0A; padding:3px 6px; border-radius:3px; display:flex; align-items:center; gap:6px;">
+        <span style="color:#ccc; width:18px; font-size:10px;">B2</span>
+        <div style="flex:1; background:#1A1A1A; height:6px; border-radius:3px; overflow:hidden;"><div style="background:#00FF66; width:85%; height:100%;"></div></div>
+        <span style="color:#00FF66; font-size:11px; font-weight:bold; width:32px; text-align:right;">85%</span>
+      </div>
+      <div style="background:#0A0A0A; padding:3px 6px; border-radius:3px; display:flex; align-items:center; gap:6px;">
+        <span style="color:#ccc; width:18px; font-size:10px;">B3</span>
+        <div style="flex:1; background:#1A1A1A; height:6px; border-radius:3px; overflow:hidden;"><div style="background:#FFAA00; width:58%; height:100%;"></div></div>
+        <span style="color:#FFAA00; font-size:11px; font-weight:bold; width:32px; text-align:right;">58%</span>
+      </div>
+      <div style="background:#0A0A0A; padding:3px 6px; border-radius:3px; display:flex; align-items:center; gap:6px;">
+        <span style="color:#ccc; width:18px; font-size:10px;">B4</span>
+        <div style="flex:1; background:#1A1A1A; height:6px; border-radius:3px; overflow:hidden;"><div style="background:#00FF66; width:78%; height:100%;"></div></div>
+        <span style="color:#00FF66; font-size:11px; font-weight:bold; width:32px; text-align:right;">78%</span>
+      </div>
+      <div style="background:#0A0000; padding:3px 6px; border-radius:3px; display:flex; align-items:center; gap:6px;">
+        <span style="color:#884444; width:18px; font-size:10px;">B5</span>
+        <div style="flex:1; background:#1A0000; height:6px; border-radius:3px; overflow:hidden;"><div style="background:#FF3333; width:22%; height:100%;"></div></div>
+        <span style="color:#FF3333; font-size:11px; font-weight:bold; width:32px; text-align:right;">22%</span>
+        <span style="color:#FF3333; font-size:8px;">⚠</span>
+      </div>
+    </div>
+    <div style="display:flex; gap:8px; justify-content:center; margin-top:4px;">
+      <span style="color:#00FF66; font-size:8px;">● >70% OK</span>
+      <span style="color:#FFAA00; font-size:8px;">● 40-70% USURE</span>
+      <span style="color:#FF3333; font-size:8px;">● <40% REMPLACER</span>
+    </div>
+    <!-- Tab bar -->
+    <div style="display:flex; background:#0A0A0A; border-top:1px solid #222; padding:4px 0; margin:6px -8px -8px -8px;">
+      <div style="flex:1; text-align:center; color:#666;"><div style="font-size:15px;">⚡</div><div style="font-size:7px;">BATT</div></div>
+      <div style="flex:1; text-align:center; color:#00FFCC;"><div style="font-size:15px;">🧠</div><div style="font-size:7px; font-weight:bold;">SOH</div></div>
+      <div style="flex:1; text-align:center; color:#666;"><div style="font-size:15px;">📊</div><div style="font-size:7px;">SYS</div></div>
+      <div style="flex:1; text-align:center; color:#666;"><div style="font-size:15px;">⚠️</div><div style="font-size:7px;">ALERT</div></div>
+      <div style="flex:1; text-align:center; color:#666;"><div style="font-size:15px;">⚙️</div><div style="font-size:7px;">CONFIG</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<h3 style="margin-top:24px;">📊 Onglet 3 — SYS (Système)</h3>
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="mockup">
+  <div class="mockup-header">📊 SYS — Connexion, Climat, Solar, Firmware, I2C</div>
+  <div class="mockup-body" style="background:#000; padding:8px; font-family:sans-serif; font-size:11px; display:flex; flex-direction:column; height:280px;">
+    <div style="color:#00AAFF; font-size:13px; margin-bottom:6px; font-weight:bold;">📊 Système</div>
+    <div style="background:#111; border-radius:4px; padding:5px; margin-bottom:3px;">
+      <div style="display:flex; justify-content:space-between;"><span style="color:#666; font-size:9px;">CONNEXION</span><div style="display:flex; gap:6px;"><span style="color:#00FF66; font-size:9px;">● BLE</span><span style="color:#00FF66; font-size:9px;">● WiFi 192.168.0.250</span><span style="color:#FF4444; font-size:9px;">○ MQTT</span></div></div>
+    </div>
+    <div style="background:#111; border-radius:4px; padding:5px; margin-bottom:3px;">
+      <div style="display:flex; justify-content:space-between;"><span style="color:#666; font-size:9px;">CLIMAT</span><div style="display:flex; gap:10px;"><span style="color:white;">🌡 <strong>23.5°C</strong></span><span style="color:white;">💧 <strong>45%</strong></span></div></div>
+    </div>
+    <div style="background:#111; border-radius:4px; padding:5px; margin-bottom:3px;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span style="color:#666; font-size:9px;">SOLAIRE</span><span style="color:#FFD600; font-size:9px;">☀ Float</span></div>
+      <div style="display:flex; gap:10px; font-size:10px;"><span style="color:white;">PV <strong>35.2V</strong></span><span style="color:white;"><strong>120W</strong></span><span style="color:white;">Bat <strong>26.8V</strong></span><span style="color:#888;">Jour <strong>450Wh</strong></span></div>
+    </div>
+    <div style="background:#111; border-radius:4px; padding:5px; margin-bottom:3px;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span style="color:#666; font-size:9px;">FIRMWARE</span><span style="color:#888; font-size:9px;">v0.5.0</span></div>
+      <div style="display:flex; gap:10px; font-size:9px; color:#888;"><span>Heap 16.1MB</span><span>Up 2h34m</span><span>INA:4 TCA:1</span></div>
+    </div>
+    <div style="background:#111; border-radius:4px; padding:5px;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span style="color:#666; font-size:9px;">I2C BUS</span><span style="color:#888; font-size:9px;">5 dev · 0 err</span></div>
+      <div style="font-size:8px; color:#555;">20:15:42 AHT30 OK · 20:15:41 INA scan · 20:15:40 TCA init</div>
+    </div>
+    <div style="flex:1;"></div>
+    <!-- Tab bar -->
+    <div style="display:flex; background:#0A0A0A; border-top:1px solid #222; padding:4px 0; margin:6px -8px -8px -8px;">
+      <div style="flex:1; text-align:center; color:#666;"><div style="font-size:15px;">⚡</div><div style="font-size:7px;">BATT</div></div>
+      <div style="flex:1; text-align:center; color:#666;"><div style="font-size:15px;">🧠</div><div style="font-size:7px;">SOH</div></div>
+      <div style="flex:1; text-align:center; color:#00AAFF;"><div style="font-size:15px;">📊</div><div style="font-size:7px; font-weight:bold;">SYS</div></div>
+      <div style="flex:1; text-align:center; color:#666;"><div style="font-size:15px;">⚠️</div><div style="font-size:7px;">ALERT</div></div>
+      <div style="flex:1; text-align:center; color:#666;"><div style="font-size:15px;">⚙️</div><div style="font-size:7px;">CONFIG</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<h3 style="margin-top:24px;">⚠ Onglet 4 — ALERT</h3>
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="mockup">
+  <div class="mockup-header">⚠ ALERT — Journal chronologique</div>
+  <div class="mockup-body" style="background:#000; padding:8px; font-family:sans-serif; font-size:11px; display:flex; flex-direction:column; height:280px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+      <span style="color:#FF0044; font-weight:bold; font-size:13px;">⚠ Alertes</span>
+      <div style="background:#222; color:#888; padding:2px 10px; border-radius:10px; font-size:9px; cursor:pointer;">CLEAR</div>
+    </div>
+    <div style="flex:1; display:flex; flex-direction:column; gap:2px; overflow-y:auto;">
+      <div style="background:#1A0000; padding:4px 6px; border-radius:3px; border-left:3px solid #FF0044;">
+        <div style="display:flex; justify-content:space-between;"><span style="color:#FF4466; font-size:10px; font-weight:bold;">B3 Undervoltage</span><span style="color:#553333; font-size:9px;">20:14:32</span></div>
+        <div style="color:#884444; font-size:9px;">V=23.2V < seuil 24.0V — batterie déconnectée</div>
+      </div>
+      <div style="background:#1A0800; padding:4px 6px; border-radius:3px; border-left:3px solid #FFAA00;">
+        <div style="display:flex; justify-content:space-between;"><span style="color:#FFCC44; font-size:10px; font-weight:bold;">B5 Low voltage</span><span style="color:#665500; font-size:9px;">20:12:15</span></div>
+        <div style="color:#AA8844; font-size:9px;">V=24.8V proche du seuil 24.0V</div>
+      </div>
+      <div style="background:#0A0A0A; padding:4px 6px; border-radius:3px; border-left:3px solid #00FF66;">
+        <div style="display:flex; justify-content:space-between;"><span style="color:#00FF66; font-size:10px;">WiFi connecté</span><span style="color:#555; font-size:9px;">20:10:03</span></div>
+        <div style="color:#666; font-size:9px;">IP 192.168.0.250 — SSID "Les cils"</div>
+      </div>
+      <div style="background:#0A0A0A; padding:4px 6px; border-radius:3px; border-left:3px solid #00FF66;">
+        <div style="display:flex; justify-content:space-between;"><span style="color:#00FF66; font-size:10px;">BLE advertising</span><span style="color:#555; font-size:9px;">20:09:58</span></div>
+        <div style="color:#666; font-size:9px;">KXKM-BMU-kryole — NimBLE OK</div>
+      </div>
+      <div style="background:#0A0A0A; padding:4px 6px; border-radius:3px; border-left:3px solid #00AAFF;">
+        <div style="display:flex; justify-content:space-between;"><span style="color:#00AAFF; font-size:10px;">Boot</span><span style="color:#555; font-size:9px;">20:09:55</span></div>
+        <div style="color:#666; font-size:9px;">KXKM BMU v0.5.0 — 4 INA, 1 TCA</div>
+      </div>
+    </div>
+    <!-- Tab bar -->
+    <div style="display:flex; background:#0A0A0A; border-top:1px solid #222; padding:4px 0; margin:6px -8px -8px -8px;">
+      <div style="flex:1; text-align:center; color:#666;"><div style="font-size:15px;">⚡</div><div style="font-size:7px;">BATT</div></div>
+      <div style="flex:1; text-align:center; color:#666;"><div style="font-size:15px;">🧠</div><div style="font-size:7px;">SOH</div></div>
+      <div style="flex:1; text-align:center; color:#666;"><div style="font-size:15px;">📊</div><div style="font-size:7px;">SYS</div></div>
+      <div style="flex:1; text-align:center; color:#FF0044;"><div style="font-size:15px;">⚠️</div><div style="font-size:7px; font-weight:bold;">ALERT</div></div>
+      <div style="flex:1; text-align:center; color:#666;"><div style="font-size:15px;">⚙️</div><div style="font-size:7px;">CONFIG</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<h3 style="margin-top:24px;">⚙ Onglet 5 — CONFIG</h3>
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="mockup">
+  <div class="mockup-header">⚙ CONFIG — NVS runtime settings</div>
+  <div class="mockup-body" style="background:#000; padding:8px; font-family:sans-serif; font-size:11px; display:flex; flex-direction:column; height:280px;">
+    <div style="color:#888; font-weight:bold; font-size:13px; margin-bottom:6px;">⚙ Configuration</div>
+    <div style="flex:1; display:flex; flex-direction:column; gap:3px; overflow-y:auto;">
+      <!-- Device -->
+      <div style="background:#111; border-radius:4px; padding:5px;">
+        <div style="color:#666; font-size:9px; margin-bottom:2px;">NOM DEVICE</div>
+        <div style="display:flex; gap:4px; align-items:center;">
+          <div style="flex:1; background:#1A1A1A; border:1px solid #333; border-radius:3px; padding:2px 6px; color:white; font-size:11px;">kryole</div>
+          <div style="background:#222; color:#888; padding:2px 8px; border-radius:3px; font-size:9px;">✎</div>
+        </div>
+      </div>
+      <!-- WiFi -->
+      <div style="background:#111; border-radius:4px; padding:5px;">
+        <div style="display:flex; justify-content:space-between;"><span style="color:#666; font-size:9px;">WIFI</span><span style="color:#00FF66; font-size:8px;">● Connecté</span></div>
+        <div style="display:flex; gap:4px; margin-top:2px;">
+          <div style="flex:1; background:#1A1A1A; border:1px solid #333; border-radius:3px; padding:2px 6px; color:white; font-size:10px;">Les cils</div>
+          <div style="flex:1; background:#1A1A1A; border:1px solid #333; border-radius:3px; padding:2px 6px; color:#555; font-size:10px;">••••••••</div>
+        </div>
+      </div>
+      <!-- Seuils -->
+      <div style="background:#111; border-radius:4px; padding:5px;">
+        <div style="color:#666; font-size:9px; margin-bottom:2px;">SEUILS PROTECTION</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:3px;">
+          <div style="display:flex; align-items:center; gap:4px;">
+            <span style="color:#888; font-size:9px; width:36px;">V min</span>
+            <div style="background:#222; color:#FFAA00; padding:1px 4px; border-radius:2px; font-size:9px; cursor:pointer;">−</div>
+            <span style="color:white; font-size:10px; font-weight:bold;">24.0V</span>
+            <div style="background:#222; color:#FFAA00; padding:1px 4px; border-radius:2px; font-size:9px; cursor:pointer;">+</div>
+          </div>
+          <div style="display:flex; align-items:center; gap:4px;">
+            <span style="color:#888; font-size:9px; width:36px;">V max</span>
+            <div style="background:#222; color:#FFAA00; padding:1px 4px; border-radius:2px; font-size:9px;">−</div>
+            <span style="color:white; font-size:10px; font-weight:bold;">30.0V</span>
+            <div style="background:#222; color:#FFAA00; padding:1px 4px; border-radius:2px; font-size:9px;">+</div>
+          </div>
+          <div style="display:flex; align-items:center; gap:4px;">
+            <span style="color:#888; font-size:9px; width:36px;">I max</span>
+            <div style="background:#222; color:#FFAA00; padding:1px 4px; border-radius:2px; font-size:9px;">−</div>
+            <span style="color:white; font-size:10px; font-weight:bold;">10.0A</span>
+            <div style="background:#222; color:#FFAA00; padding:1px 4px; border-radius:2px; font-size:9px;">+</div>
+          </div>
+          <div style="display:flex; align-items:center; gap:4px;">
+            <span style="color:#888; font-size:9px; width:36px;">V diff</span>
+            <div style="background:#222; color:#FFAA00; padding:1px 4px; border-radius:2px; font-size:9px;">−</div>
+            <span style="color:white; font-size:10px; font-weight:bold;">1.0V</span>
+            <div style="background:#222; color:#FFAA00; padding:1px 4px; border-radius:2px; font-size:9px;">+</div>
+          </div>
+        </div>
+      </div>
+      <!-- Options -->
+      <div style="background:#111; border-radius:4px; padding:5px;">
+        <div style="color:#666; font-size:9px; margin-bottom:2px;">OPTIONS</div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+          <span style="color:#ccc; font-size:10px;">BLE</span>
+          <div style="width:36px; height:18px; background:#00FF66; border-radius:9px; position:relative;"><div style="width:14px; height:14px; background:white; border-radius:7px; position:absolute; right:2px; top:2px;"></div></div>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="color:#ccc; font-size:10px;">Luminosité</span>
+          <div style="width:120px; height:6px; background:#333; border-radius:3px; overflow:hidden;"><div style="width:70%; height:100%; background:#FFD600; border-radius:3px;"></div></div>
+          <span style="color:#888; font-size:9px;">70%</span>
+        </div>
+      </div>
+    </div>
+    <!-- Save button -->
+    <div style="background:#00CC44; color:black; text-align:center; padding:6px; border-radius:6px; font-weight:bold; font-size:12px; margin-top:4px; cursor:pointer;">💾 SAUVEGARDER</div>
+    <!-- Tab bar -->
+    <div style="display:flex; background:#0A0A0A; border-top:1px solid #222; padding:4px 0; margin:6px -8px -8px -8px;">
+      <div style="flex:1; text-align:center; color:#666;"><div style="font-size:15px;">⚡</div><div style="font-size:7px;">BATT</div></div>
+      <div style="flex:1; text-align:center; color:#666;"><div style="font-size:15px;">🧠</div><div style="font-size:7px;">SOH</div></div>
+      <div style="flex:1; text-align:center; color:#666;"><div style="font-size:15px;">📊</div><div style="font-size:7px;">SYS</div></div>
+      <div style="flex:1; text-align:center; color:#666;"><div style="font-size:15px;">⚠️</div><div style="font-size:7px;">ALERT</div></div>
+      <div style="flex:1; text-align:center; color:#888;"><div style="font-size:15px;">⚙️</div><div style="font-size:7px; font-weight:bold;">CONFIG</div></div>
+    </div>
+  </div>
+</div>

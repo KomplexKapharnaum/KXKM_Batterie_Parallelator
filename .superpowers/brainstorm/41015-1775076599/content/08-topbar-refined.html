@@ -1,0 +1,138 @@
+<h2>Dashboard B raffiné — top bar avec stats clés</h2>
+<p class="subtitle">Top bar : Vmoy, Itotal, Ah In, Ah Out, Climat. Puis liste batteries. Tab bar icônes en bas.</p>
+
+<div class="mockup">
+  <div class="mockup-header">Dashboard final — 320×240 High Contrast</div>
+  <div class="mockup-body" style="background:#000; padding:0; font-family:sans-serif; font-size:11px; display:flex; flex-direction:column; height:300px; overflow:hidden;">
+
+    <!-- TOP BAR - Stats clés -->
+    <div style="background:#0A0A0A; border-bottom:1px solid #222; padding:4px 6px;">
+      <!-- Row 1: device name + connexion -->
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:3px;">
+        <span style="color:#00AAFF; font-weight:bold; font-size:11px;">⚡ kryole</span>
+        <div style="display:flex; gap:4px;">
+          <span style="color:#00FF66; font-size:8px;">● BLE</span>
+          <span style="color:#00FF66; font-size:8px;">● WiFi</span>
+          <span style="color:#FF4444; font-size:8px;">○ MQTT</span>
+        </div>
+      </div>
+      <!-- Row 2: stats -->
+      <div style="display:flex; gap:2px;">
+        <div style="flex:1; background:#111; border-radius:3px; padding:2px 4px; text-align:center;">
+          <div style="color:#00FF66; font-size:14px; font-weight:bold; line-height:1.1;">26.4V</div>
+          <div style="color:#555; font-size:7px;">V MOY</div>
+        </div>
+        <div style="flex:1; background:#111; border-radius:3px; padding:2px 4px; text-align:center;">
+          <div style="color:white; font-size:14px; font-weight:bold; line-height:1.1;">4.1A</div>
+          <div style="color:#555; font-size:7px;">I TOTAL</div>
+        </div>
+        <div style="flex:1; background:#111; border-radius:3px; padding:2px 4px; text-align:center;">
+          <div style="color:#4FC3F7; font-size:14px; font-weight:bold; line-height:1.1;">12.3</div>
+          <div style="color:#555; font-size:7px;">Ah IN</div>
+        </div>
+        <div style="flex:1; background:#111; border-radius:3px; padding:2px 4px; text-align:center;">
+          <div style="color:#FF9100; font-size:14px; font-weight:bold; line-height:1.1;">8.2</div>
+          <div style="color:#555; font-size:7px;">Ah OUT</div>
+        </div>
+        <div style="flex:1; background:#111; border-radius:3px; padding:2px 4px; text-align:center;">
+          <div style="color:#FFAA00; font-size:12px; font-weight:bold; line-height:1.3;">23°C</div>
+          <div style="color:#555; font-size:7px;">45% HR</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BATTERY LIST -->
+    <div style="flex:1; padding:4px 6px; display:flex; flex-direction:column; gap:2px; overflow-y:auto;">
+      <!-- B1 OK -->
+      <div style="background:#0A0A0A; padding:4px 6px; border-radius:4px; display:flex; align-items:center; gap:6px; border-left:3px solid #00FF66;">
+        <span style="color:#ccc; width:18px; font-size:10px; font-weight:bold;">B1</span>
+        <div style="flex:1; background:#1A1A1A; height:8px; border-radius:4px; overflow:hidden;">
+          <div style="background:linear-gradient(90deg,#00CC44,#00FF66); width:88%; height:100%; border-radius:4px;"></div>
+        </div>
+        <span style="color:#FFFFFF; font-size:12px; font-weight:bold; width:44px; text-align:right;">26.4V</span>
+        <span style="color:#CCCCCC; font-size:10px; width:32px; text-align:right;">1.2A</span>
+      </div>
+      <!-- B2 OK -->
+      <div style="background:#0A0A0A; padding:4px 6px; border-radius:4px; display:flex; align-items:center; gap:6px; border-left:3px solid #00FF66;">
+        <span style="color:#ccc; width:18px; font-size:10px; font-weight:bold;">B2</span>
+        <div style="flex:1; background:#1A1A1A; height:8px; border-radius:4px; overflow:hidden;">
+          <div style="background:linear-gradient(90deg,#00CC44,#00FF66); width:87%; height:100%; border-radius:4px;"></div>
+        </div>
+        <span style="color:#FFFFFF; font-size:12px; font-weight:bold; width:44px; text-align:right;">26.3V</span>
+        <span style="color:#CCCCCC; font-size:10px; width:32px; text-align:right;">0.8A</span>
+      </div>
+      <!-- B3 OFF -->
+      <div style="background:#0A0000; padding:4px 6px; border-radius:4px; display:flex; align-items:center; gap:6px; border-left:3px solid #FF0044;">
+        <span style="color:#884444; width:18px; font-size:10px; font-weight:bold;">B3</span>
+        <div style="flex:1; background:#1A0000; height:8px; border-radius:4px;"></div>
+        <span style="color:#FF4466; font-size:12px; font-weight:bold; width:44px; text-align:right;">OFF</span>
+        <span style="color:#553333; font-size:10px; width:32px; text-align:right;">—</span>
+      </div>
+      <!-- B4 OK -->
+      <div style="background:#0A0A0A; padding:4px 6px; border-radius:4px; display:flex; align-items:center; gap:6px; border-left:3px solid #00FF66;">
+        <span style="color:#ccc; width:18px; font-size:10px; font-weight:bold;">B4</span>
+        <div style="flex:1; background:#1A1A1A; height:8px; border-radius:4px; overflow:hidden;">
+          <div style="background:linear-gradient(90deg,#00CC44,#00FF66); width:88%; height:100%; border-radius:4px;"></div>
+        </div>
+        <span style="color:#FFFFFF; font-size:12px; font-weight:bold; width:44px; text-align:right;">26.5V</span>
+        <span style="color:#CCCCCC; font-size:10px; width:32px; text-align:right;">2.1A</span>
+      </div>
+      <!-- B5 WARN -->
+      <div style="background:#0A0800; padding:4px 6px; border-radius:4px; display:flex; align-items:center; gap:6px; border-left:3px solid #FFAA00;">
+        <span style="color:#AA8800; width:18px; font-size:10px; font-weight:bold;">B5</span>
+        <div style="flex:1; background:#1A1800; height:8px; border-radius:4px; overflow:hidden;">
+          <div style="background:linear-gradient(90deg,#FF8800,#FFAA00); width:82%; height:100%; border-radius:4px;"></div>
+        </div>
+        <span style="color:#FFCC44; font-size:12px; font-weight:bold; width:44px; text-align:right;">24.8V</span>
+        <span style="color:#AA9944; font-size:10px; width:32px; text-align:right;">0.3A</span>
+      </div>
+      <!-- B6 OK -->
+      <div style="background:#0A0A0A; padding:4px 6px; border-radius:4px; display:flex; align-items:center; gap:6px; border-left:3px solid #00FF66;">
+        <span style="color:#ccc; width:18px; font-size:10px; font-weight:bold;">B6</span>
+        <div style="flex:1; background:#1A1A1A; height:8px; border-radius:4px; overflow:hidden;">
+          <div style="background:linear-gradient(90deg,#00CC44,#00FF66); width:86%; height:100%; border-radius:4px;"></div>
+        </div>
+        <span style="color:#FFFFFF; font-size:12px; font-weight:bold; width:44px; text-align:right;">26.1V</span>
+        <span style="color:#CCCCCC; font-size:10px; width:32px; text-align:right;">1.5A</span>
+      </div>
+    </div>
+
+    <!-- TAB BAR -->
+    <div style="display:flex; background:#0A0A0A; border-top:1px solid #222; padding:4px 0; flex-shrink:0;">
+      <div style="flex:1; text-align:center; color:#00FF66;">
+        <div style="font-size:16px;">⚡</div>
+        <div style="font-size:7px; font-weight:bold;">BATT</div>
+      </div>
+      <div style="flex:1; text-align:center; color:#666;">
+        <div style="font-size:16px;">📊</div>
+        <div style="font-size:7px;">SYS</div>
+      </div>
+      <div style="flex:1; text-align:center; color:#FF0044; position:relative;">
+        <div style="font-size:16px;">⚠️</div>
+        <div style="font-size:7px;">ALERT</div>
+        <div style="position:absolute; top:-2px; right:22%; background:#FF0044; color:white; font-size:7px; width:12px; height:12px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-weight:bold;">2</div>
+      </div>
+      <div style="flex:1; text-align:center; color:#666;">
+        <div style="font-size:16px;">⚙️</div>
+        <div style="font-size:7px;">CONFIG</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="options" style="margin-top:16px;">
+  <div class="option" data-choice="ok" onclick="toggleSelect(this)">
+    <div class="letter">✓</div>
+    <div class="content">
+      <h3>C'est bon, on part là-dessus</h3>
+      <p>Top bar stats + liste batteries + tab bar icônes</p>
+    </div>
+  </div>
+  <div class="option" data-choice="change" onclick="toggleSelect(this)">
+    <div class="letter">✎</div>
+    <div class="content">
+      <h3>Modifications à faire</h3>
+      <p>Dis-moi quoi changer dans le terminal</p>
+    </div>
+  </div>
+</div>

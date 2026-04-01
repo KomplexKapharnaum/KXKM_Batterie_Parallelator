@@ -1,0 +1,50 @@
+<h2>UI actuelle — Quel est le problème principal ?</h2>
+<p class="subtitle">L'écran BOX-3 fait 320×240 px (2.4"). Actuellement 6 onglets, font 14px uniquement.</p>
+
+<div class="options" data-multiselect>
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Trop d'onglets</h3>
+      <p>6 onglets sur 2.4" — difficile à naviguer, tab bar trop petite</p>
+    </div>
+  </div>
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Infos critiques peu lisibles</h3>
+      <p>Tensions et courants trop petits, pas assez de contraste, couleurs ternes</p>
+    </div>
+  </div>
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Fonctionnalités manquantes</h3>
+      <p>Pas de climat AHT30, pas de status BLE/WiFi, pas de config runtime, courant toujours 0A</p>
+    </div>
+  </div>
+  <div class="option" data-choice="d" onclick="toggleSelect(this)">
+    <div class="letter">D</div>
+    <div class="content">
+      <h3>Look trop brut</h3>
+      <p>Design technique/développeur, pas assez pro pour un produit terrain KXKM</p>
+    </div>
+  </div>
+  <div class="option" data-choice="e" onclick="toggleSelect(this)">
+    <div class="letter">E</div>
+    <div class="content">
+      <h3>Tout ça à la fois</h3>
+      <p>Refonte complète : navigation, lisibilité, fonctionnalités, esthétique</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Bugs critiques actuels</h3>
+  <ul>
+    <li>⚠️ Courant batterie toujours <strong>0.0A</strong> (INA237 pas intégré dans l'UI)</li>
+    <li>⚠️ Navigation detail cassée (<code>s_nav_ref</code> jamais initialisé)</li>
+    <li>⚠️ Pas de confirmation pour Switch ON/OFF (dangereux)</li>
+    <li>⚠️ Plage chart hardcodée (20-32V) — échoue hors spec</li>
+  </ul>
+</div>

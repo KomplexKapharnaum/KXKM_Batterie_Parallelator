@@ -57,8 +57,7 @@ struct DashboardView: View {
                 }
             }
             .refreshable {
-                BleManager.shared.startScan()
-                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                await vm.refresh()
             }
             .navigationTitle("Batteries")
             .navigationDestination(for: Int32.self) { index in

@@ -1,0 +1,122 @@
+<h2>5 onglets avec SOH IA — où le mettre ?</h2>
+<p class="subtitle">On ajoute l'onglet State of Health (prédiction IA TFLite). 5 onglets sur 320px = 64px par tab.</p>
+
+<div class="mockup">
+  <div class="mockup-header">Tab bar 5 onglets — 320px</div>
+  <div class="mockup-body" style="background:#000; padding:0; font-family:sans-serif;">
+    <!-- Spacer -->
+    <div style="height:220px; display:flex; align-items:center; justify-content:center; color:#333;">
+      (contenu écran)
+    </div>
+    <!-- Tab bar 5 -->
+    <div style="display:flex; background:#0A0A0A; border-top:1px solid #222; padding:4px 0;">
+      <div style="flex:1; text-align:center; color:#00FF66;">
+        <div style="font-size:15px;">⚡</div>
+        <div style="font-size:7px; font-weight:bold;">BATT</div>
+      </div>
+      <div style="flex:1; text-align:center; color:#666;">
+        <div style="font-size:15px;">🧠</div>
+        <div style="font-size:7px;">SOH</div>
+      </div>
+      <div style="flex:1; text-align:center; color:#666;">
+        <div style="font-size:15px;">📊</div>
+        <div style="font-size:7px;">SYS</div>
+      </div>
+      <div style="flex:1; text-align:center; color:#FF0044; position:relative;">
+        <div style="font-size:15px;">⚠️</div>
+        <div style="font-size:7px;">ALERT</div>
+        <div style="position:absolute; top:-2px; right:16%; background:#FF0044; color:white; font-size:7px; width:12px; height:12px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-weight:bold;">2</div>
+      </div>
+      <div style="flex:1; text-align:center; color:#666;">
+        <div style="font-size:15px;">⚙️</div>
+        <div style="font-size:7px;">CONFIG</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3 style="margin-top:20px;">Écran SOH — State of Health IA</h3>
+
+<div class="mockup">
+  <div class="mockup-header">🧠 SOH — Prédiction santé batteries (TFLite)</div>
+  <div class="mockup-body" style="background:#000; padding:8px; font-family:sans-serif; font-size:11px; display:flex; flex-direction:column; gap:4px;">
+    <!-- Header -->
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+      <span style="color:#00FFCC; font-weight:bold; font-size:13px;">🧠 State of Health</span>
+      <span style="color:#555; font-size:9px;">Dernière pred: il y a 10s</span>
+    </div>
+
+    <!-- SOH Avg -->
+    <div style="background:#0A1A1A; border:1px solid #00FFCC; border-radius:6px; padding:6px; text-align:center; margin-bottom:4px;">
+      <div style="color:#00FFCC; font-size:9px;">SOH MOYEN</div>
+      <div style="color:white; font-size:24px; font-weight:bold;">78%</div>
+      <div style="background:#1A1A1A; height:8px; border-radius:4px; margin-top:4px; overflow:hidden;">
+        <div style="background:linear-gradient(90deg,#00AA88,#00FFCC); width:78%; height:100%; border-radius:4px;"></div>
+      </div>
+    </div>
+
+    <!-- Per battery -->
+    <div style="display:flex; flex-direction:column; gap:2px;">
+      <div style="background:#0A0A0A; padding:3px 6px; border-radius:3px; display:flex; align-items:center; gap:6px;">
+        <span style="color:#ccc; width:18px; font-size:10px;">B1</span>
+        <div style="flex:1; background:#1A1A1A; height:6px; border-radius:3px; overflow:hidden;">
+          <div style="background:#00FF66; width:92%; height:100%; border-radius:3px;"></div>
+        </div>
+        <span style="color:#00FF66; font-size:11px; font-weight:bold; width:32px; text-align:right;">92%</span>
+      </div>
+      <div style="background:#0A0A0A; padding:3px 6px; border-radius:3px; display:flex; align-items:center; gap:6px;">
+        <span style="color:#ccc; width:18px; font-size:10px;">B2</span>
+        <div style="flex:1; background:#1A1A1A; height:6px; border-radius:3px; overflow:hidden;">
+          <div style="background:#00FF66; width:85%; height:100%; border-radius:3px;"></div>
+        </div>
+        <span style="color:#00FF66; font-size:11px; font-weight:bold; width:32px; text-align:right;">85%</span>
+      </div>
+      <div style="background:#0A0A0A; padding:3px 6px; border-radius:3px; display:flex; align-items:center; gap:6px;">
+        <span style="color:#ccc; width:18px; font-size:10px;">B3</span>
+        <div style="flex:1; background:#1A1A1A; height:6px; border-radius:3px; overflow:hidden;">
+          <div style="background:#FFAA00; width:58%; height:100%; border-radius:3px;"></div>
+        </div>
+        <span style="color:#FFAA00; font-size:11px; font-weight:bold; width:32px; text-align:right;">58%</span>
+      </div>
+      <div style="background:#0A0A0A; padding:3px 6px; border-radius:3px; display:flex; align-items:center; gap:6px;">
+        <span style="color:#ccc; width:18px; font-size:10px;">B4</span>
+        <div style="flex:1; background:#1A1A1A; height:6px; border-radius:3px; overflow:hidden;">
+          <div style="background:#00FF66; width:78%; height:100%; border-radius:3px;"></div>
+        </div>
+        <span style="color:#00FF66; font-size:11px; font-weight:bold; width:32px; text-align:right;">78%</span>
+      </div>
+      <div style="background:#0A0000; padding:3px 6px; border-radius:3px; display:flex; align-items:center; gap:6px;">
+        <span style="color:#884444; width:18px; font-size:10px;">B5</span>
+        <div style="flex:1; background:#1A0000; height:6px; border-radius:3px; overflow:hidden;">
+          <div style="background:#FF3333; width:22%; height:100%; border-radius:3px;"></div>
+        </div>
+        <span style="color:#FF3333; font-size:11px; font-weight:bold; width:32px; text-align:right;">22%</span>
+        <span style="color:#FF3333; font-size:8px;">⚠ REMPLACER</span>
+      </div>
+    </div>
+
+    <!-- Legend -->
+    <div style="display:flex; gap:8px; justify-content:center; margin-top:4px;">
+      <span style="color:#00FF66; font-size:8px;">● >70% OK</span>
+      <span style="color:#FFAA00; font-size:8px;">● 40-70% USURE</span>
+      <span style="color:#FF3333; font-size:8px;">● <40% REMPLACER</span>
+    </div>
+  </div>
+</div>
+
+<div class="options" style="margin-top:16px;">
+  <div class="option" data-choice="ok" onclick="toggleSelect(this)">
+    <div class="letter">✓</div>
+    <div class="content">
+      <h3>5 onglets c'est bon</h3>
+      <p>⚡BATT | 🧠SOH | 📊SYS | ⚠ALERT | ⚙CONFIG</p>
+    </div>
+  </div>
+  <div class="option" data-choice="change" onclick="toggleSelect(this)">
+    <div class="letter">✎</div>
+    <div class="content">
+      <h3>Modifications</h3>
+      <p>Dis-moi dans le terminal</p>
+    </div>
+  </div>
+</div>

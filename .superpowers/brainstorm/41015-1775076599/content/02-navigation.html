@@ -1,0 +1,29 @@
+<h2>Navigation — combien d'écrans ?</h2>
+<p class="subtitle">Actuellement 6 onglets. Avec le climat AHT30 et le status connexion, ça fait encore plus. Comment organiser ?</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>3 onglets principaux + sous-menus</h3>
+      <p><strong>Batteries</strong> (grille + détail) | <strong>Système</strong> (WiFi, BLE, climat, solar, debug) | <strong>Config</strong> (seuils, device name)</p>
+      <p style="color:#888">Moins de tabs = plus gros boutons, navigation plus claire</p>
+    </div>
+  </div>
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>4 onglets (regroupement intelligent)</h3>
+      <p><strong>⚡ Batt</strong> | <strong>📊 Sys</strong> (WiFi+BLE+climat+solar) | <strong>⚠ Alert</strong> | <strong>⚙ Config</strong></p>
+      <p style="color:#888">Bon équilibre — debug/SOH intégrés dans les écrans existants</p>
+    </div>
+  </div>
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Dashboard unique + swipe vertical</h3>
+      <p>Un seul écran scrollable verticalement avec sections : batteries en haut, puis système, puis alertes</p>
+      <p style="color:#888">Pas de tabs du tout — tout visible en scrollant. Plus moderne mais moins structuré</p>
+    </div>
+  </div>
+</div>

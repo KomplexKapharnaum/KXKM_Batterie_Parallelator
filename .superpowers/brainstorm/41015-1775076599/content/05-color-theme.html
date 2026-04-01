@@ -1,0 +1,56 @@
+<h2>Palette de couleurs — quel style ?</h2>
+<p class="subtitle">L'écran est petit (2.4") et souvent en plein soleil sur les événements KXKM. Le contraste est critique.</p>
+
+<div class="split">
+  <div class="mockup" data-choice="a" onclick="toggleSelect(this)" style="cursor:pointer">
+    <div class="mockup-header">A — Dark Pro (actuel amélioré)</div>
+    <div class="mockup-body" style="background:#1E1E1E; padding:12px; font-family:monospace;">
+      <div style="display:flex; gap:6px; margin-bottom:8px;">
+        <span style="background:#00C853; color:black; padding:2px 8px; border-radius:10px; font-size:10px;">OK</span>
+        <span style="background:#FF9100; color:black; padding:2px 8px; border-radius:10px; font-size:10px;">WARN</span>
+        <span style="background:#FF1744; color:white; padding:2px 8px; border-radius:10px; font-size:10px;">ERR</span>
+        <span style="background:#9E9E9E; color:white; padding:2px 8px; border-radius:10px; font-size:10px;">OFF</span>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:3px;">
+        <div style="background:#2D2D2D; padding:4px 8px; border-radius:4px; display:flex; align-items:center; gap:8px;">
+          <span style="color:#00C853;">●</span>
+          <span style="color:white; font-weight:bold;">26.4V</span>
+          <span style="color:#aaa;">1.2A</span>
+        </div>
+        <div style="background:#2D2D2D; padding:4px 8px; border-radius:4px; display:flex; align-items:center; gap:8px;">
+          <span style="color:#FF1744;">●</span>
+          <span style="color:#FF1744; font-weight:bold;">OFF</span>
+          <span style="color:#666;">—</span>
+        </div>
+      </div>
+      <div style="color:#4FC3F7; font-size:10px; margin-top:8px;">Fond sombre, texte blanc, accents vifs</div>
+    </div>
+  </div>
+
+  <div class="mockup" data-choice="b" onclick="toggleSelect(this)" style="cursor:pointer">
+    <div class="mockup-header">B — High Contrast (plein soleil)</div>
+    <div class="mockup-body" style="background:#000000; padding:12px; font-family:monospace;">
+      <div style="display:flex; gap:6px; margin-bottom:8px;">
+        <span style="background:#00FF66; color:black; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:bold;">OK</span>
+        <span style="background:#FFAA00; color:black; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:bold;">WARN</span>
+        <span style="background:#FF0044; color:white; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:bold;">ERR</span>
+        <span style="background:#666666; color:white; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:bold;">OFF</span>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:3px;">
+        <div style="background:#111; border:1px solid #333; padding:4px 8px; border-radius:4px; display:flex; align-items:center; gap:8px;">
+          <span style="color:#00FF66; font-size:14px;">●</span>
+          <span style="color:#FFFFFF; font-weight:bold; font-size:14px;">26.4V</span>
+          <span style="color:#CCCCCC; font-size:12px;">1.2A</span>
+        </div>
+        <div style="background:#1A0000; border:1px solid #440000; padding:4px 8px; border-radius:4px; display:flex; align-items:center; gap:8px;">
+          <span style="color:#FF0044; font-size:14px;">●</span>
+          <span style="color:#FF4466; font-weight:bold; font-size:14px;">OFF</span>
+          <span style="color:#664444; font-size:12px;">—</span>
+        </div>
+      </div>
+      <div style="color:#00AAFF; font-size:10px; margin-top:8px;">Noir pur, couleurs saturées, gros texte</div>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:12px;">A = élégant en intérieur. B = lisible en plein soleil. Les deux sont dark mode.</p>

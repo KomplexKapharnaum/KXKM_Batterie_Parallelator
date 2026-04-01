@@ -14,5 +14,5 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "kxkm-bmu-app"
-include(":androidApp")
+// include(":androidApp")  // Disabled until Android SDK available
 include(":shared")

@@ -1,0 +1,89 @@
+<h2>Écran Système — quelles infos regrouper ?</h2>
+<p class="subtitle">Cet onglet fusionne : WiFi, BLE, climat AHT30, solar VE.Direct, debug I2C. Quel layout ?</p>
+
+<div class="mockup">
+  <div class="mockup-header">Proposition — Écran Sys avec sections pliables</div>
+  <div class="mockup-body" style="background:#1E1E1E; padding:8px; font-family:monospace; font-size:11px;">
+    <div style="color:#4FC3F7; font-size:13px; margin-bottom:8px;">📊 Système</div>
+
+    <!-- Connexion -->
+    <div style="background:#252525; border-radius:4px; padding:6px; margin-bottom:4px;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span style="color:#aaa; font-size:10px;">CONNEXION</span>
+        <div style="display:flex; gap:8px;">
+          <span style="color:#00C853; font-size:10px;">● BLE</span>
+          <span style="color:#00C853; font-size:10px;">● WiFi 192.168.0.250</span>
+          <span style="color:#FF9100; font-size:10px;">○ MQTT</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Climat -->
+    <div style="background:#252525; border-radius:4px; padding:6px; margin-bottom:4px;">
+      <div style="display:flex; justify-content:space-between;">
+        <span style="color:#aaa; font-size:10px;">CLIMAT</span>
+        <div style="display:flex; gap:12px;">
+          <span style="color:white;">🌡 <strong>23.5°C</strong></span>
+          <span style="color:white;">💧 <strong>45%</strong></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Solar -->
+    <div style="background:#252525; border-radius:4px; padding:6px; margin-bottom:4px;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:2px;">
+        <span style="color:#aaa; font-size:10px;">SOLAIRE</span>
+        <span style="color:#FFD600; font-size:10px;">☀ Float</span>
+      </div>
+      <div style="display:flex; gap:12px; font-size:11px;">
+        <span style="color:white;">PV <strong>35.2V</strong></span>
+        <span style="color:white;"><strong>120W</strong></span>
+        <span style="color:white;">Bat <strong>26.8V</strong></span>
+        <span style="color:#aaa;">Jour <strong>450Wh</strong></span>
+      </div>
+    </div>
+
+    <!-- Firmware -->
+    <div style="background:#252525; border-radius:4px; padding:6px; margin-bottom:4px;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:2px;">
+        <span style="color:#aaa; font-size:10px;">FIRMWARE</span>
+        <span style="color:#888; font-size:10px;">v0.5.0</span>
+      </div>
+      <div style="display:flex; gap:12px; font-size:10px; color:#888;">
+        <span>Heap 16.1MB</span>
+        <span>Up 2h34m</span>
+        <span>INA:4 TCA:1</span>
+      </div>
+    </div>
+
+    <!-- I2C Debug (compact) -->
+    <div style="background:#252525; border-radius:4px; padding:6px;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:2px;">
+        <span style="color:#aaa; font-size:10px;">I2C BUS</span>
+        <span style="color:#888; font-size:10px;">5 devices · 0 err</span>
+      </div>
+      <div style="font-size:9px; color:#666; max-height:40px; overflow:hidden;">
+        20:15:42 AHT30 read OK<br>
+        20:15:41 INA237 scan OK<br>
+        20:15:40 TCA9535 init OK
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="options" style="margin-top:16px;">
+  <div class="option" data-choice="ok" onclick="toggleSelect(this)">
+    <div class="letter">✓</div>
+    <div class="content">
+      <h3>Ce layout me va</h3>
+      <p>Sections compactes, toutes les infos en un écran sans scroll</p>
+    </div>
+  </div>
+  <div class="option" data-choice="more" onclick="toggleSelect(this)">
+    <div class="letter">+</div>
+    <div class="content">
+      <h3>J'aimerais des modifications</h3>
+      <p>Dis-moi quoi changer dans le terminal</p>
+    </div>
+  </div>
+</div>
