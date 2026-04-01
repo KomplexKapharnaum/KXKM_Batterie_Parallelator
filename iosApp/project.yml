@@ -1,0 +1,29 @@
+name: KXKMBmu
+options:
+  bundleIdPrefix: fr.kxkm.bmu
+  deploymentTarget:
+    iOS: "16.0"
+  developmentLanguage: fr
+settings:
+  DEVELOPMENT_TEAM: JRLQM7V3V5
+  CODE_SIGN_STYLE: Automatic
+  SWIFT_VERSION: "5.9"
+targets:
+  KXKMBmu:
+    type: application
+    platform: iOS
+    sources:
+      - path: KXKMBmu
+        excludes:
+          - "**/__pycache__/**"
+    info:
+      path: KXKMBmu/Resources/Info.plist
+      properties:
+        CFBundleDisplayName: KXKM BMU
+        CFBundleShortVersionString: "1.0.0"
+        CFBundleVersion: "1"
+        UILaunchScreen: {}
+        NSBluetoothAlwaysUsageDescription: "KXKM BMU utilise le Bluetooth pour communiquer avec le gestionnaire de batteries."
+        NSBluetoothPeripheralUsageDescription: "KXKM BMU utilise le Bluetooth pour communiquer avec le gestionnaire de batteries."
+        NSLocalNetworkUsageDescription: "KXKM BMU se connecte au BMU sur votre réseau local."
+        NSFaceIDUsageDescription: "Utilisez Face ID pour déverrouiller l'app KXKM BMU."

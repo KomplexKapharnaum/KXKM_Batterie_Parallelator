@@ -1,0 +1,521 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		060D8D2D855935F1BEE1685A /* VoltageChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC4206F6FB0F6D4D71FB7E1 /* VoltageChartView.swift */; };
+		09E4CDA758805B415798A71F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2529217A25EC1127FC4F407B /* Assets.xcassets */; };
+		0BD37194240F3BB825307DE8 /* AuthViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67569C52BE7C0220A33602F3 /* AuthViewModel.swift */; };
+		277B3071844DE6613999C275 /* DashboardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B9D6B53715C3C3816871C /* DashboardViewModel.swift */; };
+		2C3413C1C8D39F1E75A2F8FA /* PinEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B1BC15FB87AD4B3275CA564 /* PinEntryView.swift */; };
+		3067F6041FCF8ADEC46CFAFC /* SharedStubs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22D533824F25FC1723431BE6 /* SharedStubs.swift */; };
+		33DA3880C9A554A9EF30BFBF /* BatteryDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39259945B98E4C39843A779D /* BatteryDetailView.swift */; };
+		33E3E03DC9EFA027935F9EB3 /* WifiConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F8D1EF2A383025B06735AEA /* WifiConfigView.swift */; };
+		3FE754DA021E08E2F2B64098 /* SystemViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01ADEEB208B5FB8B56A0D51C /* SystemViewModel.swift */; };
+		459A5367660722950BB68784 /* BatteryDetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 521B6FE6A41F2D6C8BCCF1D7 /* BatteryDetailViewModel.swift */; };
+		4895B071BD6553FFB4BA1A01 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23D2D259FB88ED0A784F1068 /* OnboardingView.swift */; };
+		4E1BAA31C3E5743EE328A5EC /* AuditRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B849421CBBBC91671A8C269 /* AuditRowView.swift */; };
+		608112BF3C5E234E66F0F7E2 /* KXKMBmuApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EED5AC5492B853A84D40351 /* KXKMBmuApp.swift */; };
+		6492D2233C6D7A4910B93AF8 /* AuditViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C151C1366A79ABE7EB64BA9C /* AuditViewModel.swift */; };
+		65B987CFF77D50BAF468DA94 /* SyncConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE22B0AF292CA5AF61FF5904 /* SyncConfigView.swift */; };
+		6DF48E3B6AE580057C7F930E /* ProtectionConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3B0C9A29C2FB43C95303349 /* ProtectionConfigView.swift */; };
+		875AE5419BC47B9EE9881F1F /* BiometricAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD60D2AECB93EEEB576B0E55 /* BiometricAuth.swift */; };
+		987036656FACD4C5E8C7E862 /* ConfigViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 705D1CE3DAAFB6DA948AD547 /* ConfigViewModel.swift */; };
+		A044BED3DE63BDBA887CA753 /* UserManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 599C082FAC1E1E65F6EB2A72 /* UserManagementView.swift */; };
+		A09612E54B3E699CED12E21F /* BatteryStateIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24799B1AC8B9B2F08B70C6DD /* BatteryStateIcon.swift */; };
+		A2E1D948A4387B91A970AF6A /* BatteryCellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E48424398EFB6CEBE108E575 /* BatteryCellView.swift */; };
+		A86627D3775D942FC4D5A045 /* ConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F93AF4721A4B3137369EFA1 /* ConfigView.swift */; };
+		AFF2B2F63093A65435F329B5 /* AuditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D12AA57315D84A3AB1984D9A /* AuditView.swift */; };
+		B27483583ED9E0E9683547BC /* TransportConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 252A7B23DB63CC7121CFFB9D /* TransportConfigView.swift */; };
+		C6A73716ABAFFCE4A06A0B1C /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 379A503998B00741DB667641 /* DashboardView.swift */; };
+		C751A1EAEB69FEE56C8E9A2B /* StatusBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55BC0A1B075A8943482DF38A /* StatusBarView.swift */; };
+		CE2E3C4C0664D27FBAB321B6 /* SystemView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E464456652975B25B35B2979 /* SystemView.swift */; };
+		D127C965AFF5882BACBE29BA /* ConfirmationDialog.swift in Sources */ = {isa = PBXBuildFile; fileRef = D953460FDF153340A26278A8 /* ConfirmationDialog.swift */; };
+		E2B4DB1B081EBCAE9F39364F /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C47F70C65E1C7313E463469 /* ContentView.swift */; };
+		FD563F16593A09B1E4277A0A /* SharedBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EE67BE788F8256657FFF2EE /* SharedBridge.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		01ADEEB208B5FB8B56A0D51C /* SystemViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemViewModel.swift; sourceTree = "<group>"; };
+		0B1BC15FB87AD4B3275CA564 /* PinEntryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinEntryView.swift; sourceTree = "<group>"; };
+		1F93AF4721A4B3137369EFA1 /* ConfigView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigView.swift; sourceTree = "<group>"; };
+		22D533824F25FC1723431BE6 /* SharedStubs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedStubs.swift; sourceTree = "<group>"; };
+		23D2D259FB88ED0A784F1068 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
+		24799B1AC8B9B2F08B70C6DD /* BatteryStateIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatteryStateIcon.swift; sourceTree = "<group>"; };
+		2529217A25EC1127FC4F407B /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		252A7B23DB63CC7121CFFB9D /* TransportConfigView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransportConfigView.swift; sourceTree = "<group>"; };
+		2C47F70C65E1C7313E463469 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		379A503998B00741DB667641 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
+		39259945B98E4C39843A779D /* BatteryDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatteryDetailView.swift; sourceTree = "<group>"; };
+		3C3B63D9D2AE795AE72E6430 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		521B6FE6A41F2D6C8BCCF1D7 /* BatteryDetailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatteryDetailViewModel.swift; sourceTree = "<group>"; };
+		55BC0A1B075A8943482DF38A /* StatusBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarView.swift; sourceTree = "<group>"; };
+		599C082FAC1E1E65F6EB2A72 /* UserManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserManagementView.swift; sourceTree = "<group>"; };
+		5B849421CBBBC91671A8C269 /* AuditRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuditRowView.swift; sourceTree = "<group>"; };
+		67569C52BE7C0220A33602F3 /* AuthViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthViewModel.swift; sourceTree = "<group>"; };
+		6EED5AC5492B853A84D40351 /* KXKMBmuApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KXKMBmuApp.swift; sourceTree = "<group>"; };
+		700B9D6B53715C3C3816871C /* DashboardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardViewModel.swift; sourceTree = "<group>"; };
+		705D1CE3DAAFB6DA948AD547 /* ConfigViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigViewModel.swift; sourceTree = "<group>"; };
+		7AC4206F6FB0F6D4D71FB7E1 /* VoltageChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoltageChartView.swift; sourceTree = "<group>"; };
+		8EE67BE788F8256657FFF2EE /* SharedBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedBridge.swift; sourceTree = "<group>"; };
+		8F8D1EF2A383025B06735AEA /* WifiConfigView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WifiConfigView.swift; sourceTree = "<group>"; };
+		A3B0C9A29C2FB43C95303349 /* ProtectionConfigView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtectionConfigView.swift; sourceTree = "<group>"; };
+		C151C1366A79ABE7EB64BA9C /* AuditViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuditViewModel.swift; sourceTree = "<group>"; };
+		D12AA57315D84A3AB1984D9A /* AuditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuditView.swift; sourceTree = "<group>"; };
+		D953460FDF153340A26278A8 /* ConfirmationDialog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfirmationDialog.swift; sourceTree = "<group>"; };
+		E464456652975B25B35B2979 /* SystemView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemView.swift; sourceTree = "<group>"; };
+		E48424398EFB6CEBE108E575 /* BatteryCellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatteryCellView.swift; sourceTree = "<group>"; };
+		EE22B0AF292CA5AF61FF5904 /* SyncConfigView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncConfigView.swift; sourceTree = "<group>"; };
+		FB932C06F748774FE285C751 /* KXKMBmu.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = KXKMBmu.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		FD60D2AECB93EEEB576B0E55 /* BiometricAuth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiometricAuth.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		0722A139DFD452CE8A1100F7 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				2529217A25EC1127FC4F407B /* Assets.xcassets */,
+				3C3B63D9D2AE795AE72E6430 /* Info.plist */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		2847B7E6C0CD42A5F43EE689 = {
+			isa = PBXGroup;
+			children = (
+				8D217C544207D45A96A278EA /* KXKMBmu */,
+				56A040ED67977AD74E0C25B0 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		407F3052AA1FB9ADE607757D /* Audit */ = {
+			isa = PBXGroup;
+			children = (
+				5B849421CBBBC91671A8C269 /* AuditRowView.swift */,
+				D12AA57315D84A3AB1984D9A /* AuditView.swift */,
+			);
+			path = Audit;
+			sourceTree = "<group>";
+		};
+		56A040ED67977AD74E0C25B0 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				FB932C06F748774FE285C751 /* KXKMBmu.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		673811898398C4B945A6B78E /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				24799B1AC8B9B2F08B70C6DD /* BatteryStateIcon.swift */,
+				D953460FDF153340A26278A8 /* ConfirmationDialog.swift */,
+				55BC0A1B075A8943482DF38A /* StatusBarView.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+		7236E3C8D6B97D6FCA6150F6 /* System */ = {
+			isa = PBXGroup;
+			children = (
+				E464456652975B25B35B2979 /* SystemView.swift */,
+			);
+			path = System;
+			sourceTree = "<group>";
+		};
+		742963F53E07BB461591D615 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				2C47F70C65E1C7313E463469 /* ContentView.swift */,
+				6EED5AC5492B853A84D40351 /* KXKMBmuApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		8D217C544207D45A96A278EA /* KXKMBmu */ = {
+			isa = PBXGroup;
+			children = (
+				742963F53E07BB461591D615 /* App */,
+				D6848667A58AA05BCDA43614 /* Helpers */,
+				0722A139DFD452CE8A1100F7 /* Resources */,
+				D4610350977FCED847EAE825 /* Stubs */,
+				BA35BE4AB1D78F74E413B963 /* ViewModels */,
+				DCBB7C1C5FFB047460E4C81F /* Views */,
+			);
+			path = KXKMBmu;
+			sourceTree = "<group>";
+		};
+		8EB7E8B3B2098DC3E80133BA /* Dashboard */ = {
+			isa = PBXGroup;
+			children = (
+				E48424398EFB6CEBE108E575 /* BatteryCellView.swift */,
+				379A503998B00741DB667641 /* DashboardView.swift */,
+			);
+			path = Dashboard;
+			sourceTree = "<group>";
+		};
+		9EEE6C1300DFADAA19438966 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				1F93AF4721A4B3137369EFA1 /* ConfigView.swift */,
+				A3B0C9A29C2FB43C95303349 /* ProtectionConfigView.swift */,
+				EE22B0AF292CA5AF61FF5904 /* SyncConfigView.swift */,
+				252A7B23DB63CC7121CFFB9D /* TransportConfigView.swift */,
+				599C082FAC1E1E65F6EB2A72 /* UserManagementView.swift */,
+				8F8D1EF2A383025B06735AEA /* WifiConfigView.swift */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
+		BA35BE4AB1D78F74E413B963 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				C151C1366A79ABE7EB64BA9C /* AuditViewModel.swift */,
+				67569C52BE7C0220A33602F3 /* AuthViewModel.swift */,
+				521B6FE6A41F2D6C8BCCF1D7 /* BatteryDetailViewModel.swift */,
+				705D1CE3DAAFB6DA948AD547 /* ConfigViewModel.swift */,
+				700B9D6B53715C3C3816871C /* DashboardViewModel.swift */,
+				01ADEEB208B5FB8B56A0D51C /* SystemViewModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		CDF1C2231129450A973D3283 /* Auth */ = {
+			isa = PBXGroup;
+			children = (
+				23D2D259FB88ED0A784F1068 /* OnboardingView.swift */,
+				0B1BC15FB87AD4B3275CA564 /* PinEntryView.swift */,
+			);
+			path = Auth;
+			sourceTree = "<group>";
+		};
+		D4610350977FCED847EAE825 /* Stubs */ = {
+			isa = PBXGroup;
+			children = (
+				22D533824F25FC1723431BE6 /* SharedStubs.swift */,
+			);
+			path = Stubs;
+			sourceTree = "<group>";
+		};
+		D6848667A58AA05BCDA43614 /* Helpers */ = {
+			isa = PBXGroup;
+			children = (
+				FD60D2AECB93EEEB576B0E55 /* BiometricAuth.swift */,
+				8EE67BE788F8256657FFF2EE /* SharedBridge.swift */,
+			);
+			path = Helpers;
+			sourceTree = "<group>";
+		};
+		DCBB7C1C5FFB047460E4C81F /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				407F3052AA1FB9ADE607757D /* Audit */,
+				CDF1C2231129450A973D3283 /* Auth */,
+				673811898398C4B945A6B78E /* Components */,
+				9EEE6C1300DFADAA19438966 /* Config */,
+				8EB7E8B3B2098DC3E80133BA /* Dashboard */,
+				E214873C14A8D75B52351C5B /* Detail */,
+				7236E3C8D6B97D6FCA6150F6 /* System */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		E214873C14A8D75B52351C5B /* Detail */ = {
+			isa = PBXGroup;
+			children = (
+				39259945B98E4C39843A779D /* BatteryDetailView.swift */,
+				7AC4206F6FB0F6D4D71FB7E1 /* VoltageChartView.swift */,
+			);
+			path = Detail;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		85FE263F6B7A5D5015B9D9E9 /* KXKMBmu */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CFC08B3E95D23EDA6DED7067 /* Build configuration list for PBXNativeTarget "KXKMBmu" */;
+			buildPhases = (
+				749A091295B5B4BF4AEE0218 /* Sources */,
+				C193C33746B45A0543A7F804 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = KXKMBmu;
+			packageProductDependencies = (
+			);
+			productName = KXKMBmu;
+			productReference = FB932C06F748774FE285C751 /* KXKMBmu.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		14A079CAB5732ADEA88D52C7 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					85FE263F6B7A5D5015B9D9E9 = {
+						DevelopmentTeam = JRLQM7V3V5;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 7D01507647DA5DE5DFD197B8 /* Build configuration list for PBXProject "KXKMBmu" */;
+			developmentRegion = fr;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				fr,
+			);
+			mainGroup = 2847B7E6C0CD42A5F43EE689;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 56A040ED67977AD74E0C25B0 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				85FE263F6B7A5D5015B9D9E9 /* KXKMBmu */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		C193C33746B45A0543A7F804 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				09E4CDA758805B415798A71F /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		749A091295B5B4BF4AEE0218 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4E1BAA31C3E5743EE328A5EC /* AuditRowView.swift in Sources */,
+				AFF2B2F63093A65435F329B5 /* AuditView.swift in Sources */,
+				6492D2233C6D7A4910B93AF8 /* AuditViewModel.swift in Sources */,
+				0BD37194240F3BB825307DE8 /* AuthViewModel.swift in Sources */,
+				A2E1D948A4387B91A970AF6A /* BatteryCellView.swift in Sources */,
+				33DA3880C9A554A9EF30BFBF /* BatteryDetailView.swift in Sources */,
+				459A5367660722950BB68784 /* BatteryDetailViewModel.swift in Sources */,
+				A09612E54B3E699CED12E21F /* BatteryStateIcon.swift in Sources */,
+				875AE5419BC47B9EE9881F1F /* BiometricAuth.swift in Sources */,
+				A86627D3775D942FC4D5A045 /* ConfigView.swift in Sources */,
+				987036656FACD4C5E8C7E862 /* ConfigViewModel.swift in Sources */,
+				D127C965AFF5882BACBE29BA /* ConfirmationDialog.swift in Sources */,
+				E2B4DB1B081EBCAE9F39364F /* ContentView.swift in Sources */,
+				C6A73716ABAFFCE4A06A0B1C /* DashboardView.swift in Sources */,
+				277B3071844DE6613999C275 /* DashboardViewModel.swift in Sources */,
+				608112BF3C5E234E66F0F7E2 /* KXKMBmuApp.swift in Sources */,
+				4895B071BD6553FFB4BA1A01 /* OnboardingView.swift in Sources */,
+				2C3413C1C8D39F1E75A2F8FA /* PinEntryView.swift in Sources */,
+				6DF48E3B6AE580057C7F930E /* ProtectionConfigView.swift in Sources */,
+				FD563F16593A09B1E4277A0A /* SharedBridge.swift in Sources */,
+				3067F6041FCF8ADEC46CFAFC /* SharedStubs.swift in Sources */,
+				C751A1EAEB69FEE56C8E9A2B /* StatusBarView.swift in Sources */,
+				65B987CFF77D50BAF468DA94 /* SyncConfigView.swift in Sources */,
+				CE2E3C4C0664D27FBAB321B6 /* SystemView.swift in Sources */,
+				3FE754DA021E08E2F2B64098 /* SystemViewModel.swift in Sources */,
+				B27483583ED9E0E9683547BC /* TransportConfigView.swift in Sources */,
+				A044BED3DE63BDBA887CA753 /* UserManagementView.swift in Sources */,
+				060D8D2D855935F1BEE1685A /* VoltageChartView.swift in Sources */,
+				33E3E03DC9EFA027935F9EB3 /* WifiConfigView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		05C96BF79D0B7438309B80E5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = JRLQM7V3V5;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.9;
+			};
+			name = Debug;
+		};
+		5C906C758497DE7A62753856 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = KXKMBmu/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = fr.kxkm.bmu.KXKMBmu;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		6691A5EE8231579EE8D731D0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = KXKMBmu/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = fr.kxkm.bmu.KXKMBmu;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		73DC0B0C9F3EC526F3502378 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = JRLQM7V3V5;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.9;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		7D01507647DA5DE5DFD197B8 /* Build configuration list for PBXProject "KXKMBmu" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				05C96BF79D0B7438309B80E5 /* Debug */,
+				73DC0B0C9F3EC526F3502378 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		CFC08B3E95D23EDA6DED7067 /* Build configuration list for PBXNativeTarget "KXKMBmu" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6691A5EE8231579EE8D731D0 /* Debug */,
+				5C906C758497DE7A62753856 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 14A079CAB5732ADEA88D52C7 /* Project object */;
+}
