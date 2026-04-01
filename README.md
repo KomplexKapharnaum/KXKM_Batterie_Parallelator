@@ -23,6 +23,8 @@ Développé par[L'Électron Rare](https://lelectronrare.fr), Clément Saillant p
 - [Comportement des LEDs](#comportement-des-leds)
 - [Bibliothèques utilisées](#bibliothèques-utilisées)
 - [Licence](#licence)
+- [Application smartphone](#application-smartphone)
+- [Infrastructure cloud (kxkm-ai)](#infrastructure-cloud-kxkm-ai)
 - [Pilotage projet](#pilotage-projet)
 
 ---
@@ -455,6 +457,59 @@ Chaque groupe de 4 INA237 consécutifs est associé à un TCA9535 :
 ## Licence
 
 Ce projet est distribué sous licence **GNU General Public License v3.0** — voir le fichier [LICENSE](LICENSE).
+
+---
+
+## Application smartphone
+
+Application compagnon iOS + Android pour monitorer et contrôler le BMU depuis un téléphone.
+
+**Stack :** Kotlin Multiplatform (logique partagée) + SwiftUI (iOS) + Jetpack Compose (Android)
+
+**3 canaux de communication :**
+
+| Canal | Données | Contrôle | Usage |
+| ----- | ------- | -------- | ----- |
+| BLE | temps réel 1s | complet | Sur site, sans WiFi |
+| WiFi direct | WebSocket 500ms | complet | Même réseau que le BMU |
+| Cloud (MQTT + REST) | temps réel / historique | lecture seule | À distance via kxkm-ai |
+
+**Fonctionnalités :**
+- Dashboard grille batteries (tension, courant, état)
+- Détail batterie avec graphe historique 24h
+- Switch ON/OFF, reset compteurs (rôle technicien/admin)
+- Configuration seuils de protection et WiFi du BMU
+- 3 rôles : Admin, Technicien, Lecteur (PIN + biométrie)
+- Audit trail non effaçable avec sync cloud
+- Données solaire VE.Direct
+
+**Code :** `kxkm-bmu-app/` (shared + androidApp + iosApp)
+
+**Spec :** `docs/superpowers/specs/2026-04-01-smartphone-app-design.md`
+
+---
+
+## Infrastructure cloud (kxkm-ai)
+
+Stack Docker déployée sur le serveur `kxkm-ai` pour le stockage et la visualisation des données BMU.
+
+```bash
+cd kxkm-api && docker compose up -d
+```
+
+| Service | Port | Rôle |
+| ------- | ---- | ---- |
+| Mosquitto (MQTT) | 1883, 9001 (WS) | Broker — le firmware publie `bmu/battery/N` |
+| InfluxDB 2.7 | 8086 | Time-series batteries (org=kxkm, bucket=bmu) |
+| Telegraf | — | Bridge MQTT → InfluxDB automatique |
+| BMU API (FastAPI) | 8400 | REST pour l'app (sync, historique, audit) |
+| Grafana 11 | 3001 | Dashboards monitoring |
+
+**Configuration :** copier `.env.example` → `.env` et remplir l'API key.
+
+**Credentials par défaut :** kxkm / kxkm-bmu-2026 (InfluxDB + Grafana)
+
+**Code :** `kxkm-api/`
 
 ---
 
