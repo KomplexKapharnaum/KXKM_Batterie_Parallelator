@@ -133,29 +133,17 @@ extern "C" void app_main(void)
         ESP_LOGW(TAG, "Display init failed: %s — continuing", esp_err_to_name(disp_ret));
     }
 
-    /* ── 4. WiFi ───────────────────────────────────────────────────── */
+    /* ── 4. WiFi init → BLE init (pas de wait entre les deux) ────────── */
+    /* WiFi: esp_wifi_init + esp_wifi_start lance le scan en background.
+     * BLE: nimble_port_init doit passer AVANT que WiFi s'authentifie.
+     * En enchainant les deux sans attendre, la coex fonctionne. */
     bmu_wifi_init();
 
-    /* Attendre la connexion WiFi avant de démarrer BLE (coex radio) */
-    if (strlen(CONFIG_BMU_WIFI_PASSWORD) > 0) {
-        ESP_LOGI(TAG, "Attente WiFi (max 8s)...");
-        for (int i = 0; i < 16 && !bmu_wifi_is_connected(); i++) {
-            vTaskDelay(pdMS_TO_TICKS(500));
-        }
-        if (bmu_wifi_is_connected()) {
-            ESP_LOGI(TAG, "WiFi connecté avant BLE");
-        } else {
-            ESP_LOGW(TAG, "WiFi timeout — BLE démarre quand même");
-        }
-    }
-
-    /* ── 5. BLE (apres WiFi — coex NimBLE utilise la RAM restante) ── */
 #ifdef CONFIG_BMU_BLE_ENABLED
     {
         esp_err_t ble_ret = bmu_ble_init(&prot, &mgr, 0);
         if (ble_ret == ESP_OK) {
-            ESP_LOGI(TAG, "BLE active — advertising '%s'",
-                     CONFIG_BMU_BLE_DEVICE_NAME);
+            ESP_LOGI(TAG, "BLE active — '%s'", CONFIG_BMU_DEVICE_NAME);
         } else {
             ESP_LOGW(TAG, "BLE init failed: %s", esp_err_to_name(ble_ret));
         }

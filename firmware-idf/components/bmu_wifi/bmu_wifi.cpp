@@ -90,7 +90,7 @@ esp_err_t bmu_wifi_init(void)
 
     // Configuration WiFi — buffers réduits pour coex BLE
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    cfg.static_rx_buf_num = 4;       // 10 → 4 (coex BLE)
+    cfg.static_rx_buf_num = 6;       // 10 → 6 (coex BLE, 128KB internal reserve)
     cfg.dynamic_rx_buf_num = 16;     // 32 → 16
     cfg.dynamic_tx_buf_num = 16;     // 32 → 16
     esp_err_t wifi_ret = esp_wifi_init(&cfg);
