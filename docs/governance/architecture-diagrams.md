@@ -1,229 +1,194 @@
 # Architecture Diagrams BMU
 
-Date: 2026-03-31
-Statut: active (post-migration ESP-IDF v5.4)
+Date: 2026-03-30
+Statut: active (post-audit)
 
-## 1. Vue bloc complete (firmware ESP-IDF / hardware / cloud)
+## 1. Vue bloc BMU (firmware/hardware/cloud)
 
 ```mermaid
 flowchart LR
-  subgraph BOX3[ESP32-S3-BOX-3]
-    subgraph FW[Firmware ESP-IDF v5.4]
-      MAIN[main.cpp\nOrchestration]
-      PROT[bmu_protection\nState machine F01-F08]
-      BMGR[bmu_battery_manager\nAh tracking]
-      INA[bmu_ina237\nCapteurs V/I/P/T]
-      TCA[bmu_tca9535\nSwitches + LEDs]
-      CFG[bmu_config\nKconfig seuils]
-      WEB[bmu_web\nHTTP + WebSocket]
-      WIFI[bmu_wifi\nSTA auto-reconnect]
-      STOR[bmu_storage\nSD + NVS]
-      DISP[bmu_display\nLVGL v9 tabview]
-      OTA[bmu_ota\nA/B rollback]
-      VEDR[bmu_vedirect\nVictron MPPT UART]
-    end
-    subgraph HW[Hardware interne BOX-3]
-      LCD[ILI9342C 320x240]
-      TOUCH[TT21100 touch]
-      AUDIO[ES8311 codec]
-      IMU[ICM-42607 IMU]
-    end
+  subgraph EDGE[BMU Edge - ESP32-S3]
+    MAIN[main.cpp\nOrchestration]
+    BP[BatteryParallelator\nProtections locales]
+    BM[BatteryManager\nComptage Ah]
+    INA[INAHandler\nMesures V/I]
+    TCA[TCAHandler\nSwitches batterie]
+    WEB[WebServerHandler\nRoutes supervision]
+    LOG[SD_Logger\nCSV ;]
+    CFG[config.h\nSeuils mV/mA]
   end
 
-  subgraph I2C_BUS[I2C Bus]
-    BUS0[I2C_NUM_0\nGPIO8/18 400kHz\nBSP interne]
-    BUS1[I2C_NUM_1\nGPIO40/41 50kHz\nBMU PMOD1]
+  subgraph BUS[I2C Bus 50kHz]
+    I2C[I2CLockGuard\nSérialisation accès]
+    REC[I2CRecoveryPolicy\n5 échecs → recovery]
   end
 
-  subgraph CLOUD[Cloud / kxkm-ai]
-    MQTT_B[MQTT Broker]
-    INFLUX[InfluxDB v2]
-    GRAF[Grafana]
-    ML[Pipeline ML\nFPNN/SambaMixer]
+  subgraph CLOUD[Cloud / IA]
+    INFLUX[InfluxDB]
+    MQTT[MQTTHandler]
+    AI[Pipeline ML\nFPNN/SambaMixer]
+    OPS[Ops/QA CI]
   end
 
-  subgraph SOLAR[Victron MPPT]
-    MPPT[Chargeur solaire\nUART 19200]
-  end
+  MAIN --> BP
+  MAIN --> BM
+  MAIN --> INA
+  MAIN --> TCA
+  MAIN --> WEB
+  MAIN --> LOG
+  CFG --> MAIN
 
-  MAIN --> PROT & BMGR & WEB & DISP & VEDR
-  PROT --> INA & TCA
-  INA <--> BUS1
-  TCA <--> BUS1
-  LCD <--> BUS0
-  TOUCH <--> BUS0
-  WIFI --> MQTT_B & INFLUX
-  MQTT_B --> GRAF
-  INFLUX --> ML
-  MPPT --> VEDR
-  DISP --> LCD
+  INA <--> I2C
+  TCA <--> I2C
+  I2C --> REC
+
+  LOG --> INFLUX
+  WEB --> MQTT
+  MQTT --> INFLUX
+  INFLUX --> AI
+  AI --> OPS
 ```
 
-## 2. Sequence protection batterie (boucle 500ms)
+## 2. Séquence de protection batterie (loop 500ms)
 
 ```mermaid
 sequenceDiagram
-  participant Main as main.cpp
-  participant INA as bmu_ina237
-  participant Prot as bmu_protection
-  participant TCA as bmu_tca9535
-  participant Disp as bmu_display
+  participant Main as main.cpp loop
+  participant INA as INAHandler
+  participant BP as BatteryParallelator
+  participant TCA as TCAHandler
+  participant Log as KxLogger
 
   loop Toutes les 500ms
-    Main->>Prot: check_battery(i)
-    Prot->>INA: read_voltage_current()
-    INA-->>Prot: v_mv, i_a
+    Main->>BP: check_battery_connected_status(i)
+    BP->>INA: read_volt(i) + read_current(i)
+    INA-->>BP: voltage_V, current_A
 
-    alt NAN / I2C error
-      Prot-->>Main: skip
-    else |I| > 2x max
-      Prot->>TCA: switch OFF (ERROR)
-    else nb_switch > max
-      Prot->>TCA: switch OFF (LOCKED)
-      Prot-->>Main: return early
-    else V/I hors range ou imbalance
-      Prot->>TCA: switch OFF (DISCONNECTED)
-    else conditions OK + delay
-      Prot->>TCA: switch ON (RECONNECTING)
-    else nominal
-      Note over Prot: CONNECTED
+    alt NAN (I2C error)
+      BP->>Log: WARNING skip protection
+    else voltage < 0 OU |current| > 2x max
+      BP->>TCA: switch OFF (ERROR)
+      BP->>Log: CRITICAL error
+    else !check_battery_status OU !check_voltage_offset
+      BP->>TCA: switch OFF (DISCONNECTED)
+      BP->>Log: disconnect
+    else nb_switch > nbSwitchMax
+      BP->>TCA: switch OFF (LOCKED)
+      BP->>Log: permanent lock
+    else nb_switch < max ET delay OK
+      BP->>BP: is_voltage_within_range + is_current_within_range
+      BP->>TCA: switch ON (RECONNECTING)
+      BP->>Log: reconnect
+    else
+      BP->>Log: CONNECTED (nominal)
     end
-
-    Disp->>Prot: get_state(i) get_voltage(i)
-    Disp-->>Disp: update UI
   end
 ```
 
-## 3. State machine batterie (5 etats)
+## 3. State machine batterie
 
 ```mermaid
 stateDiagram-v2
   [*] --> DISCONNECTED: boot
-  DISCONNECTED --> RECONNECTING: V/I OK + delay
-  RECONNECTING --> CONNECTED: switch ON OK
-  CONNECTED --> DISCONNECTED: seuil depasse
-  CONNECTED --> ERROR: |I| > 2x max
-  DISCONNECTED --> ERROR: V < 0
-  ERROR --> DISCONNECTED: switch OFF
-  DISCONNECTED --> LOCKED: nb_switch > max
+  DISCONNECTED --> RECONNECTING: conditions OK\n+ delay respecté
+  RECONNECTING --> CONNECTED: switch ON réussi
+  CONNECTED --> DISCONNECTED: seuil V/I dépassé
+  CONNECTED --> ERROR: surcourant critique\n(|I| > 2x max)
+  DISCONNECTED --> ERROR: voltage < 0
+  ERROR --> DISCONNECTED: après switch OFF
+  RECONNECTING --> LOCKED: nb_switch > max
   LOCKED --> [*]: reboot requis
 ```
 
-## 4. Architecture I2C double bus BOX-3
+## 4. Architecture I2C et topologie
 
 ```mermaid
 flowchart TB
-  ESP[ESP32-S3-BOX-3]
+  ESP[ESP32-S3\nGPIO32=SDA GPIO33=SCL]
+  MUX[I2C Bus 50kHz]
+  ESP --> MUX
 
-  subgraph BUS0[I2C_NUM_0 — BSP interne 400kHz]
-    LCD_C[ILI9342C display]
-    TOUCH_C[TT21100 touch]
-    CODEC[ES8311 audio]
-    IMU_C[ICM-42607 IMU]
-    CRYPTO[ATECC608A crypto]
+  subgraph TCA_GRP[TCA9535 0x20-0x27]
+    TCA0[TCA_0 0x20\nPins 0-3: switches\nPins 8-15: LEDs]
+    TCA1[TCA_1 0x21]
+    TCA2[TCA_2 0x22]
+    TCA3[TCA_3 0x23]
   end
 
-  subgraph BUS1[I2C_NUM_1 — BMU PMOD1 50kHz]
-    direction TB
-    TCA0[TCA_0 0x20 → 4 batteries]
-    TCA1[TCA_1 0x21 → 4 batteries]
-    TCA2[TCA_2 0x22 → 4 batteries]
-    TCA3[TCA_3 0x23 → 4 batteries]
-    INA_GRP[INA237 0x40-0x4F → 16 capteurs]
+  subgraph INA_GRP[INA237 0x40-0x4F]
+    INA0[INA 0x40-0x43\n4 batteries]
+    INA1[INA 0x44-0x47\n4 batteries]
+    INA2[INA 0x48-0x4B\n4 batteries]
+    INA3[INA 0x4C-0x4F\n4 batteries]
   end
 
-  ESP -->|GPIO8 SDA / GPIO18 SCL| BUS0
-  ESP -->|GPIO41 SDA / GPIO40 SCL| BUS1
+  MUX --> TCA0
+  MUX --> TCA1
+  MUX --> TCA2
+  MUX --> TCA3
+  MUX --> INA0
+  MUX --> INA1
+  MUX --> INA2
+  MUX --> INA3
+
+  TCA0 -.-> INA0
+  TCA1 -.-> INA1
+  TCA2 -.-> INA2
+  TCA3 -.-> INA3
 ```
 
-## 5. Architecture web + securite
+**Contrainte topologie:** `Nb_TCA * 4 == Nb_INA` — sinon fail-safe (toutes batteries OFF).
+
+## 5. Architecture web et sécurité
 
 ```mermaid
 flowchart LR
-  CLIENT[Navigateur]
-  WS_C[WebSocket /ws]
-  HTTP[esp_http_server :80]
+  CLIENT[Navigateur / WebSocket]
+  HTTP[AsyncWebServer :80]
+  WS[WebSocketsServer :81]
 
-  subgraph AUTH[Chaine securite]
-    RL[Rate Limiter\n16 slots LRU]
-    TK[Token Auth\nconstant-time]
-    VAL[Validation\nbounds + voltage]
+  subgraph AUTH[Chaîne de sécurité]
+    RL[Rate Limiter\n10 req/10s par IP]
+    TK[Token Auth\nBMU_WEB_ADMIN_TOKEN]
+    VAL[BatteryRouteValidation\nIndex + voltage check]
   end
 
-  subgraph ACT[Actions]
-    PROT_SW[bmu_protection_web_switch]
-    API[/api/batteries JSON]
-    SPIFFS[SPIFFS index.html]
+  subgraph ACTIONS[Actions batterie]
+    ON[switch_on]
+    OFF[switch_off]
+    STATUS[Telemetry JSON]
   end
 
-  CLIENT -->|POST /api/battery/switch_*| HTTP
-  HTTP --> RL --> TK --> VAL --> PROT_SW
-  CLIENT -->|GET /api/batteries| HTTP --> API
-  CLIENT -->|GET /| HTTP --> SPIFFS
-  WS_C -->|token first msg| HTTP
+  CLIENT -->|GET /switch_on| HTTP
+  HTTP --> RL --> TK --> VAL --> ON
+  CLIENT -->|GET /switch_off| HTTP
+  HTTP --> RL --> TK --> OFF
+  CLIENT -->|WStype_TEXT| WS -->|Non authentifié| STATUS
 ```
 
-## 6. Pipeline cloud telemetrie
+**Audit CRIT-D:** Routes GET doivent migrer vers POST. WebSocket :81 non authentifié. Token par défaut vide.
+
+## 6. Pipeline ML (optionnel V2)
 
 ```mermaid
 flowchart LR
-  PROT[bmu_protection] --> CLOUD_TASK[cloud_telemetry_task\nFreeRTOS 10s]
+  SD[SD Card CSV\nhardware/log-sd/]
+  PARSE[parse_csv.py]
+  FEAT[extract_features.py]
+  TRAIN[train_fpnn.py\nSOH capacity mode]
+  QUANT[quantize_tflite.py\nINT8 QDQ]
+  EDGE[ESP32-S3\n< 50KB model]
 
-  CLOUD_TASK --> MQTT[bmu_mqtt\nesp_mqtt]
-  CLOUD_TASK --> INFLUX[bmu_influx\nHTTP POST]
+  SD --> PARSE --> FEAT --> TRAIN --> QUANT --> EDGE
 
-  MQTT --> BROKER[MQTT Broker\nkxkm-ai:1883]
-  INFLUX --> INFLUXDB[InfluxDB v2\nkxkm-ai:8086]
-
-  BROKER --> GRAFANA[Grafana dashboards]
-  INFLUXDB --> GRAFANA
-  INFLUXDB --> ML[Pipeline ML\nFPNN SOH/RUL]
-
-  SNTP[bmu_sntp\npool.ntp.org] --> INFLUX
+  TRAIN2[train_sambamixer.py\nRUL cloud]
+  FEAT --> TRAIN2
+  TRAIN2 --> CLOUD[InfluxDB Cloud]
 ```
 
-## 7. Display LVGL tabview (5 onglets planifies)
+## 7. Rappels de sûreté
 
-```mermaid
-flowchart TB
-  TABVIEW[lv_tabview — bas de l'ecran]
-
-  TAB1["⚡ Batt\nGrille 4x4"]
-  TAB2["⚙ Sys\nFirmware/heap/WiFi"]
-  TAB3["⚠ Alert\nHistorique 20 entries"]
-  TAB4["👁 I2C\nDebug bus log"]
-  TAB5["☀ Solar\nVE.Direct MPPT"]
-
-  TABVIEW --> TAB1 & TAB2 & TAB3 & TAB4 & TAB5
-
-  TAB1 -->|tap cellule| DETAIL["Detail batterie\nChart V/I + boutons"]
-  DETAIL -->|bouton ←| TAB1
-```
-
-## 8. Architecture BLE planifiee (Phase 9)
-
-```mermaid
-flowchart LR
-  PHONE[Smartphone]
-  WEB_BLE[Web Bluetooth\nChrome]
-
-  subgraph GATT[NimBLE GATT Services]
-    SVC_BAT[Battery Service\n16 chars READ+NOTIFY]
-    SVC_SYS[System Service\nfirmware/heap/WiFi]
-    SVC_CTL[Control Service\nswitch/reset/config\nPAIRING REQUIS]
-  end
-
-  PHONE -->|BLE| SVC_BAT
-  PHONE -->|BLE + pairing| SVC_CTL
-  WEB_BLE -->|Web Bluetooth API| SVC_BAT & SVC_SYS
-  SVC_CTL --> PROT[bmu_protection_web_switch]
-```
-
-## 9. Rappels de surete
-
-- Protections critiques restent locales sur MCU — ML reste consultatif
-- Toute operation I2C multi-registre : `bmu_i2c_lock()`/`bmu_i2c_unlock()`
-- `stateMutex` protege les tableaux partages
-- Fail-safe topologie force OFF si `Nb_TCA * 4 != Nb_INA`
-- Web + BLE mutations passent par `bmu_protection_web_switch()` — jamais direct TCA
-- OTA avec rollback : `bmu_ota_mark_valid()` appele au boot
+- Les protections critiques restent locales sur MCU — ML reste consultatif.
+- Toute opération INA/TCA passe via I2CLockGuard (jamais de double-lock).
+- `stateMutex` protège les tableaux partagés (battery_voltages, Nb_switch, reconnect_time).
+- Le fail-safe topologie force OFF si `Nb_TCA * 4 != Nb_INA`.
