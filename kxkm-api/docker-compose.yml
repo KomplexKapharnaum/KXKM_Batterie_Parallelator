@@ -1,0 +1,22 @@
+# KXKM BMU API — deployed on kxkm-ai server
+# Usage: docker compose up -d
+# Logs:  docker compose logs -f bmu-api
+
+services:
+  bmu-api:
+    build: .
+    container_name: kxkm-bmu-api
+    restart: unless-stopped
+    ports:
+      - "8400:8400"
+    env_file:
+      - .env
+    volumes:
+      - bmu-data:/data  # SQLite audit DB persisted here
+    environment:
+      - INFLUX_URL=http://host.docker.internal:8086
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  bmu-data:
