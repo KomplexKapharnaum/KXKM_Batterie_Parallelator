@@ -2,7 +2,7 @@
  * @file bmu_display.cpp
  * @brief Display init for ESP32-S3-BOX-3 — LVGL v9 tabview with 5 screens.
  *
- * Ecrans : Batteries | Systeme | Alertes | Debug I2C | Solar
+ * Ecrans : Batteries | SOH | Systeme | Alertes | Config
  * Navigation : swipe horizontal ou tap sur les onglets en bas.
  * Tap sur une cellule batterie → ecran detail en overlay.
  */
@@ -10,6 +10,8 @@
 #include "bmu_display.h"
 #include "bmu_ui.h"
 #include "bmu_vedirect.h"
+#include "bmu_climate.h"
+#include "bmu_ina237.h"
 
 #include "bsp/esp-bsp.h"
 #include "esp_log.h"
@@ -63,7 +65,8 @@ static void chart_history_push_all(void)
     int nb = s_ui_ctx.nb_ina > 16 ? 16 : s_ui_ctx.nb_ina;
     for (int i = 0; i < nb; i++) {
         float v_mv = bmu_protection_get_voltage(s_ui_ctx.prot, i);
-        float i_a = 0.0f; // TODO: lire depuis INA quand API disponible
+        float i_a = 0.0f;
+        bmu_ina237_read_current(&s_ui_ctx.mgr->ina_devices[i], &i_a);
         bmu_chart_history_push(&s_ui_ctx.chart_hist[i], v_mv, i_a);
     }
 }
@@ -87,10 +90,10 @@ static void display_periodic_cb(void *arg)
     if (bsp_display_lock(0)) {
         /* bmu_ui_main_update gere : grille OU detail selon nav state */
         bmu_ui_main_update(&s_ui_ctx);
-        bmu_ui_system_update(&s_ui_ctx);
-        bmu_ui_debug_update();
-        bmu_ui_solar_update();
         bmu_ui_soh_update(&s_ui_ctx);
+        bmu_ui_system_update(&s_ui_ctx);
+        /* alerts update on demand only */
+        bmu_ui_config_update();
 
         if (s_update_req) {
             s_update_req = false;
@@ -147,49 +150,43 @@ esp_err_t bmu_display_init(bmu_display_ctx_t *ctx)
         return ESP_FAIL;
     }
 
-    /* ── Dark background ──────────────────────────────────────────── */
-    lv_obj_set_style_bg_color(lv_scr_act(), lv_color_hex(0x1E1E1E), 0);
+    /* ── Fond noir pur ────────────────────────────────────────────── */
+    lv_obj_set_style_bg_color(lv_scr_act(), UI_COLOR_BG, 0);
 
     /* ── Tabview — onglets en bas, 5 ecrans ───────────────────────── */
     s_tabview = lv_tabview_create(lv_scr_act());
     lv_tabview_set_tab_bar_position(s_tabview, LV_DIR_BOTTOM);
     lv_tabview_set_tab_bar_size(s_tabview, 30);
     lv_obj_set_size(s_tabview, BSP_LCD_H_RES, BSP_LCD_V_RES);
-
-    /* Style tabview : fond sombre, onglets discrets */
-    lv_obj_set_style_bg_color(s_tabview, lv_color_hex(0x1E1E1E), 0);
+    lv_obj_set_style_bg_color(s_tabview, UI_COLOR_BG, 0);
     lv_obj_set_style_border_width(s_tabview, 0, 0);
 
     /* Style tab bar */
     lv_obj_t *tab_bar = lv_tabview_get_tab_bar(s_tabview);
-    lv_obj_set_style_bg_color(tab_bar, lv_color_hex(0x121212), 0);
+    lv_obj_set_style_bg_color(tab_bar, lv_color_hex(0x0A0A0A), 0);
     lv_obj_set_style_border_width(tab_bar, 0, 0);
     lv_obj_set_style_pad_all(tab_bar, 0, 0);
 
     /* Creer les 5 onglets */
     lv_obj_t *tab_batt   = lv_tabview_add_tab(s_tabview, LV_SYMBOL_CHARGE " Batt");
+    lv_obj_t *tab_soh    = lv_tabview_add_tab(s_tabview, LV_SYMBOL_EYE_OPEN " SOH");
     lv_obj_t *tab_sys    = lv_tabview_add_tab(s_tabview, LV_SYMBOL_SETTINGS " Sys");
     lv_obj_t *tab_alerts = lv_tabview_add_tab(s_tabview, LV_SYMBOL_WARNING " Alert");
-    lv_obj_t *tab_debug  = lv_tabview_add_tab(s_tabview, LV_SYMBOL_EYE_OPEN " I2C");
-    lv_obj_t *tab_solar  = lv_tabview_add_tab(s_tabview, LV_SYMBOL_CHARGE " Solar");
-    lv_obj_t *tab_soh    = lv_tabview_add_tab(s_tabview, LV_SYMBOL_OK " SOH");
+    lv_obj_t *tab_config = lv_tabview_add_tab(s_tabview, LV_SYMBOL_EDIT " Config");
 
-    /* Fond sombre pour chaque onglet */
-    lv_obj_set_style_bg_color(tab_batt,   lv_color_hex(0x1E1E1E), 0);
-    lv_obj_set_style_bg_color(tab_sys,    lv_color_hex(0x1E1E1E), 0);
-    lv_obj_set_style_bg_color(tab_alerts, lv_color_hex(0x1E1E1E), 0);
-    lv_obj_set_style_bg_color(tab_debug,  lv_color_hex(0x1E1E1E), 0);
-    lv_obj_set_style_bg_color(tab_solar,  lv_color_hex(0x1E1E1E), 0);
-    lv_obj_set_style_bg_color(tab_soh,    lv_color_hex(0x1E1E1E), 0);
+    /* Fond noir pour chaque onglet */
+    lv_obj_t *tabs[] = {tab_batt, tab_soh, tab_sys, tab_alerts, tab_config};
+    for (int i = 0; i < 5; i++) {
+        lv_obj_set_style_bg_color(tabs[i], UI_COLOR_BG, 0);
+    }
 
     /* ── Creer le contenu de chaque ecran ─────────────────────────── */
     bmu_ui_main_set_nav_state(&s_nav);
     bmu_ui_main_create(tab_batt, &s_ui_ctx);
+    bmu_ui_soh_create(tab_soh, &s_ui_ctx);
     bmu_ui_system_create(tab_sys, &s_ui_ctx);
     bmu_ui_alerts_create(tab_alerts);
-    bmu_ui_debug_create(tab_debug);
-    bmu_ui_solar_create(tab_solar);
-    bmu_ui_soh_create(tab_soh, &s_ui_ctx);
+    bmu_ui_config_create(tab_config);
 
     s_ui_ready = true;
     bsp_display_unlock();
