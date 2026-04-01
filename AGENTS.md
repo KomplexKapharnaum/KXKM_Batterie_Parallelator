@@ -29,6 +29,7 @@
 - Main build (default): pio run -e kxkm-s3-16MB
 - Upload firmware: pio run -e kxkm-s3-16MB --target upload
 - ESP-IDF build (BOX-3): cd firmware-idf && idf.py build
+- ESP-IDF UI config (BOX-3 display/touch): cd firmware-idf && idf.py menuconfig
 - ESP-IDF flash (BOX-3): cd firmware-idf && idf.py -p /dev/cu.usbmodem* flash
 - ESP-IDF monitor (BOX-3): cd firmware-idf && idf.py -p /dev/cu.usbmodem* monitor
 - Legacy v3 build: pio run -e kxkm-v3-16MB
@@ -60,11 +61,20 @@
 - Use existing DebugLogger categories for observability instead of ad-hoc Serial.print additions.
 - Keep CSV conventions unchanged (; separator and existing timestamp flow in logger/influx code).
 
+## ESP-IDF UI/UX (BOX-3 Display + Touch)
+- UI stack is BSP + LVGL in firmware-idf/components/bmu_display/; keep initialization through bsp_display_start() and avoid custom parallel display init paths.
+- Keep touch active through BSP input device wiring (bsp_display_get_input_dev + LV_EVENT_PRESSING) so wake/dim behavior remains deterministic.
+- Treat the panel as ILI934x-class on BOX-3 (current code path uses ILI9342C-compatible BSP flow); do not hardcode alternate panel drivers in BMU component code.
+- Keep UI refresh non-blocking: periodic update logic must stay short and must not introduce long waits inside display callbacks/timers.
+- UI must remain advisory only: battery protection and switching decisions stay in bmu_protection / safety state machine, never in display handlers.
+- When adding UI tabs/widgets, preserve lock discipline around LVGL calls (bsp_display_lock/unlock) and avoid direct cross-task mutation of shared battery state.
+
 ## Safety-Critical Rules
 - Do not bypass topology validation between INA and TCA counts in firmware/src/main.cpp.
 - Do not silently relax battery thresholds, reconnect delays, or current/voltage protections.
 - Keep task behavior non-blocking for FreeRTOS loops and avoid long blocking calls in periodic tasks.
 - On ESP-IDF BOX-3, do not create I2C bus 1 twice: BSP and BMU share DOCK pins (GPIO40/41). Initialize BSP I2C first, then reuse the existing DOCK bus handle in BMU I2C code.
+- Keep BOX-3 internal display/touch bus ownership in BSP; BMU custom I2C flows must continue to use the dedicated BMU bus path.
 
 ## Scoped Instructions
 - When editing firmware/src/**, follow .github/instructions/firmware-safety.instructions.md.
@@ -96,6 +106,9 @@
 - Project architecture and operating notes: CLAUDE.md
 - Product and usage overview: README.md
 - Architecture diagrams and governance context: docs/governance/architecture-diagrams.md
+- ESP-IDF migration design: docs/superpowers/specs/2026-03-30-esp-idf-migration-design.md
+- ESP-IDF display dashboard spec: docs/superpowers/specs/2026-03-30-phase6-display-dashboard.md
+- ESP-IDF display enhancement spec: docs/superpowers/specs/2026-03-31-phase8-display-enhanced.md
 - Current repository context snapshot: docs/context/project-context-snapshot.md
 - ML battery health roadmap/spec: docs/ml-battery-health-spec.md
 - Credentials template: firmware/src/credentials.h.example
