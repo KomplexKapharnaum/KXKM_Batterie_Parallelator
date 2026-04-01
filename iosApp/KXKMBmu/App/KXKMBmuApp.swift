@@ -3,20 +3,18 @@ import SwiftUI
 
 @main
 struct KXKMBmuApp: App {
-    @StateObject private var authVM = AuthViewModel()
+    @StateObject private var authVM: AuthViewModel = {
+        let vm = AuthViewModel()
+        // Auto-login admin pour dev — skip onboarding/PIN
+        vm.isAuthenticated = true
+        vm.currentUser = UserProfile(id: "admin", name: "Admin", role: .admin, pinHash: "", salt: "")
+        return vm
+    }()
 
     var body: some Scene {
         WindowGroup {
-            if authVM.isAuthenticated {
-                ContentView()
-                    .environmentObject(authVM)
-            } else if authVM.needsOnboarding {
-                OnboardingView()
-                    .environmentObject(authVM)
-            } else {
-                PinEntryView()
-                    .environmentObject(authVM)
-            }
+            ContentView()
+                .environmentObject(authVM)
         }
     }
 }
