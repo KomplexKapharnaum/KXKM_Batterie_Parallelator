@@ -88,9 +88,17 @@ esp_err_t bmu_wifi_init(void)
     ESP_ERROR_CHECK(esp_event_loop_create_default());
     esp_netif_create_default_wifi_sta();
 
-    // Configuration WiFi par défaut
+    // Configuration WiFi — buffers réduits pour coex BLE
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+    cfg.static_rx_buf_num = 4;       // 10 → 4 (coex BLE)
+    cfg.dynamic_rx_buf_num = 16;     // 32 → 16
+    cfg.dynamic_tx_buf_num = 16;     // 32 → 16
+    esp_err_t wifi_ret = esp_wifi_init(&cfg);
+    if (wifi_ret != ESP_OK) {
+        ESP_LOGW(TAG, "WiFi init failed: %s — running sans WiFi",
+                 esp_err_to_name(wifi_ret));
+        return wifi_ret;
+    }
 
     // Enregistrement des handlers
     ESP_ERROR_CHECK(esp_event_handler_instance_register(

@@ -38,6 +38,8 @@ extern "C" {
 /* ── Valeurs d'identification ─────────────────────────────────────────────── */
 #define INA237_MANUFACTURER_ID     0x5449   /* "TI" ASCII */
 #define INA237_DEVICE_ID           0x2370
+#define INA237_DEVICE_ID_FAMILY    0x2300  /* Famille INA237/INA237A (0x23xx) */
+#define INA237_DEVICE_ID_MASK      0xFF00
 
 /* ── CONFIG bits ──────────────────────────────────────────────────────────── */
 #define INA237_CONFIG_RST          (1U << 15)

@@ -94,15 +94,19 @@ esp_err_t bmu_ina237_init(i2c_master_bus_handle_t bus, uint8_t addr,
     if (ret != ESP_OK || mfr_id != INA237_MANUFACTURER_ID) {
         ESP_LOGE(TAG, "[0x%02X] ID fabricant invalide: 0x%04X (attendu 0x%04X)",
                  addr, mfr_id, INA237_MANUFACTURER_ID);
+        i2c_master_bus_rm_device(ctx->dev);
+        ctx->dev = NULL;
         return (ret != ESP_OK) ? ret : ESP_ERR_NOT_FOUND;
     }
 
-    /* Verification DEVICE_ID — doit etre 0x2370 */
+    /* Verification DEVICE_ID — famille 0x23xx (INA237 = 0x2370, INA237A = 0x2381) */
     uint16_t dev_id = 0;
     ret = ina237_read_reg16(ctx->dev, INA237_REG_DEVICE_ID, &dev_id);
-    if (ret != ESP_OK || dev_id != INA237_DEVICE_ID) {
-        ESP_LOGE(TAG, "[0x%02X] Device ID invalide: 0x%04X (attendu 0x%04X)",
-                 addr, dev_id, INA237_DEVICE_ID);
+    if (ret != ESP_OK || (dev_id & INA237_DEVICE_ID_MASK) != INA237_DEVICE_ID_FAMILY) {
+        ESP_LOGE(TAG, "[0x%02X] Device ID invalide: 0x%04X (attendu 0x23xx)",
+                 addr, dev_id);
+        i2c_master_bus_rm_device(ctx->dev);
+        ctx->dev = NULL;
         return (ret != ESP_OK) ? ret : ESP_ERR_NOT_FOUND;
     }
 

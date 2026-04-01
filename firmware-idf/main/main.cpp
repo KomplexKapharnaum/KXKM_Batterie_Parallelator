@@ -131,8 +131,21 @@ extern "C" void app_main(void)
         ESP_LOGW(TAG, "Display init failed: %s — continuing", esp_err_to_name(disp_ret));
     }
 
-    /* ── 4. WiFi ───────────────────────────────────────────────────── */
+    /* ── 4. WiFi (avant BLE — WiFi DMA a besoin de RAM interne en premier) */
     bmu_wifi_init();
+
+    /* ── 5. BLE (apres WiFi — coex NimBLE utilise la RAM restante) ── */
+#ifdef CONFIG_BMU_BLE_ENABLED
+    {
+        esp_err_t ble_ret = bmu_ble_init(&prot, &mgr, 0);
+        if (ble_ret == ESP_OK) {
+            ESP_LOGI(TAG, "BLE active — advertising '%s'",
+                     CONFIG_BMU_BLE_DEVICE_NAME);
+        } else {
+            ESP_LOGW(TAG, "BLE init failed: %s", esp_err_to_name(ble_ret));
+        }
+    }
+#endif
 
     /* ── 5. SD card ────────────────────────────────────────────────── */
     bmu_sd_init();
@@ -156,7 +169,7 @@ extern "C" void app_main(void)
         ESP_LOGW(TAG, "I2C BMU init failed: %s — running sans sensors", esp_err_to_name(i2c_ret));
     }
 
-    /* ── 8. Scan I2C + init sensors (skip si pas de bus) ───────────── */
+    /* ── 8. Scan I2C + init sensors (si bus ok) ──────────────────── */
     static bmu_ina237_t ina[BMU_MAX_BATTERIES] = {};
     uint8_t nb_ina = 0;
     static bmu_tca9535_handle_t tca[BMU_MAX_TCA] = {};
@@ -171,6 +184,9 @@ extern "C" void app_main(void)
 
         bmu_ina237_scan_init(i2c_bus, 2000, 10.0f, ina, &nb_ina);
         ESP_LOGI(TAG, "INA237: %d", nb_ina);
+
+        /* Yield pour eviter watchdog pendant l'init longue */
+        vTaskDelay(pdMS_TO_TICKS(10));
 
         bmu_tca9535_scan_init(i2c_bus, tca, BMU_MAX_TCA, &nb_tca);
         ESP_LOGI(TAG, "TCA9535: %d", nb_tca);
@@ -216,13 +232,7 @@ extern "C" void app_main(void)
     /* ── 12. VE.Direct ─────────────────────────────────────────────── */
     bmu_vedirect_init();
 
-    /* ── 13. BLE (si active dans Kconfig) ──────────────────────────── */
-#ifdef CONFIG_BMU_BLE_ENABLED
-    bmu_ble_init(&prot, &mgr, nb_ina);
-    ESP_LOGI(TAG, "BLE active");
-#endif
-
-    /* ── 14. OTA validation ────────────────────────────────────────── */
+    /* ── 13. OTA validation ────────────────────────────────────────── */
     bmu_ota_mark_valid();
 
     ESP_LOGI(TAG, "Init complete — heap: %lu — loop %dms",

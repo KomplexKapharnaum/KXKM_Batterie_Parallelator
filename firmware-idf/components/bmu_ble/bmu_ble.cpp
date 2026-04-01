@@ -211,7 +211,7 @@ esp_err_t bmu_ble_init(bmu_protection_ctx_t *prot,
                         bmu_battery_manager_t *mgr,
                         uint8_t nb_ina)
 {
-    if (!prot || !mgr || nb_ina == 0) {
+    if (!prot || !mgr) {
         return ESP_ERR_INVALID_ARG;
     }
 
