@@ -110,3 +110,9 @@ firmware-idf/sdkconfig
 firmware-idf/sdkconfig.old
 firmware-idf/.cache/
 external/
+models/consolidated.parquet
+models/features_adapted_v2.parquet
+models/features_v2.parquet
+kxkm-bmu-app/.gradle/
+kxkm-bmu-app/build/
+.venv-ml/
