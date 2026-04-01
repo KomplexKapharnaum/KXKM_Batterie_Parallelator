@@ -2,11 +2,12 @@
  * @file bmu_wifi.cpp
  * @brief Composant WiFi STA pour BMU — connexion automatique avec reconnexion
  *
- * Utilise les paramètres Kconfig (BMU_WIFI_SSID, BMU_WIFI_PASSWORD, BMU_WIFI_MAX_RETRY).
+ * Utilise bmu_config pour SSID/password (NVS avec fallback Kconfig).
  * Si BMU_WIFI_MAX_RETRY == 0, la reconnexion est infinie.
  */
 
 #include "bmu_wifi.h"
+#include "bmu_config.h"
 
 #include <cstring>
 #include <cstdio>
@@ -68,14 +69,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
 
 esp_err_t bmu_wifi_init(void)
 {
-    // Initialiser NVS (requis par esp_wifi)
-    esp_err_t ret = nvs_flash_init();
-    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-        ESP_LOGW(TAG, "NVS : effacement et ré-initialisation");
-        ESP_ERROR_CHECK(nvs_flash_erase());
-        ret = nvs_flash_init();
-    }
-    ESP_ERROR_CHECK(ret);
+    // NVS deja initialise par bmu_nvs_init() dans main
 
     s_wifi_event_group = xEventGroupCreate();
     if (s_wifi_event_group == nullptr) {
@@ -106,24 +100,37 @@ esp_err_t bmu_wifi_init(void)
     ESP_ERROR_CHECK(esp_event_handler_instance_register(
         IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler, nullptr, nullptr));
 
-    // Configuration STA
+    // Configuration STA — SSID/password depuis bmu_config (NVS ou Kconfig)
+    const char *ssid = bmu_config_get_wifi_ssid();
+    const char *pass = bmu_config_get_wifi_password();
+
     wifi_config_t wifi_config = {};
     std::strncpy(reinterpret_cast<char *>(wifi_config.sta.ssid),
-                 CONFIG_BMU_WIFI_SSID,
-                 sizeof(wifi_config.sta.ssid) - 1);
+                 ssid, sizeof(wifi_config.sta.ssid) - 1);
     std::strncpy(reinterpret_cast<char *>(wifi_config.sta.password),
-                 CONFIG_BMU_WIFI_PASSWORD,
-                 sizeof(wifi_config.sta.password) - 1);
+                 pass, sizeof(wifi_config.sta.password) - 1);
     wifi_config.sta.threshold.authmode =
-        (std::strlen(CONFIG_BMU_WIFI_PASSWORD) > 0) ? WIFI_AUTH_WPA_PSK : WIFI_AUTH_OPEN;
+        (std::strlen(pass) > 0) ? WIFI_AUTH_WPA_PSK : WIFI_AUTH_OPEN;
     wifi_config.sta.sae_pwe_h2e = WPA3_SAE_PWE_BOTH;  /* Support WPA3 transition */
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
-    ESP_ERROR_CHECK(esp_wifi_start());
 
-    ESP_LOGI(TAG, "Init terminée — SSID : %s", CONFIG_BMU_WIFI_SSID);
+    /* NE PAS appeler esp_wifi_start() ici — bmu_wifi_start() le fait.
+     * Cela permet d'init BLE entre wifi_init et wifi_start. */
+    ESP_LOGI(TAG, "WiFi configuré — SSID : %s (radio pas encore active)", ssid);
     return ESP_OK;
+}
+
+esp_err_t bmu_wifi_start(void)
+{
+    esp_err_t ret = esp_wifi_start();
+    if (ret != ESP_OK) {
+        ESP_LOGW(TAG, "WiFi start failed: %s", esp_err_to_name(ret));
+    } else {
+        ESP_LOGI(TAG, "WiFi radio active");
+    }
+    return ret;
 }
 
 bool bmu_wifi_is_connected(void)

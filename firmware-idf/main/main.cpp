@@ -21,6 +21,7 @@
 #include "bmu_display.h"
 #include "bmu_ui.h"
 #include "bmu_vedirect.h"
+#include "bmu_climate.h"
 #include "bmu_ota.h"
 // #include "bmu_soh.h"  // Disabled — TFLite build issues
 #ifdef CONFIG_BMU_BLE_ENABLED
@@ -78,7 +79,7 @@ static void cloud_telemetry_task(void *pv)
                      i + 1, v_mv, i_a, ah_d, ah_c, state_str);
             char topic[64];
             snprintf(topic, sizeof(topic), "bmu/%s/battery/%d",
-                     CONFIG_BMU_DEVICE_NAME, i + 1);
+                     bmu_config_get_device_name(), i + 1);
             bmu_mqtt_publish(topic, payload, 0, 0, false);
         }
 
@@ -113,10 +114,11 @@ extern "C" void app_main(void)
     ESP_LOGI(TAG, "  KXKM BMU — ESP-IDF v5.4 (BOX-3)");
     ESP_LOGI(TAG, "  Free heap: %lu bytes", (unsigned long)esp_get_free_heap_size());
     ESP_LOGI(TAG, "══════════════════════════════════════════════");
-    bmu_config_log();
 
-    /* ── 1. NVS ────────────────────────────────────────────────────── */
+    /* ── 1. NVS + Config runtime ──────────────────────────────────── */
     bmu_nvs_init();
+    bmu_config_load();
+    bmu_config_log();
 
     /* ── 2. SPIFFS (web assets) ────────────────────────────────────── */
     init_spiffs();
@@ -133,22 +135,24 @@ extern "C" void app_main(void)
         ESP_LOGW(TAG, "Display init failed: %s — continuing", esp_err_to_name(disp_ret));
     }
 
-    /* ── 4. WiFi init → BLE init (pas de wait entre les deux) ────────── */
-    /* WiFi: esp_wifi_init + esp_wifi_start lance le scan en background.
-     * BLE: nimble_port_init doit passer AVANT que WiFi s'authentifie.
-     * En enchainant les deux sans attendre, la coex fonctionne. */
-    bmu_wifi_init();
+    /* ── 4. WiFi+BLE coex (ordre critique) ───────────────────────────── */
+    /* Phase 1: WiFi alloc buffers + config STA (PAS de radio)
+     * Phase 2: BLE nimble_port_init (controller BT)
+     * Phase 3: WiFi start radio — coex BLE/WiFi gère le partage */
+    bmu_wifi_init();   /* buffers + config, pas de radio */
 
 #ifdef CONFIG_BMU_BLE_ENABLED
     {
         esp_err_t ble_ret = bmu_ble_init(&prot, &mgr, 0);
         if (ble_ret == ESP_OK) {
-            ESP_LOGI(TAG, "BLE active — '%s'", CONFIG_BMU_DEVICE_NAME);
+            ESP_LOGI(TAG, "BLE active — '%s'", bmu_config_get_device_name());
         } else {
             ESP_LOGW(TAG, "BLE init failed: %s", esp_err_to_name(ble_ret));
         }
     }
 #endif
+
+    bmu_wifi_start();  /* lance la radio — BLE déjà init */
 
     /* ── 5. SD card ────────────────────────────────────────────────── */
     bmu_sd_init();
@@ -170,6 +174,18 @@ extern "C" void app_main(void)
         i2c_ok = true;
     } else {
         ESP_LOGW(TAG, "I2C BMU init failed: %s — running sans sensors", esp_err_to_name(i2c_ret));
+    }
+
+    /* ── 7b. Capteur climat AHT30 (si bus ok) ────────────────────── */
+    if (i2c_ok) {
+        esp_err_t clim_ret = bmu_climate_init(i2c_bus);
+        if (clim_ret == ESP_OK) {
+            ESP_LOGI(TAG, "AHT30 climat OK — T=%.1f°C  H=%.1f%%",
+                     bmu_climate_get_temperature(), bmu_climate_get_humidity());
+        } else {
+            ESP_LOGW(TAG, "AHT30 init failed: %s — pas de capteur climat",
+                     esp_err_to_name(clim_ret));
+        }
     }
 
     /* ── 8. Scan I2C + init sensors (si bus ok) ──────────────────── */

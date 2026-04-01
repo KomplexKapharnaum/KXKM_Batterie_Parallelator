@@ -9,6 +9,7 @@
  *   POST /api/battery/switch_on   → allumer batterie (auth + rate limit)
  *   POST /api/battery/switch_off  → éteindre batterie (auth + rate limit)
  *   GET  /api/log        → dernières lignes du log SD (chunked)
+ *   GET  /api/climate    → JSON température/humidité AHT30
  *   GET  /ws             → WebSocket upgrade (push état 500ms)
  */
 
@@ -19,6 +20,7 @@
 #include "bmu_config.h"
 #include "bmu_wifi.h"
 #include "bmu_vedirect.h"
+#include "bmu_climate.h"
 
 #include "esp_http_server.h"
 #include "esp_log.h"
@@ -667,6 +669,43 @@ static esp_err_t handler_api_solar(httpd_req_t *req)
 }
 
 /* -------------------------------------------------------------------------- */
+/*  GET /api/climate                                                          */
+/* -------------------------------------------------------------------------- */
+
+static esp_err_t handler_api_climate(httpd_req_t *req)
+{
+    cJSON *root = cJSON_CreateObject();
+    if (root == NULL) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "JSON alloc failed");
+        return ESP_FAIL;
+    }
+
+    bool valid = bmu_climate_is_available();
+    cJSON_AddBoolToObject(root, "valid", valid);
+    if (valid) {
+        cJSON_AddNumberToObject(root, "temperature_c",
+                                (double)bmu_climate_get_temperature());
+        cJSON_AddNumberToObject(root, "humidity_pct",
+                                (double)bmu_climate_get_humidity());
+    } else {
+        cJSON_AddNullToObject(root, "temperature_c");
+        cJSON_AddNullToObject(root, "humidity_pct");
+    }
+
+    char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (json == NULL) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "JSON print failed");
+        return ESP_FAIL;
+    }
+
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_sendstr(req, json);
+    free(json);
+    return ESP_OK;
+}
+
+/* -------------------------------------------------------------------------- */
 /*  Start / Stop                                                              */
 /* -------------------------------------------------------------------------- */
 
@@ -680,7 +719,7 @@ esp_err_t bmu_web_start(bmu_web_ctx_t *ctx)
     s_ctx = ctx;
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    config.max_uri_handlers  = 10;
+    config.max_uri_handlers  = 12;
     config.uri_match_fn      = httpd_uri_match_wildcard;
 
     esp_err_t ret = httpd_start(&s_server, &config);
@@ -753,6 +792,15 @@ esp_err_t bmu_web_start(bmu_web_ctx_t *ctx)
         .user_ctx = nullptr
     };
     httpd_register_uri_handler(s_server, &uri_log);
+
+    /* GET /api/climate */
+    const httpd_uri_t uri_climate = {
+        .uri      = "/api/climate",
+        .method   = HTTP_GET,
+        .handler  = handler_api_climate,
+        .user_ctx = nullptr
+    };
+    httpd_register_uri_handler(s_server, &uri_climate);
 
     #if CONFIG_HTTPD_WS_SUPPORT
     /* GET /ws — WebSocket */

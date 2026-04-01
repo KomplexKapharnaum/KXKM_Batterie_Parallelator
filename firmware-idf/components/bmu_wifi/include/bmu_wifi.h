@@ -6,7 +6,12 @@
 extern "C" {
 #endif
 
+/** Allocate WiFi buffers + configure STA (no radio yet). */
 esp_err_t bmu_wifi_init(void);
+
+/** Start WiFi radio — call AFTER BLE init for coex. */
+esp_err_t bmu_wifi_start(void);
+
 bool bmu_wifi_is_connected(void);
 esp_err_t bmu_wifi_get_ip(char *buf, size_t len);
 
