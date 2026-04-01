@@ -43,6 +43,8 @@ void bmu_ble_battery_notify_start(void);
 void bmu_ble_battery_notify_stop(void);
 void bmu_ble_system_notify_start(void);
 void bmu_ble_system_notify_stop(void);
+void bmu_ble_wifi_notify_start(void);
+void bmu_ble_wifi_notify_stop(void);
 
 #ifdef __cplusplus
 }

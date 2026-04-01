@@ -108,6 +108,7 @@ static int ble_gap_event_handler(struct ble_gap_event *event, void *arg)
             if (s_connected_count.load() == 1) {
                 bmu_ble_battery_notify_start();
                 bmu_ble_system_notify_start();
+                bmu_ble_wifi_notify_start();
             }
 
             /* Demander connexion securisee */
@@ -131,6 +132,7 @@ static int ble_gap_event_handler(struct ble_gap_event *event, void *arg)
             s_connected_count.store(0);
             bmu_ble_battery_notify_stop();
             bmu_ble_system_notify_stop();
+            bmu_ble_wifi_notify_stop();
         }
 
         start_advertising();

@@ -12,8 +12,10 @@
 #include "bmu_ble_internal.h"
 #include "bmu_protection.h"
 #include "bmu_config.h"
+#include "bmu_wifi.h"
 
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "nvs_flash.h"
 #include "nvs.h"
 #include "host/ble_hs.h"
@@ -50,12 +52,19 @@ static ble_uuid128_t s_switch_chr_uuid   = BMU_BLE_UUID128_DECLARE(0x30, 0x00);
 static ble_uuid128_t s_reset_chr_uuid    = BMU_BLE_UUID128_DECLARE(0x31, 0x00);
 static ble_uuid128_t s_config_chr_uuid   = BMU_BLE_UUID128_DECLARE(0x32, 0x00);
 static ble_uuid128_t s_status_chr_uuid   = BMU_BLE_UUID128_DECLARE(0x33, 0x00);
+static ble_uuid128_t s_wifi_cfg_chr_uuid = BMU_BLE_UUID128_DECLARE(0x34, 0x00);
+static ble_uuid128_t s_wifi_sts_chr_uuid = BMU_BLE_UUID128_DECLARE(0x35, 0x00);
+
+static uint16_t s_wifi_sts_val_handle = 0;
+static esp_timer_handle_t s_wifi_notify_timer = NULL;
 
 enum ctrl_chr_id {
     CTRL_CHR_SWITCH = 0,
     CTRL_CHR_RESET,
     CTRL_CHR_CONFIG,
     CTRL_CHR_STATUS,
+    CTRL_CHR_WIFI_CONFIG,
+    CTRL_CHR_WIFI_STATUS,
 };
 
 /* ── Helper : lire le payload d'un write dans un buffer ──────────── */
@@ -201,6 +210,62 @@ static int control_chr_access_cb(uint16_t conn_handle, uint16_t attr_handle,
         return 0;
     }
 
+    case CTRL_CHR_WIFI_CONFIG: {
+        if (read_write_payload(ctxt, buf, sizeof(buf), &len) != 0 || len < 2) {
+            return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+        }
+        /* SSID max 32 bytes + password max 64 bytes dans un buffer plus grand */
+        uint8_t big_buf[96] = {};
+        uint16_t big_len = 0;
+        ble_hs_mbuf_to_flat(ctxt->om, big_buf, sizeof(big_buf), &big_len);
+
+        char ssid[33] = {};
+        char pass[65] = {};
+        memcpy(ssid, big_buf, big_len > 32 ? 32 : big_len);
+        if (big_len > 32) memcpy(pass, big_buf + 32, big_len - 32 > 64 ? 64 : big_len - 32);
+
+        ESP_LOGI(TAG, "WiFi config via BLE: SSID='%s'", ssid);
+
+        nvs_handle_t nvs;
+        if (nvs_open("bmu", NVS_READWRITE, &nvs) == ESP_OK) {
+            nvs_set_str(nvs, "wifi_ssid", ssid);
+            nvs_set_str(nvs, "wifi_pass", pass);
+            nvs_commit(nvs);
+            nvs_close(nvs);
+        }
+
+        s_last_status.last_cmd = 3;
+        s_last_status.battery_idx = 0xFF;
+        s_last_status.result = 0;
+        notify_status();
+        return 0;
+    }
+
+    case CTRL_CHR_WIFI_STATUS: {
+        if (ctxt->op != BLE_GATT_ACCESS_OP_READ_CHR) return BLE_ATT_ERR_UNLIKELY;
+
+        /* Pack: ssid(32) + ip(16) + rssi(1) + connected(1) = 50 bytes */
+        uint8_t payload[50] = {};
+        bool connected = bmu_wifi_is_connected();
+        if (connected) {
+            /* Read SSID from NVS */
+            nvs_handle_t nvs;
+            if (nvs_open("bmu", NVS_READONLY, &nvs) == ESP_OK) {
+                size_t ssid_len = 32;
+                nvs_get_str(nvs, "wifi_ssid", (char *)payload, &ssid_len);
+                nvs_close(nvs);
+            }
+            bmu_wifi_get_ip((char *)(payload + 32), 16);
+            int8_t rssi = 0;
+            bmu_wifi_get_rssi(&rssi);
+            payload[48] = (uint8_t)rssi;
+        }
+        payload[49] = connected ? 1 : 0;
+
+        int rc = os_mbuf_append(ctxt->om, payload, sizeof(payload));
+        return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+    }
+
     default:
         return BLE_ATT_ERR_UNLIKELY;
     }
@@ -233,8 +298,53 @@ static struct ble_gatt_chr_def s_ctrl_chr_defs[] = {
         .flags      = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY,
         .val_handle = &s_status_val_handle,
     },
+    /* WiFi Config — write encrypted */
+    {
+        .uuid       = &s_wifi_cfg_chr_uuid.u,
+        .access_cb  = control_chr_access_cb,
+        .arg        = (void *)(intptr_t)CTRL_CHR_WIFI_CONFIG,
+        .flags      = BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_WRITE_ENC,
+    },
+    /* WiFi Status — read + notify */
+    {
+        .uuid       = &s_wifi_sts_chr_uuid.u,
+        .access_cb  = control_chr_access_cb,
+        .arg        = (void *)(intptr_t)CTRL_CHR_WIFI_STATUS,
+        .flags      = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY,
+        .val_handle = &s_wifi_sts_val_handle,
+    },
     { 0 }, /* Terminateur */
 };
+
+/* ── WiFi status notify timer ─────────────────────────────────────── */
+static void wifi_notify_cb(void *arg)
+{
+    (void)arg;
+    if (s_wifi_sts_val_handle != 0) {
+        ble_gatts_chr_updated(s_wifi_sts_val_handle);
+    }
+}
+
+void bmu_ble_wifi_notify_start(void)
+{
+    if (s_wifi_notify_timer != NULL) return;
+    const esp_timer_create_args_t args = {
+        .callback = wifi_notify_cb,
+        .arg = NULL,
+        .name = "ble_wifi_ntf",
+    };
+    esp_timer_create(&args, &s_wifi_notify_timer);
+    esp_timer_start_periodic(s_wifi_notify_timer, 10000000ULL); /* 10s */
+}
+
+void bmu_ble_wifi_notify_stop(void)
+{
+    if (s_wifi_notify_timer != NULL) {
+        esp_timer_stop(s_wifi_notify_timer);
+        esp_timer_delete(s_wifi_notify_timer);
+        s_wifi_notify_timer = NULL;
+    }
+}
 
 static struct ble_gatt_svc_def s_ctrl_svc[] = {
     {
