@@ -76,8 +76,9 @@ static void cloud_telemetry_task(void *pv)
                      "{\"bat\":%d,\"v_mv\":%.0f,\"i_a\":%.3f,"
                      "\"ah_d\":%.3f,\"ah_c\":%.3f,\"state\":\"%s\"}",
                      i + 1, v_mv, i_a, ah_d, ah_c, state_str);
-            char topic[48];
-            snprintf(topic, sizeof(topic), "bmu/battery/%d", i + 1);
+            char topic[64];
+            snprintf(topic, sizeof(topic), "bmu/%s/battery/%d",
+                     CONFIG_BMU_DEVICE_NAME, i + 1);
             bmu_mqtt_publish(topic, payload, 0, 0, false);
         }
 

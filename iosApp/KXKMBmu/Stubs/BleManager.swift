@@ -138,7 +138,7 @@ class BleManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
     func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral,
                         advertisementData: [String: Any], rssi RSSI: NSNumber) {
         let name = peripheral.name ?? advertisementData[CBAdvertisementDataLocalNameKey] as? String ?? ""
-        guard name == "KXKM-BMU" else { return }
+        guard name.hasPrefix("KXKM-BMU") else { return }
 
         central.stopScan()
         isScanning = false

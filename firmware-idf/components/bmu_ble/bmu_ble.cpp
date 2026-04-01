@@ -59,11 +59,13 @@ static void start_advertising(void)
     adv_params.itvl_min  = BLE_GAP_ADV_ITVL_MS(50); /* 50 ms */
     adv_params.itvl_max  = BLE_GAP_ADV_ITVL_MS(100);/* 100 ms */
 
-    /* Advertising data : flags + nom */
+    /* Advertising data : flags + nom (inclut le device name pour multi-BMU) */
+    static char ble_name[32];
+    snprintf(ble_name, sizeof(ble_name), "KXKM-BMU-%s", CONFIG_BMU_DEVICE_NAME);
     struct ble_hs_adv_fields fields = {};
     fields.flags = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
-    fields.name = (const uint8_t *)CONFIG_BMU_BLE_DEVICE_NAME;
-    fields.name_len = strlen(CONFIG_BMU_BLE_DEVICE_NAME);
+    fields.name = (const uint8_t *)ble_name;
+    fields.name_len = strlen(ble_name);
     fields.name_is_complete = 1;
 
     int rc = ble_gap_adv_set_fields(&fields);
@@ -246,7 +248,11 @@ esp_err_t bmu_ble_init(bmu_protection_ctx_t *prot,
     /* 4. Configurer le nom GAP */
     ble_svc_gap_init();
     ble_svc_gatt_init();
-    ble_svc_gap_device_name_set(CONFIG_BMU_BLE_DEVICE_NAME);
+    {
+        char gap_name[32];
+        snprintf(gap_name, sizeof(gap_name), "KXKM-BMU-%s", CONFIG_BMU_DEVICE_NAME);
+        ble_svc_gap_device_name_set(gap_name);
+    }
 
     /* 5. Construire et enregistrer la table GATT unifiee */
     /* NimBLE attend un tableau termine par un element {0} */

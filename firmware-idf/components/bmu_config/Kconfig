@@ -34,4 +34,11 @@ menu "BMU Protection Config"
         int "Periode boucle protection (ms)"
         default 500
 
+    config BMU_DEVICE_NAME
+        string "Nom du BMU (identifiant unique par installation)"
+        default "kxkm-bmu"
+        help
+            Nom utilise pour le BLE advertising, le topic MQTT (bmu/{name}/battery/N),
+            et le tag InfluxDB. Exemples: gocab, k-led1, k-led2, tender, kryole.
+
 endmenu
