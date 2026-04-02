@@ -15,9 +15,9 @@ static const char *TAG = "UI_SOH";
 
 static lv_obj_t *s_soh_mean_label   = NULL;
 static lv_obj_t *s_soh_mean_bar     = NULL;
-static lv_obj_t *s_soh_bars[16]     = {};
-static lv_obj_t *s_soh_pct_labels[16] = {};
-static lv_obj_t *s_soh_warn_labels[16] = {};
+static lv_obj_t *s_soh_bars[32]     = {};
+static lv_obj_t *s_soh_pct_labels[32] = {};
+static lv_obj_t *s_soh_warn_labels[32] = {};
 static lv_obj_t *s_timestamp_label  = NULL;
 static lv_obj_t *s_soh_list = NULL;
 static int s_nb = 0;
@@ -136,7 +136,7 @@ void bmu_ui_soh_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx)
 static void ensure_soh_rows(int nb)
 {
     if (nb <= s_soh_created || s_soh_list == NULL) return;
-    if (nb > 16) nb = 16;
+    if (nb > 32) nb = 32;
 
     for (int i = s_soh_created; i < nb; i++) {
         lv_obj_t *row = lv_obj_create(s_soh_list);
@@ -180,7 +180,7 @@ void bmu_ui_soh_update(bmu_ui_ctx_t *ctx)
 {
     if (!ctx) return;
 
-    int nb = ctx->nb_ina > 16 ? 16 : ctx->nb_ina;
+    int nb = ctx->nb_ina > 32 ? 32 : ctx->nb_ina;
     if (nb == 0) return;
 
     ensure_soh_rows(nb);

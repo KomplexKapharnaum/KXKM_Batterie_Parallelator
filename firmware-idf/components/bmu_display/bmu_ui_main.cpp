@@ -23,11 +23,11 @@ static lv_obj_t *s_ahout_label   = NULL;
 static lv_obj_t *s_climate_label = NULL;
 
 /* Battery list */
-static lv_obj_t *s_bat_rows[16]    = {};
-static lv_obj_t *s_bat_bars[16]    = {};
-static lv_obj_t *s_bat_vlabels[16] = {};
-static lv_obj_t *s_bat_ilabels[16] = {};
-static lv_obj_t *s_bat_borders[16] = {};
+static lv_obj_t *s_bat_rows[32]    = {};
+static lv_obj_t *s_bat_bars[32]    = {};
+static lv_obj_t *s_bat_vlabels[32] = {};
+static lv_obj_t *s_bat_ilabels[32] = {};
+static lv_obj_t *s_bat_borders[32] = {};
 static lv_obj_t *s_bat_list = NULL;
 static int s_bat_created = 0; /* number of rows already created */
 
@@ -224,7 +224,7 @@ void bmu_ui_main_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx)
 static void ensure_battery_rows(int nb)
 {
     if (nb <= s_bat_created) return;
-    if (nb > 16) nb = 16;
+    if (nb > 32) nb = 32;
 
     for (int i = s_bat_created; i < nb; i++) {
         lv_obj_t *row = lv_obj_create(s_bat_list);
@@ -286,7 +286,7 @@ void bmu_ui_main_update(bmu_ui_ctx_t *ctx)
         return;
     }
 
-    int nb = ctx->nb_ina > 16 ? 16 : ctx->nb_ina;
+    int nb = ctx->nb_ina > 32 ? 32 : ctx->nb_ina;
 
     /* Create battery rows lazily when nb_ina becomes known */
     ensure_battery_rows(nb);
