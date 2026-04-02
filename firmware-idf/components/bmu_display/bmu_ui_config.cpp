@@ -28,6 +28,11 @@ static lv_obj_t *s_vdiff_lbl = NULL;
 static lv_obj_t *s_ble_sw       = NULL;
 static lv_obj_t *s_bright_slider = NULL;
 
+static lv_obj_t *s_vrm_id_ta = NULL;
+static lv_obj_t *s_vrm_sw = NULL;
+static lv_obj_t *s_vic_key_ta = NULL;
+static lv_obj_t *s_vic_sw = NULL;
+
 /* ------------------------------------------------------------------ */
 /* Stepper                                                             */
 /* ------------------------------------------------------------------ */
@@ -225,6 +230,39 @@ void bmu_ui_config_create(lv_obj_t *parent)
         bsp_display_brightness_set(val);
     }, LV_EVENT_VALUE_CHANGED, NULL);
 
+    /* --- Section : Victron --- */
+    section_label(cont, "VICTRON");
+
+    s_vrm_id_ta = create_textarea(cont, bmu_config_get_vrm_portal_id(), false, 19);
+
+    lv_obj_t *vrm_row = lv_obj_create(cont);
+    lv_obj_set_size(vrm_row, lv_pct(100), 28);
+    lv_obj_set_flex_flow(vrm_row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(vrm_row, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_bg_opa(vrm_row, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(vrm_row, 0, 0);
+    lv_obj_set_style_pad_all(vrm_row, 0, 0);
+    lv_obj_t *vrm_lbl = lv_label_create(vrm_row);
+    lv_label_set_text(vrm_lbl, "VRM Cloud");
+    lv_obj_set_style_text_color(vrm_lbl, UI_COLOR_TEXT_SEC, 0);
+    s_vrm_sw = lv_switch_create(vrm_row);
+    if (bmu_config_get_vrm_enabled()) lv_obj_add_state(s_vrm_sw, LV_STATE_CHECKED);
+
+    s_vic_key_ta = create_textarea(cont, bmu_config_get_victron_ble_key(), false, 32);
+
+    lv_obj_t *vic_row = lv_obj_create(cont);
+    lv_obj_set_size(vic_row, lv_pct(100), 28);
+    lv_obj_set_flex_flow(vic_row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(vic_row, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_bg_opa(vic_row, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(vic_row, 0, 0);
+    lv_obj_set_style_pad_all(vic_row, 0, 0);
+    lv_obj_t *vic_lbl = lv_label_create(vic_row);
+    lv_label_set_text(vic_lbl, "BLE Victron");
+    lv_obj_set_style_text_color(vic_lbl, UI_COLOR_TEXT_SEC, 0);
+    s_vic_sw = lv_switch_create(vic_row);
+    if (bmu_config_get_victron_ble_enabled()) lv_obj_add_state(s_vic_sw, LV_STATE_CHECKED);
+
     /* --- Bouton Sauvegarder --- */
     lv_obj_t *save_btn = lv_button_create(cont);
     lv_obj_set_size(save_btn, lv_pct(100), 36);
@@ -240,6 +278,10 @@ void bmu_ui_config_create(lv_obj_t *parent)
                             lv_textarea_get_text(s_pass_ta));
         bmu_config_set_thresholds(s_v_min, s_v_max, s_i_max, s_v_diff);
         bmu_config_set_mqtt_uri(lv_textarea_get_text(s_mqtt_ta));
+        bmu_config_set_vrm_portal_id(lv_textarea_get_text(s_vrm_id_ta));
+        bmu_config_set_vrm_enabled(lv_obj_has_state(s_vrm_sw, LV_STATE_CHECKED));
+        bmu_config_set_victron_ble_key(lv_textarea_get_text(s_vic_key_ta));
+        bmu_config_set_victron_ble_enabled(lv_obj_has_state(s_vic_sw, LV_STATE_CHECKED));
         ESP_LOGI("UI_CFG", "Config sauvegardee dans NVS");
     }, LV_EVENT_CLICKED, NULL);
 
