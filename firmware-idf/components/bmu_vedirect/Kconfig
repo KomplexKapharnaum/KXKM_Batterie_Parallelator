@@ -4,15 +4,15 @@ menu "BMU VE.Direct (Victron)"
         default n
     config BMU_VEDIRECT_UART_NUM
         int "UART number (0-2)"
-        default 0
+        default 2
         depends on BMU_VEDIRECT_ENABLED
     config BMU_VEDIRECT_TX_GPIO
         int "TX GPIO (BMU to charger, -1 to disable)"
-        default 43
+        default 38
         depends on BMU_VEDIRECT_ENABLED
     config BMU_VEDIRECT_RX_GPIO
         int "RX GPIO (charger to BMU)"
-        default 44
+        default 39
         depends on BMU_VEDIRECT_ENABLED
     config BMU_VEDIRECT_BAUD
         int "Baud rate"
