@@ -84,6 +84,44 @@ static void cloud_telemetry_task(void *pv)
         }
 
         bmu_influx_flush();
+
+        /* ── Solar telemetry ── */
+        if (bmu_vedirect_is_connected()) {
+            const bmu_vedirect_data_t *sol = bmu_vedirect_get_data();
+            if (sol && sol->valid) {
+                /* MQTT */
+                char solar_payload[192];
+                snprintf(solar_payload, sizeof(solar_payload),
+                    "{\"vpv\":%.1f,\"ppv\":%u,\"vbat\":%.2f,"
+                    "\"ibat\":%.2f,\"cs\":\"%s\",\"yield\":%lu,\"err\":%u}",
+                    sol->panel_voltage_v,
+                    (unsigned)sol->panel_power_w,
+                    sol->battery_voltage_v,
+                    sol->battery_current_a,
+                    bmu_vedirect_cs_name(sol->charge_state),
+                    (unsigned long)sol->yield_today_wh,
+                    (unsigned)sol->error_code);
+                char solar_topic[64];
+                snprintf(solar_topic, sizeof(solar_topic),
+                    "bmu/%s/solar", bmu_config_get_device_name());
+                bmu_mqtt_publish(solar_topic, solar_payload, 0, 0, false);
+
+                /* InfluxDB */
+                char solar_tags[48];
+                snprintf(solar_tags, sizeof(solar_tags),
+                    "device=%s", bmu_config_get_device_name());
+                char solar_fields[128];
+                snprintf(solar_fields, sizeof(solar_fields),
+                    "vpv=%.1f,ppv=%ui,vbat=%.2f,ibat=%.2f,cs=%ui,yield=%lui",
+                    sol->panel_voltage_v,
+                    (unsigned)sol->panel_power_w,
+                    sol->battery_voltage_v,
+                    sol->battery_current_a,
+                    (unsigned)sol->charge_state,
+                    (unsigned long)sol->yield_today_wh);
+                bmu_influx_write("solar", solar_tags, solar_fields, 0);
+            }
+        }
     }
 }
 
