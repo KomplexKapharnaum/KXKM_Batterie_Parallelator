@@ -1,5 +1,8 @@
 #ifdef NATIVE_TEST
 
+extern "C" void setUp(void) {}
+extern "C" void tearDown(void) {}
+
 #include "unity.h"
 #include <cstring>
 #include <cstdio>

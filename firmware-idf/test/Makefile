@@ -6,12 +6,14 @@ CXXFLAGS  = -Wall -Wextra -DNATIVE_TEST -std=c++17
 UNITY_DIR = unity
 UNITY_SRC = $(UNITY_DIR)/unity.c
 UNITY_INC = -I$(UNITY_DIR)
+BUILD     = build
 
 TESTS = test_protection test_vrm_topics test_ble_victron test_config_labels test_vedirect_parser
+BINS  = $(addprefix $(BUILD)/,$(TESTS))
 
 .PHONY: all clean download_unity run
 
-all: download_unity $(TESTS) run
+all: download_unity $(BINS) run
 
 download_unity:
 	@if [ ! -f $(UNITY_DIR)/unity.h ]; then \
@@ -22,25 +24,14 @@ download_unity:
 		curl -sL https://raw.githubusercontent.com/ThrowTheSwitch/Unity/v2.6.1/src/unity_internals.h -o $(UNITY_DIR)/unity_internals.h; \
 	fi
 
-test_protection: download_unity
-	$(CXX) $(CXXFLAGS) $(UNITY_INC) -o $@ test_protection/main/test_protection.cpp $(UNITY_SRC)
+$(BUILD)/%: %/main/*.cpp download_unity
+	@mkdir -p $(BUILD)
+	$(CXX) $(CXXFLAGS) $(UNITY_INC) -o $@ $< $(UNITY_SRC)
 
-test_vrm_topics: download_unity
-	$(CXX) $(CXXFLAGS) $(UNITY_INC) -o $@ test_vrm_topics/main/test_vrm_topics.cpp $(UNITY_SRC)
-
-test_ble_victron: download_unity
-	$(CXX) $(CXXFLAGS) $(UNITY_INC) -o $@ test_ble_victron/main/test_ble_victron.cpp $(UNITY_SRC)
-
-test_config_labels: download_unity
-	$(CXX) $(CXXFLAGS) $(UNITY_INC) -o $@ test_config_labels/main/test_config_labels.cpp $(UNITY_SRC)
-
-test_vedirect_parser: download_unity
-	$(CXX) $(CXXFLAGS) $(UNITY_INC) -o $@ test_vedirect_parser/main/test_vedirect_parser.cpp $(UNITY_SRC)
-
-run: $(TESTS)
+run: $(BINS)
 	@echo "=== Running all host tests ==="
 	@failed=0; \
-	for t in $(TESTS); do \
+	for t in $(BINS); do \
 		echo "--- $$t ---"; \
 		./$$t || failed=1; \
 	done; \
@@ -48,5 +39,5 @@ run: $(TESTS)
 	@echo "=== All tests passed ==="
 
 clean:
-	rm -f $(TESTS)
+	rm -rf $(BUILD)
 	rm -rf $(UNITY_DIR)
