@@ -6,6 +6,10 @@ class DashboardViewModel: ObservableObject {
     @Published var isLoading = true
     @Published var isBleConnected = false
 
+    var solarData: SolarData? {
+        ble.solarData
+    }
+
     private let ble = BleManager.shared
     private let mockUseCase = MonitoringUseCase()
     private var cancellables = Set<AnyCancellable>()
