@@ -1,0 +1,17 @@
+menu "BMU BLE Victron (Instant Readout)"
+    config BMU_VICTRON_BLE_ENABLED
+        bool "Enable Victron BLE advertising"
+        default n
+        depends on BT_NIMBLE_ENABLED
+
+    config BMU_VICTRON_BLE_KEY
+        string "AES-128 encryption key (32 hex chars)"
+        default "00112233445566778899aabbccddeeff"
+        depends on BMU_VICTRON_BLE_ENABLED
+
+    config BMU_VICTRON_ADV_INTERVAL_MS
+        int "Advertising slot rotation interval (ms)"
+        default 500
+        range 200 2000
+        depends on BMU_VICTRON_BLE_ENABLED
+endmenu
