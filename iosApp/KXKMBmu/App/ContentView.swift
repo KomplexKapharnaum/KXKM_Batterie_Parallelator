@@ -21,6 +21,11 @@ struct ContentView: View {
                             Label("Batteries", systemImage: "bolt.fill")
                         }
 
+                    SolarView()
+                        .tabItem {
+                            Label("Solar", systemImage: "sun.max.fill")
+                        }
+
                     SystemView()
                         .environmentObject(systemVM)
                         .tabItem {
