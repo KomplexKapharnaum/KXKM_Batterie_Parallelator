@@ -54,8 +54,7 @@ static ble_uuid128_t s_config_chr_uuid   = BMU_BLE_UUID128_DECLARE(0x32, 0x00);
 static ble_uuid128_t s_status_chr_uuid   = BMU_BLE_UUID128_DECLARE(0x33, 0x00);
 static ble_uuid128_t s_wifi_cfg_chr_uuid = BMU_BLE_UUID128_DECLARE(0x34, 0x00);
 static ble_uuid128_t s_wifi_sts_chr_uuid = BMU_BLE_UUID128_DECLARE(0x35, 0x00);
-static const ble_uuid128_t chr_uuid_bat_label =
-    { BLE_UUID_TYPE_128, BMU_BLE_UUID128_DECLARE(0x36, 0x00) };
+static ble_uuid128_t s_bat_label_chr_uuid = BMU_BLE_UUID128_DECLARE(0x36, 0x00);
 
 static uint16_t s_wifi_sts_val_handle = 0;
 static esp_timer_handle_t s_wifi_notify_timer = NULL;
@@ -346,7 +345,7 @@ static struct ble_gatt_chr_def s_ctrl_chr_defs[] = {
     },
     /* Battery Label — write encrypted */
     {
-        .uuid       = &chr_uuid_bat_label.u,
+        .uuid       = &s_bat_label_chr_uuid.u,
         .access_cb  = control_chr_access_cb,
         .arg        = (void *)(intptr_t)CTRL_CHR_BAT_LABEL,
         .flags      = BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_WRITE_ENC,

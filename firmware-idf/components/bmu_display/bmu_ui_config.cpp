@@ -287,7 +287,7 @@ void bmu_ui_config_create(lv_obj_t *parent)
         const char *txt = lv_textarea_get_text(s_label_ta);
         if (txt && txt[0] != '\0') bmu_config_set_battery_label(s_label_edit_idx, txt);
         if (s_label_edit_idx > 0) s_label_edit_idx--;
-        char idx_buf[8];
+        char idx_buf[16];
         snprintf(idx_buf, sizeof(idx_buf), "B%d", s_label_edit_idx + 1);
         lv_label_set_text(s_label_idx_lbl, idx_buf);
         lv_textarea_set_text(s_label_ta, bmu_config_get_battery_label(s_label_edit_idx));
@@ -298,7 +298,7 @@ void bmu_ui_config_create(lv_obj_t *parent)
         const char *txt = lv_textarea_get_text(s_label_ta);
         if (txt && txt[0] != '\0') bmu_config_set_battery_label(s_label_edit_idx, txt);
         if (s_label_edit_idx < 15) s_label_edit_idx++;
-        char idx_buf[8];
+        char idx_buf[16];
         snprintf(idx_buf, sizeof(idx_buf), "B%d", s_label_edit_idx + 1);
         lv_label_set_text(s_label_idx_lbl, idx_buf);
         lv_textarea_set_text(s_label_ta, bmu_config_get_battery_label(s_label_edit_idx));
