@@ -18,6 +18,8 @@
 #include "esp_timer.h"
 #include "lvgl.h"
 
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include <cstring>
 
 static const char *TAG = "DISP";
@@ -181,6 +183,7 @@ esp_err_t bmu_display_init(bmu_display_ctx_t *ctx)
     }
 
     /* ── Creer le contenu de chaque ecran ─────────────────────────── */
+    /* Battery + SOH rows created lazily in update() — fast init */
     bmu_ui_main_set_nav_state(&s_nav);
     bmu_ui_detail_set_nav_state(&s_nav);
     bmu_ui_main_create(tab_batt, &s_ui_ctx);

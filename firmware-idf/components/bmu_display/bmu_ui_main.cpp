@@ -28,6 +28,8 @@ static lv_obj_t *s_bat_bars[16]    = {};
 static lv_obj_t *s_bat_vlabels[16] = {};
 static lv_obj_t *s_bat_ilabels[16] = {};
 static lv_obj_t *s_bat_borders[16] = {};
+static lv_obj_t *s_bat_list = NULL;
+static int s_bat_created = 0; /* number of rows already created */
 
 static lv_obj_t *s_grid_parent = NULL;
 static bmu_ui_ctx_t *s_ctx_ref = NULL;
@@ -203,19 +205,29 @@ void bmu_ui_main_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx)
 
     /* ── Liste batteries scrollable ─────────────────────────────────── */
 
-    lv_obj_t *list = lv_obj_create(parent);
-    lv_obj_set_size(list, 312, 160);
-    lv_obj_align(list, LV_ALIGN_TOP_MID, 0, 48);
-    lv_obj_set_flex_flow(list, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_bg_opa(list, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(list, 0, 0);
-    lv_obj_set_style_pad_row(list, 2, 0);
-    lv_obj_set_style_pad_all(list, 2, 0);
-    lv_obj_add_flag(list, LV_OBJ_FLAG_SCROLLABLE);
+    s_bat_list = lv_obj_create(parent);
+    lv_obj_set_size(s_bat_list, 312, 160);
+    lv_obj_align(s_bat_list, LV_ALIGN_TOP_MID, 0, 48);
+    lv_obj_set_flex_flow(s_bat_list, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_bg_opa(s_bat_list, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(s_bat_list, 0, 0);
+    lv_obj_set_style_pad_row(s_bat_list, 2, 0);
+    lv_obj_set_style_pad_all(s_bat_list, 2, 0);
+    lv_obj_add_flag(s_bat_list, LV_OBJ_FLAG_SCROLLABLE);
 
-    int nb = 16; /* Always create max widgets, hide unused in update */
-    for (int i = 0; i < nb; i++) {
-        lv_obj_t *row = lv_obj_create(list);
+    /* Battery rows created lazily in update() when nb_ina is known */
+    s_bat_created = 0;
+}
+
+/* ── Create battery rows on demand ────────────────────────────────── */
+
+static void ensure_battery_rows(int nb)
+{
+    if (nb <= s_bat_created) return;
+    if (nb > 16) nb = 16;
+
+    for (int i = s_bat_created; i < nb; i++) {
+        lv_obj_t *row = lv_obj_create(s_bat_list);
         lv_obj_set_size(row, 300, 18);
         lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
         lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
@@ -224,7 +236,6 @@ void bmu_ui_main_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx)
         lv_obj_set_style_pad_all(row, 0, 0);
         lv_obj_set_style_pad_column(row, 4, 0);
 
-        /* Bord gauche : indicateur couleur 3px */
         lv_obj_t *border = lv_obj_create(row);
         lv_obj_set_size(border, 3, 16);
         lv_obj_set_style_bg_color(border, UI_COLOR_TEXT_DIM, 0);
@@ -232,14 +243,12 @@ void bmu_ui_main_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx)
         lv_obj_set_style_radius(border, 0, 0);
         s_bat_borders[i] = border;
 
-        /* Nom batterie (depuis config) */
         lv_obj_t *name = lv_label_create(row);
         lv_label_set_text(name, bmu_config_get_battery_label(i));
         lv_obj_set_style_text_color(name, UI_COLOR_TEXT, 0);
         lv_obj_set_style_text_font(name, &lv_font_montserrat_14, 0);
         lv_obj_set_width(name, 48);
 
-        /* Barre de progression tension */
         lv_obj_t *bar = lv_bar_create(row);
         lv_obj_set_size(bar, 136, 12);
         lv_bar_set_range(bar, 0, 100);
@@ -248,7 +257,6 @@ void bmu_ui_main_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx)
         lv_obj_set_style_bg_color(bar, UI_COLOR_OK, LV_PART_INDICATOR);
         s_bat_bars[i] = bar;
 
-        /* Label tension */
         lv_obj_t *vlbl = lv_label_create(row);
         lv_label_set_text(vlbl, "--.-V");
         lv_obj_set_style_text_color(vlbl, UI_COLOR_TEXT, 0);
@@ -256,7 +264,6 @@ void bmu_ui_main_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx)
         lv_obj_set_width(vlbl, 48);
         s_bat_vlabels[i] = vlbl;
 
-        /* Label courant */
         lv_obj_t *ilbl = lv_label_create(row);
         lv_label_set_text(ilbl, "-.-A");
         lv_obj_set_style_text_color(ilbl, UI_COLOR_TEXT_SEC, 0);
@@ -264,12 +271,11 @@ void bmu_ui_main_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx)
         lv_obj_set_width(ilbl, 40);
         s_bat_ilabels[i] = ilbl;
 
-        /* Ligne cliquable */
         lv_obj_add_flag(row, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_add_event_cb(row, cell_clicked_cb, LV_EVENT_CLICKED, (void *)(intptr_t)i);
         s_bat_rows[i] = row;
-        lv_obj_add_flag(row, LV_OBJ_FLAG_HIDDEN); /* shown by update() when nb_ina known */
     }
+    s_bat_created = nb;
 }
 
 void bmu_ui_main_update(bmu_ui_ctx_t *ctx)
@@ -282,15 +288,8 @@ void bmu_ui_main_update(bmu_ui_ctx_t *ctx)
 
     int nb = ctx->nb_ina > 16 ? 16 : ctx->nb_ina;
 
-    /* Show/hide battery rows based on actual nb_ina */
-    for (int i = 0; i < 16; i++) {
-        if (s_bat_rows[i] == NULL) continue;
-        if (i < nb) {
-            lv_obj_clear_flag(s_bat_rows[i], LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_add_flag(s_bat_rows[i], LV_OBJ_FLAG_HIDDEN);
-        }
-    }
+    /* Create battery rows lazily when nb_ina becomes known */
+    ensure_battery_rows(nb);
 
     float sum_v = 0, sum_i = 0, sum_ah_c = 0, sum_ah_d = 0;
     int n_active = 0;
