@@ -8,7 +8,7 @@ UNITY_SRC = $(UNITY_DIR)/unity.c
 UNITY_INC = -I$(UNITY_DIR)
 BUILD     = build
 
-TESTS = test_protection test_vrm_topics test_ble_victron test_config_labels test_vedirect_parser
+TESTS = test_protection test_vrm_topics test_ble_victron test_config_labels test_vedirect_parser test_i2c_bitbang
 BINS  = $(addprefix $(BUILD)/,$(TESTS))
 
 .PHONY: all clean download_unity run
