@@ -45,8 +45,8 @@ struct ContentView: View {
             } else {
                 DeviceSelectorView()
             }
-            .tint(.green)
         }
+        .tint(.green)
         .preferredColorScheme(.dark)
     }
 }

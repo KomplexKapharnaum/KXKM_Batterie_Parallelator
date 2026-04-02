@@ -46,4 +46,13 @@ class DashboardViewModel: ObservableObject {
         // Start BLE scan
         ble.startScan()
     }
+
+    /// Pull-to-refresh: restart BLE scan to get fresh data
+    func refresh() async {
+        await MainActor.run { isLoading = true }
+        ble.startScan()
+        // Allow a brief scan window before resolving
+        try? await Task.sleep(nanoseconds: 2_000_000_000)
+        await MainActor.run { isLoading = false }
+    }
 }
