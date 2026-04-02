@@ -232,7 +232,7 @@ void bmu_ui_soh_update(bmu_ui_ctx_t *ctx)
             int   mean_i   = (int)(mean_pct + 0.5f);
             if (mean_i > 100) mean_i = 100;
 
-            char buf[8];
+            char buf[16];
             snprintf(buf, sizeof(buf), "%d%%", mean_i);
             lv_label_set_text(s_soh_mean_label, buf);
             lv_bar_set_value(s_soh_mean_bar, mean_i, LV_ANIM_OFF);

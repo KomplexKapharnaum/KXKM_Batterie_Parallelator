@@ -342,7 +342,7 @@ void bmu_ui_system_update(bmu_ui_ctx_t *ctx)
         uint32_t m       = (secs % 3600) / 60;
         int nb_ina = ctx ? (int)ctx->nb_ina : 0;
 
-        snprintf(buf, sizeof(buf), "v%s  %lukB  %luh%02lum  %dINA",
+        snprintf(buf, sizeof(buf), "v%.8s %lukB %luh%02lum %dI",
                  desc->version,
                  (unsigned long)heap_kb,
                  (unsigned long)h,

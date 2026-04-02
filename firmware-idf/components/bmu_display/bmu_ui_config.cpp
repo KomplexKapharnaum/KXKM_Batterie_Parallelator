@@ -199,7 +199,7 @@ void bmu_ui_config_create(lv_obj_t *parent)
     lv_label_set_text(ble_lbl, "BLE");
     lv_obj_set_style_text_color(ble_lbl, UI_COLOR_TEXT_SEC, 0);
     s_ble_sw = lv_switch_create(ble_row);
-    lv_obj_set_style_bg_color(s_ble_sw, UI_COLOR_OK, LV_PART_INDICATOR | LV_STATE_CHECKED);
+    lv_obj_set_style_bg_color(s_ble_sw, UI_COLOR_OK, (lv_style_selector_t)LV_PART_INDICATOR | (lv_style_selector_t)LV_STATE_CHECKED);
     lv_obj_add_state(s_ble_sw, LV_STATE_CHECKED); /* BLE activé par défaut */
 
     /* Ligne luminosité */
