@@ -1,0 +1,9 @@
+# Host test binaries
+test_protection
+test_vrm_topics
+test_ble_victron
+test_config_labels
+test_vedirect_parser
+
+# Unity downloaded sources
+unity/
