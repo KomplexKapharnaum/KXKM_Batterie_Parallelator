@@ -56,9 +56,8 @@ Hard validation: `Nb_TCA * 4 == Nb_INA`. Mismatch → fail-safe (all batteries O
 Current: single bus I2C_NUM_1 (GPIO40/41 DOCK), 16 bat max.
 Planned: TCA9548A mux on DOCK bus, 32+ batteries.
 Each mux channel repeats INA237+TCA9535 address space.
-INA237 ALERT pins wire-OR on GPIO38 (ISR, <1ms).
+Bit-bang I2C alert bus on GPIO38/39 (50kHz, 100ms poll).
 VE.Direct on GPIO21 RX-only (TEXT protocol is TX→RX).
-GPIO39 libre pour usage futur.
 
 ### Thread Safety
 - `I2CLockGuard` wraps all I2C operations (INAHandler, TCAHandler, WebServerHandler)
