@@ -151,6 +151,27 @@ esp_err_t bmu_tca9535_read_alert(bmu_tca9535_handle_t *handle,
  */
 esp_err_t bmu_tca9535_all_off(bmu_tca9535_handle_t *handle);
 
+/* ── Bit-bang bus variants ────────────────────────────────────────── */
+#ifdef CONFIG_BMU_I2C_BB_ENABLED
+#include "bmu_i2c_bitbang.h"
+
+typedef struct {
+    bmu_i2c_bb_handle_t bb;
+    uint8_t             addr;
+    uint8_t             out_p0;
+    uint8_t             out_p1;
+} bmu_tca9535_bb_handle_t;
+
+esp_err_t bmu_tca9535_bb_scan_init(bmu_i2c_bb_handle_t bb,
+                                    bmu_tca9535_bb_handle_t *handles,
+                                    uint8_t max_devices, uint8_t *found);
+esp_err_t bmu_tca9535_bb_switch_battery(bmu_tca9535_bb_handle_t *h,
+                                         uint8_t channel, bool on);
+esp_err_t bmu_tca9535_bb_set_led(bmu_tca9535_bb_handle_t *h,
+                                  uint8_t channel, bool red, bool green);
+esp_err_t bmu_tca9535_bb_all_off(bmu_tca9535_bb_handle_t *h);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

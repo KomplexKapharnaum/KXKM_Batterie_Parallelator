@@ -146,6 +146,29 @@ esp_err_t bmu_ina237_scan_init(i2c_master_bus_handle_t bus,
                                uint32_t r_shunt_uohm, float max_current_a,
                                bmu_ina237_t devices[], uint8_t *count);
 
+/* ── Bit-bang bus variants ────────────────────────────────────────── */
+#ifdef CONFIG_BMU_I2C_BB_ENABLED
+#include "bmu_i2c_bitbang.h"
+
+typedef struct {
+    bmu_i2c_bb_handle_t bb;
+    uint8_t             addr;
+    float               current_lsb;
+    bool                ready;
+} bmu_ina237_bb_t;
+
+esp_err_t bmu_ina237_bb_init(bmu_i2c_bb_handle_t bb, uint8_t addr,
+                              uint32_t r_shunt_uohm, float max_current_a,
+                              bmu_ina237_bb_t *ctx);
+esp_err_t bmu_ina237_bb_read_bus_voltage(const bmu_ina237_bb_t *ctx, float *voltage_mv);
+esp_err_t bmu_ina237_bb_read_current(const bmu_ina237_bb_t *ctx, float *current_a);
+esp_err_t bmu_ina237_bb_read_voltage_current(const bmu_ina237_bb_t *ctx,
+                                              float *voltage_mv, float *current_a);
+esp_err_t bmu_ina237_bb_scan_init(bmu_i2c_bb_handle_t bb,
+                                   uint32_t r_shunt_uohm, float max_current_a,
+                                   bmu_ina237_bb_t devices[], uint8_t *count);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

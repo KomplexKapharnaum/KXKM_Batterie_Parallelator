@@ -328,3 +328,80 @@ esp_err_t bmu_ina237_scan_init(i2c_master_bus_handle_t bus,
     ESP_LOGI(TAG, "Scan termine: %u INA237 initialise(s)", (unsigned)*count);
     return (*count > 0) ? ESP_OK : ESP_ERR_NOT_FOUND;
 }
+
+/* ── Variantes bit-bang ───────────────────────────────────────────────────── */
+
+#if CONFIG_BMU_I2C_BB_ENABLED
+
+esp_err_t bmu_ina237_bb_init(bmu_i2c_bb_handle_t bb, uint8_t addr,
+                              uint32_t r_shunt_uohm, float max_current_a,
+                              bmu_ina237_bb_t *ctx)
+{
+    ctx->bb = bb;
+    ctx->addr = addr;
+    ctx->ready = false;
+
+    uint16_t mfr = 0;
+    esp_err_t ret = bmu_i2c_bb_read_reg16(bb, addr, INA237_REG_MANUFACTURER_ID, &mfr);
+    if (ret != ESP_OK || mfr != INA237_MANUFACTURER_ID) {
+        ESP_LOGW(TAG, "[0x%02X] BB not INA237 (MFR=0x%04X)", addr, mfr);
+        return ESP_ERR_NOT_FOUND;
+    }
+
+    bmu_i2c_bb_write_reg16(bb, addr, INA237_REG_CONFIG, INA237_CONFIG_RST);
+    vTaskDelay(pdMS_TO_TICKS(2));
+
+    ctx->current_lsb = max_current_a / 32768.0f;
+    float shunt_cal = 819.2e6f * ctx->current_lsb * (float)r_shunt_uohm / 1e6f;
+    uint16_t cal_reg = (uint16_t)(shunt_cal + 0.5f);
+    bmu_i2c_bb_write_reg16(bb, addr, INA237_REG_SHUNT_CAL, cal_reg);
+    bmu_i2c_bb_write_reg16(bb, addr, INA237_REG_ADC_CONFIG, INA237_ADC_CONFIG_BMU);
+
+    ctx->ready = true;
+    ESP_LOGI(TAG, "[0x%02X] BB INA237 init OK", addr);
+    return ESP_OK;
+}
+
+esp_err_t bmu_ina237_bb_read_bus_voltage(const bmu_ina237_bb_t *ctx, float *voltage_mv)
+{
+    if (!ctx->ready) return ESP_ERR_INVALID_STATE;
+    uint16_t raw;
+    esp_err_t ret = bmu_i2c_bb_read_reg16(ctx->bb, ctx->addr, INA237_REG_VBUS, &raw);
+    if (ret == ESP_OK) *voltage_mv = (float)(int16_t)raw * (float)INA237_VBUS_LSB_UV / 1000.0f;
+    return ret;
+}
+
+esp_err_t bmu_ina237_bb_read_current(const bmu_ina237_bb_t *ctx, float *current_a)
+{
+    if (!ctx->ready) return ESP_ERR_INVALID_STATE;
+    uint16_t raw;
+    esp_err_t ret = bmu_i2c_bb_read_reg16(ctx->bb, ctx->addr, INA237_REG_CURRENT, &raw);
+    if (ret == ESP_OK) *current_a = (float)(int16_t)raw * ctx->current_lsb;
+    return ret;
+}
+
+esp_err_t bmu_ina237_bb_read_voltage_current(const bmu_ina237_bb_t *ctx,
+                                              float *voltage_mv, float *current_a)
+{
+    esp_err_t ret = bmu_ina237_bb_read_bus_voltage(ctx, voltage_mv);
+    if (ret != ESP_OK) return ret;
+    return bmu_ina237_bb_read_current(ctx, current_a);
+}
+
+esp_err_t bmu_ina237_bb_scan_init(bmu_i2c_bb_handle_t bb,
+                                   uint32_t r_shunt_uohm, float max_current_a,
+                                   bmu_ina237_bb_t devices[], uint8_t *count)
+{
+    *count = 0;
+    ESP_LOGI(TAG, "BB scan INA237 (0x%02X-0x%02X)...", INA237_ADDR_MIN, INA237_ADDR_MAX);
+    for (uint8_t addr = INA237_ADDR_MIN; addr <= INA237_ADDR_MAX; addr++) {
+        if (!bmu_i2c_bb_probe(bb, addr)) continue;
+        if (*count >= INA237_MAX_DEVICES) break;
+        if (bmu_ina237_bb_init(bb, addr, r_shunt_uohm, max_current_a, &devices[*count]) == ESP_OK)
+            (*count)++;
+    }
+    ESP_LOGI(TAG, "BB scan: %d INA237", *count);
+    return (*count > 0) ? ESP_OK : ESP_ERR_NOT_FOUND;
+}
+
+#endif /* CONFIG_BMU_I2C_BB_ENABLED */

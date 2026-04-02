@@ -328,3 +328,70 @@ esp_err_t bmu_tca9535_all_off(bmu_tca9535_handle_t *handle)
     }
     return ret;
 }
+
+/* ── Variantes bit-bang ───────────────────────────────────────────────────── */
+
+#if CONFIG_BMU_I2C_BB_ENABLED
+
+static esp_err_t tca_bb_init_one(bmu_i2c_bb_handle_t bb, uint8_t addr,
+                                  bmu_tca9535_bb_handle_t *h)
+{
+    h->bb = bb;
+    h->addr = addr;
+    h->out_p0 = 0x00;
+    h->out_p1 = 0x00;
+    esp_err_t ret;
+    ret = bmu_i2c_bb_write_reg16(bb, addr, TCA9535_REG_CONFIG_PORT0,
+                                  ((uint16_t)BMU_TCA_CONFIG_PORT1 << 8) | BMU_TCA_CONFIG_PORT0);
+    if (ret != ESP_OK) return ret;
+    ret = bmu_i2c_bb_write_reg16(bb, addr, TCA9535_REG_OUTPUT_PORT0, 0x0000);
+    ESP_LOGI("TCA_BB", "[0x%02X] BB TCA9535 init OK", addr);
+    return ret;
+}
+
+esp_err_t bmu_tca9535_bb_scan_init(bmu_i2c_bb_handle_t bb,
+                                    bmu_tca9535_bb_handle_t *handles,
+                                    uint8_t max_devices, uint8_t *found)
+{
+    *found = 0;
+    for (uint8_t addr = TCA9535_BASE_ADDR; addr < TCA9535_BASE_ADDR + TCA9535_MAX_DEVICES; addr++) {
+        if (*found >= max_devices) break;
+        if (!bmu_i2c_bb_probe(bb, addr)) continue;
+        if (tca_bb_init_one(bb, addr, &handles[*found]) == ESP_OK)
+            (*found)++;
+    }
+    ESP_LOGI("TCA_BB", "BB scan: %d TCA9535", *found);
+    return (*found > 0) ? ESP_OK : ESP_ERR_NOT_FOUND;
+}
+
+esp_err_t bmu_tca9535_bb_switch_battery(bmu_tca9535_bb_handle_t *h,
+                                         uint8_t channel, bool on)
+{
+    if (channel > 3) return ESP_ERR_INVALID_ARG;
+    uint8_t bit = 3 - channel; /* mapping inverse PCB */
+    if (on) h->out_p0 |= (1 << bit); else h->out_p0 &= ~(1 << bit);
+    uint8_t buf[2] = { TCA9535_REG_OUTPUT_PORT0, h->out_p0 };
+    return bmu_i2c_bb_write(h->bb, h->addr, buf, 2);
+}
+
+esp_err_t bmu_tca9535_bb_set_led(bmu_tca9535_bb_handle_t *h,
+                                  uint8_t channel, bool red, bool green)
+{
+    if (channel > 3) return ESP_ERR_INVALID_ARG;
+    uint8_t r_bit = channel * 2;
+    uint8_t g_bit = channel * 2 + 1;
+    if (red)   h->out_p1 |= (1 << r_bit);  else h->out_p1 &= ~(1 << r_bit);
+    if (green) h->out_p1 |= (1 << g_bit);  else h->out_p1 &= ~(1 << g_bit);
+    uint8_t buf[2] = { TCA9535_REG_OUTPUT_PORT1, h->out_p1 };
+    return bmu_i2c_bb_write(h->bb, h->addr, buf, 2);
+}
+
+esp_err_t bmu_tca9535_bb_all_off(bmu_tca9535_bb_handle_t *h)
+{
+    h->out_p0 = 0;
+    h->out_p1 = 0;
+    bmu_i2c_bb_write_reg16(h->bb, h->addr, TCA9535_REG_OUTPUT_PORT0, 0x0000);
+    return ESP_OK;
+}
+
+#endif /* CONFIG_BMU_I2C_BB_ENABLED */
