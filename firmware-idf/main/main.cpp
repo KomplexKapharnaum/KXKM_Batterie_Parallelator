@@ -23,6 +23,7 @@
 #include "bmu_vedirect.h"
 #include "bmu_climate.h"
 #include "bmu_ota.h"
+#include "bmu_vrm.h"
 // #include "bmu_soh.h"  // Disabled — TFLite build issues
 #ifdef CONFIG_BMU_BLE_ENABLED
 #include "bmu_ble.h"
@@ -279,6 +280,9 @@ extern "C" void app_main(void)
         cloud_ctx.mgr = &mgr;
         cloud_ctx.nb_ina = nb_ina;
         xTaskCreate(cloud_telemetry_task, "cloud", 4096, &cloud_ctx, 2, NULL);
+
+        /* VRM — publish to Victron cloud */
+        bmu_vrm_init(&prot, &mgr, nb_ina);
     }
 
     /* ── 11. Web server ────────────────────────────────────────────── */
