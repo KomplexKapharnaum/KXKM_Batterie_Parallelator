@@ -24,6 +24,7 @@
 #include "bmu_climate.h"
 #include "bmu_ota.h"
 #include "bmu_vrm.h"
+#include "bmu_i2c_bitbang.h"
 // #include "bmu_soh.h"  // Disabled — TFLite build issues
 #ifdef CONFIG_BMU_BLE_ENABLED
 #include "bmu_ble.h"
@@ -261,6 +262,53 @@ extern "C" void app_main(void)
         }
     }
 
+    /* ── 8b. I2C Bus 2 — bit-bang (batteries 17-32) ──────────────────── */
+#if CONFIG_BMU_I2C_BB_ENABLED
+    static bmu_ina237_bb_t ina_bb[INA237_MAX_DEVICES] = {};
+    uint8_t nb_ina_bb = 0;
+    static bmu_tca9535_bb_handle_t tca_bb[TCA9535_MAX_DEVICES] = {};
+    uint8_t nb_tca_bb = 0;
+
+    {
+        bmu_i2c_bb_config_t bb_cfg = {
+            .sda_gpio = CONFIG_BMU_I2C_BB_SDA_GPIO,
+            .scl_gpio = CONFIG_BMU_I2C_BB_SCL_GPIO,
+            .freq_hz = CONFIG_BMU_I2C_BB_FREQ_HZ,
+        };
+        bmu_i2c_bb_handle_t bb_bus = NULL;
+        if (bmu_i2c_bb_init(&bb_cfg, &bb_bus) == ESP_OK) {
+            ESP_LOGI(TAG, "I2C bus 2 (bit-bang) OK");
+
+            bmu_ina237_bb_scan_init(bb_bus, 2000, 10.0f, ina_bb, &nb_ina_bb);
+            ESP_LOGI(TAG, "Bus 2 INA237: %d", nb_ina_bb);
+
+            vTaskDelay(pdMS_TO_TICKS(10));
+
+            bmu_tca9535_bb_scan_init(bb_bus, tca_bb, TCA9535_MAX_DEVICES, &nb_tca_bb);
+            ESP_LOGI(TAG, "Bus 2 TCA9535: %d", nb_tca_bb);
+        } else {
+            ESP_LOGW(TAG, "I2C bus 2 init failed — single bus mode");
+        }
+    }
+
+    /* Update topology for dual bus */
+    {
+        bool bus1_ok = (nb_ina == 0 && nb_tca == 0) || (nb_tca * 4 == nb_ina);
+        bool bus2_ok = (nb_ina_bb == 0 && nb_tca_bb == 0) || (nb_tca_bb * 4 == nb_ina_bb);
+        topology_ok = bus1_ok && bus2_ok;
+        if (!topology_ok) {
+            ESP_LOGW(TAG, "TOPOLOGY: bus1(%d TCA * 4 != %d INA) bus2(%d TCA * 4 != %d INA)",
+                     nb_tca, nb_ina, nb_tca_bb, nb_ina_bb);
+        }
+    }
+
+    uint8_t total_ina = nb_ina + nb_ina_bb;
+    ESP_LOGI(TAG, "Total batteries: %d (%d + %d)", total_ina, nb_ina, nb_ina_bb);
+#else
+    uint8_t nb_ina_bb = 0;
+    uint8_t total_ina = nb_ina;
+#endif
+
     /* ── 9. Protection + Battery Manager ───────────────────────────── */
     ESP_ERROR_CHECK(bmu_protection_init(&prot, ina, nb_ina, tca, nb_tca));
     bmu_battery_manager_init(&mgr, ina, nb_ina);
@@ -271,7 +319,7 @@ extern "C" void app_main(void)
     /* SOH predictor disabled — TFLite build issues */
 
     /* Update display context avec nb_ina reel */
-    disp_ctx.nb_ina = nb_ina;
+    disp_ctx.nb_ina = total_ina;
 
     /* ── 9b. BLE Victron (si enabled) ──────────────────────────────── */
 #ifdef CONFIG_BMU_VICTRON_BLE_ENABLED
