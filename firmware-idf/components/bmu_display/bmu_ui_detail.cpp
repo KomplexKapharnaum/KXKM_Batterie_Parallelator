@@ -166,10 +166,8 @@ void bmu_ui_detail_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx, int idx)
     lv_obj_center(btn_lbl);
     lv_obj_add_event_cb(btn_back, back_btn_cb, LV_EVENT_CLICKED, NULL);
 
-    char title[16];
-    snprintf(title, sizeof(title), "BAT %d", idx + 1);
     lv_obj_t *tlbl = lv_label_create(s_panel);
-    lv_label_set_text(tlbl, title);
+    lv_label_set_text(tlbl, bmu_config_get_battery_label(idx));
     lv_obj_set_style_text_color(tlbl, UI_COLOR_INFO, 0);
     lv_obj_set_style_text_font(tlbl, &lv_font_montserrat_14, 0);
     lv_obj_align(tlbl, LV_ALIGN_TOP_MID, 0, 2);

@@ -285,3 +285,90 @@ const char *bmu_config_get_mqtt_uri(void)
 {
     return s_mqtt_uri;
 }
+
+/* ── Battery labels (file-backed, /fatfs/batteries.cfg) ───────────── */
+
+#define BAT_LABEL_PATH "/fatfs/batteries.cfg"
+
+static char s_bat_labels[BMU_MAX_BATTERIES][BMU_CONFIG_BATLABEL_MAX];
+
+/**
+ * File format: one label per line, line N = battery N (0-indexed).
+ * Example:
+ *   Tender
+ *   LED1
+ *   LED2
+ *   Cabine
+ * Lines beyond BMU_MAX_BATTERIES are ignored.
+ * Empty/missing file → defaults "B1".."B16".
+ */
+esp_err_t bmu_config_load_battery_labels(void)
+{
+    /* Defaults */
+    for (int i = 0; i < BMU_MAX_BATTERIES; i++) {
+        snprintf(s_bat_labels[i], BMU_CONFIG_BATLABEL_MAX, "B%d", i + 1);
+    }
+
+    FILE *f = fopen(BAT_LABEL_PATH, "r");
+    if (f == nullptr) {
+        ESP_LOGI(TAG, "Pas de %s — labels par defaut B1..B16", BAT_LABEL_PATH);
+        return ESP_ERR_NOT_FOUND;
+    }
+
+    char line[64];
+    int idx = 0;
+    while (idx < BMU_MAX_BATTERIES && fgets(line, sizeof(line), f) != nullptr) {
+        /* Strip newline */
+        size_t len = strlen(line);
+        while (len > 0 && (line[len - 1] == '\n' || line[len - 1] == '\r')) {
+            line[--len] = '\0';
+        }
+        if (len == 0) { idx++; continue; } /* empty line = keep default */
+        strncpy(s_bat_labels[idx], line, BMU_CONFIG_BATLABEL_MAX - 1);
+        s_bat_labels[idx][BMU_CONFIG_BATLABEL_MAX - 1] = '\0';
+        idx++;
+    }
+    fclose(f);
+
+    ESP_LOGI(TAG, "Labels batteries charges depuis %s (%d lignes)", BAT_LABEL_PATH, idx);
+    for (int i = 0; i < BMU_MAX_BATTERIES; i++) {
+        if (s_bat_labels[i][0] != '\0') {
+            ESP_LOGD(TAG, "  BAT%d = '%s'", i, s_bat_labels[i]);
+        }
+    }
+    return ESP_OK;
+}
+
+esp_err_t bmu_config_save_battery_labels(void)
+{
+    FILE *f = fopen(BAT_LABEL_PATH, "w");
+    if (f == nullptr) {
+        ESP_LOGW(TAG, "Impossible d'ecrire %s", BAT_LABEL_PATH);
+        return ESP_FAIL;
+    }
+
+    for (int i = 0; i < BMU_MAX_BATTERIES; i++) {
+        fprintf(f, "%s\n", s_bat_labels[i]);
+    }
+    fclose(f);
+
+    ESP_LOGI(TAG, "Labels batteries sauvegardes dans %s", BAT_LABEL_PATH);
+    return ESP_OK;
+}
+
+esp_err_t bmu_config_set_battery_label(int idx, const char *label)
+{
+    if (idx < 0 || idx >= BMU_MAX_BATTERIES) return ESP_ERR_INVALID_ARG;
+    if (label == nullptr || label[0] == '\0') return ESP_ERR_INVALID_ARG;
+
+    strncpy(s_bat_labels[idx], label, BMU_CONFIG_BATLABEL_MAX - 1);
+    s_bat_labels[idx][BMU_CONFIG_BATLABEL_MAX - 1] = '\0';
+    ESP_LOGI(TAG, "Battery %d label → '%s'", idx, s_bat_labels[idx]);
+    return ESP_OK;
+}
+
+const char *bmu_config_get_battery_label(int idx)
+{
+    if (idx < 0 || idx >= BMU_MAX_BATTERIES) return "?";
+    return s_bat_labels[idx];
+}

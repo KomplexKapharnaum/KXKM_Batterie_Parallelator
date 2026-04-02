@@ -170,6 +170,39 @@ esp_err_t bmu_sd_read_last_lines(char *buf, size_t buf_size, int max_lines)
     return ESP_OK;
 }
 
+/* ── Internal FAT partition ──────────────────────────────────────────── */
+
+static const char *TAG_FAT = "FAT";
+static bool s_fat_mounted = false;
+static wl_handle_t s_wl_handle = WL_INVALID_HANDLE;
+
+esp_err_t bmu_fat_init(void)
+{
+    if (s_fat_mounted) return ESP_OK;
+
+    const esp_vfs_fat_mount_config_t mount_cfg = {
+        .format_if_mount_failed = true,
+        .max_files = 4,
+        .allocation_unit_size = CONFIG_WL_SECTOR_SIZE,
+    };
+
+    esp_err_t ret = esp_vfs_fat_spiflash_mount_rw_wl(
+        BMU_FAT_MOUNT, "fatfs", &mount_cfg, &s_wl_handle);
+    if (ret != ESP_OK) {
+        ESP_LOGW(TAG_FAT, "FAT mount failed: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    s_fat_mounted = true;
+    ESP_LOGI(TAG_FAT, "FAT interne montee sur %s", BMU_FAT_MOUNT);
+    return ESP_OK;
+}
+
+bool bmu_fat_is_mounted(void)
+{
+    return s_fat_mounted;
+}
+
 /* ── NVS ─────────────────────────────────────────────────────────────── */
 
 esp_err_t bmu_nvs_init(void)

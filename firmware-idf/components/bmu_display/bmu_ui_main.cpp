@@ -232,18 +232,16 @@ void bmu_ui_main_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx)
         lv_obj_set_style_radius(border, 0, 0);
         s_bat_borders[i] = border;
 
-        /* Nom batterie */
+        /* Nom batterie (depuis config) */
         lv_obj_t *name = lv_label_create(row);
-        char buf[8];
-        snprintf(buf, sizeof(buf), "B%d", i + 1);
-        lv_label_set_text(name, buf);
+        lv_label_set_text(name, bmu_config_get_battery_label(i));
         lv_obj_set_style_text_color(name, UI_COLOR_TEXT, 0);
         lv_obj_set_style_text_font(name, &lv_font_montserrat_14, 0);
-        lv_obj_set_width(name, 24);
+        lv_obj_set_width(name, 48);
 
         /* Barre de progression tension */
         lv_obj_t *bar = lv_bar_create(row);
-        lv_obj_set_size(bar, 160, 12);
+        lv_obj_set_size(bar, 136, 12);
         lv_bar_set_range(bar, 0, 100);
         lv_bar_set_value(bar, 0, LV_ANIM_OFF);
         lv_obj_set_style_bg_color(bar, UI_COLOR_CARD, LV_PART_MAIN);

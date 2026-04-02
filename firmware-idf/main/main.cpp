@@ -154,8 +154,10 @@ extern "C" void app_main(void)
 
     bmu_wifi_start();  /* lance la radio — BLE déjà init */
 
-    /* ── 5. SD card ────────────────────────────────────────────────── */
-    bmu_sd_init();
+    /* ── 5. Storage ──────────────────────────────────────────────────── */
+    bmu_fat_init();     /* internal FAT partition (config files, USB-editable) */
+    bmu_config_load_battery_labels();  /* /fatfs/batteries.cfg */
+    bmu_sd_init();      /* external SD card (CSV logging) */
 
     /* ── 6. SNTP ───────────────────────────────────────────────────── */
     if (bmu_wifi_is_connected()) {

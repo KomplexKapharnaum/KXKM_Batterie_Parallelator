@@ -20,6 +20,12 @@ bool bmu_sd_is_mounted(void);
 esp_err_t bmu_sd_log_line(const char *line);
 esp_err_t bmu_sd_read_last_lines(char *buf, size_t buf_size, int max_lines);
 
+/* ── Internal FAT partition (USB-accessible config) ──────────────────── */
+#define BMU_FAT_MOUNT   "/fatfs"
+
+esp_err_t bmu_fat_init(void);
+bool bmu_fat_is_mounted(void);
+
 /* ── NVS (credentials + config) ──────────────────────────────────────── */
 esp_err_t bmu_nvs_init(void);
 esp_err_t bmu_nvs_get_str(const char *key, char *buf, size_t len);

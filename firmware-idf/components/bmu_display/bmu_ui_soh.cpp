@@ -103,12 +103,10 @@ void bmu_ui_soh_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx)
         lv_obj_set_style_pad_all(row, 0, 0);
         lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
 
-        /* Etiquette "B1" */
+        /* Etiquette batterie (depuis config) */
         lv_obj_t *blbl = lv_label_create(row);
-        char bname[8];
-        snprintf(bname, sizeof(bname), "B%d", i + 1);
-        lv_label_set_text(blbl, bname);
-        lv_obj_set_width(blbl, 24);
+        lv_label_set_text(blbl, bmu_config_get_battery_label(i));
+        lv_obj_set_width(blbl, 48);
         lv_obj_set_style_text_color(blbl, UI_COLOR_TEXT_SEC, 0);
         lv_obj_set_style_text_font(blbl, &lv_font_montserrat_14, 0);
 
