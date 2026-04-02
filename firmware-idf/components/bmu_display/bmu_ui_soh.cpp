@@ -34,9 +34,7 @@ static lv_color_t soh_color(float soh_pct)
 
 void bmu_ui_soh_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx)
 {
-    s_nb = (ctx && ctx->nb_ina > 0)
-           ? (ctx->nb_ina <= 16 ? ctx->nb_ina : 16)
-           : 1;
+    s_nb = BMU_MAX_BATTERIES; /* Always create max, hide unused in update */
 
     lv_obj_set_style_bg_color(parent, UI_COLOR_BG, 0);
 
@@ -131,6 +129,8 @@ void bmu_ui_soh_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx)
         lv_obj_set_style_text_color(s_soh_warn_labels[i], lv_color_hex(0xFF3333), 0);
         lv_obj_set_style_text_font(s_soh_warn_labels[i], &lv_font_montserrat_14, 0);
         lv_obj_add_flag(s_soh_warn_labels[i], LV_OBJ_FLAG_HIDDEN);
+
+        lv_obj_add_flag(row, LV_OBJ_FLAG_HIDDEN); /* shown by update() when nb_ina known */
     }
 
     /* ── Légende ────────────────────────────────────────────────────── */
@@ -177,6 +177,17 @@ void bmu_ui_soh_update(bmu_ui_ctx_t *ctx)
 
     int nb = ctx->nb_ina <= 16 ? ctx->nb_ina : 16;
     if (nb == 0) nb = s_nb;
+
+    /* Show/hide SOH rows based on actual nb_ina */
+    for (int i = 0; i < BMU_MAX_BATTERIES; i++) {
+        if (s_soh_bars[i] == NULL) continue;
+        lv_obj_t *row = lv_obj_get_parent(s_soh_bars[i]);
+        if (i < nb) {
+            lv_obj_clear_flag(row, LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_obj_add_flag(row, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
 
     float sum   = 0.0f;
     int   valid = 0;

@@ -213,7 +213,7 @@ void bmu_ui_main_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx)
     lv_obj_set_style_pad_all(list, 2, 0);
     lv_obj_add_flag(list, LV_OBJ_FLAG_SCROLLABLE);
 
-    int nb = ctx->nb_ina > 16 ? 16 : ctx->nb_ina;
+    int nb = 16; /* Always create max widgets, hide unused in update */
     for (int i = 0; i < nb; i++) {
         lv_obj_t *row = lv_obj_create(list);
         lv_obj_set_size(row, 300, 18);
@@ -268,6 +268,7 @@ void bmu_ui_main_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx)
         lv_obj_add_flag(row, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_add_event_cb(row, cell_clicked_cb, LV_EVENT_CLICKED, (void *)(intptr_t)i);
         s_bat_rows[i] = row;
+        lv_obj_add_flag(row, LV_OBJ_FLAG_HIDDEN); /* shown by update() when nb_ina known */
     }
 }
 
@@ -280,6 +281,17 @@ void bmu_ui_main_update(bmu_ui_ctx_t *ctx)
     }
 
     int nb = ctx->nb_ina > 16 ? 16 : ctx->nb_ina;
+
+    /* Show/hide battery rows based on actual nb_ina */
+    for (int i = 0; i < 16; i++) {
+        if (s_bat_rows[i] == NULL) continue;
+        if (i < nb) {
+            lv_obj_clear_flag(s_bat_rows[i], LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_obj_add_flag(s_bat_rows[i], LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+
     float sum_v = 0, sum_i = 0, sum_ah_c = 0, sum_ah_d = 0;
     int n_active = 0;
 
