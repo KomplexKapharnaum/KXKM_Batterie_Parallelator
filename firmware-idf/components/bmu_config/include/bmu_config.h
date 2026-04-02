@@ -59,6 +59,22 @@ void      bmu_config_get_thresholds(uint16_t *min_mv, uint16_t *max_mv,
 esp_err_t   bmu_config_set_mqtt_uri(const char *uri);
 const char *bmu_config_get_mqtt_uri(void);
 
+/* ── VRM settings ─────────────────────────────────────────────────── */
+#define BMU_CONFIG_VRM_ID_MAX   20
+
+esp_err_t   bmu_config_set_vrm_portal_id(const char *id);
+const char *bmu_config_get_vrm_portal_id(void);
+esp_err_t   bmu_config_set_vrm_enabled(bool enabled);
+bool        bmu_config_get_vrm_enabled(void);
+
+/* ── BLE Victron settings ─────────────────────────────────────────── */
+#define BMU_CONFIG_BLE_KEY_MAX  33  /* 32 hex chars + NUL */
+
+esp_err_t   bmu_config_set_victron_ble_key(const char *hex_key);
+const char *bmu_config_get_victron_ble_key(void);
+esp_err_t   bmu_config_set_victron_ble_enabled(bool enabled);
+bool        bmu_config_get_victron_ble_enabled(void);
+
 /* ── Battery labels (file on /fatfs/batteries.cfg, USB-editable) ───── */
 #define BMU_CONFIG_BATLABEL_MAX  9  /* 8 chars + NUL */
 
