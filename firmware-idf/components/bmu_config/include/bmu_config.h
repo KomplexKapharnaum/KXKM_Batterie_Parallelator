@@ -19,7 +19,7 @@ extern "C" {
 #define BMU_OVERCURRENT_FACTOR  CONFIG_BMU_OVERCURRENT_FACTOR
 #define BMU_LOOP_PERIOD_MS      CONFIG_BMU_LOOP_PERIOD_MS
 
-#define BMU_MAX_BATTERIES       16
+#define BMU_MAX_BATTERIES       32
 #define BMU_MAX_TCA             8
 
 /* ── Limites buffers ───────────────────────────────────────────────── */

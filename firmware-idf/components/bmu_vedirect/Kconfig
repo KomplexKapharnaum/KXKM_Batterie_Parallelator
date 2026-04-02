@@ -8,11 +8,11 @@ menu "BMU VE.Direct (Victron)"
         depends on BMU_VEDIRECT_ENABLED
     config BMU_VEDIRECT_TX_GPIO
         int "TX GPIO (BMU to charger, -1 to disable)"
-        default 38
+        default -1
         depends on BMU_VEDIRECT_ENABLED
     config BMU_VEDIRECT_RX_GPIO
         int "RX GPIO (charger to BMU)"
-        default 39
+        default 21
         depends on BMU_VEDIRECT_ENABLED
     config BMU_VEDIRECT_BAUD
         int "Baud rate"
