@@ -59,12 +59,6 @@ void      bmu_config_get_thresholds(uint16_t *min_mv, uint16_t *max_mv,
 esp_err_t   bmu_config_set_mqtt_uri(const char *uri);
 const char *bmu_config_get_mqtt_uri(void);
 
-/* ── Battery labels ───────────────────────────────────────────────── */
-#define BMU_CONFIG_BATLABEL_MAX  9  /* 8 chars + NUL */
-
-esp_err_t   bmu_config_set_battery_label(int idx, const char *label);
-const char *bmu_config_get_battery_label(int idx);
-
 #ifdef __cplusplus
 }
 #endif

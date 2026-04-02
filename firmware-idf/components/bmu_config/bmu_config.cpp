@@ -39,7 +39,6 @@ static uint16_t s_v_max;
 static uint16_t s_i_max;
 static uint16_t s_v_diff;
 static bool     s_loaded = false;
-static char     s_bat_labels[BMU_MAX_BATTERIES][BMU_CONFIG_BATLABEL_MAX];
 
 /* ── Helpers NVS ───────────────────────────────────────────────────── */
 
@@ -129,11 +128,6 @@ esp_err_t bmu_config_load(void)
     s_i_max  = (uint16_t)CONFIG_BMU_MAX_CURRENT_MA;
     s_v_diff = (uint16_t)CONFIG_BMU_VOLTAGE_DIFF_MV;
 
-    /* Default battery labels */
-    for (int i = 0; i < BMU_MAX_BATTERIES; i++) {
-        snprintf(s_bat_labels[i], BMU_CONFIG_BATLABEL_MAX, "B%d", i + 1);
-    }
-
     /* Tenter de surcharger depuis NVS */
     nvs_handle_t h;
     esp_err_t ret = nvs_open(NVS_NS, NVS_READONLY, &h);
@@ -143,14 +137,6 @@ esp_err_t bmu_config_load(void)
         load_str(h, NVS_KEY_PASS, s_wifi_pass,    sizeof(s_wifi_pass),   CONFIG_BMU_WIFI_PASSWORD);
         load_str(h, NVS_KEY_MQTT, s_mqtt_uri,     sizeof(s_mqtt_uri),    CONFIG_BMU_MQTT_BROKER_URI);
         s_v_min  = load_u16(h, NVS_KEY_VMIN,  (uint16_t)CONFIG_BMU_MIN_VOLTAGE_MV);
-        /* Battery labels */
-        for (int i = 0; i < BMU_MAX_BATTERIES; i++) {
-            char key[12];
-            snprintf(key, sizeof(key), "bat_lbl_%d", i);
-            char def[BMU_CONFIG_BATLABEL_MAX];
-            snprintf(def, sizeof(def), "B%d", i + 1);
-            load_str(h, key, s_bat_labels[i], BMU_CONFIG_BATLABEL_MAX, def);
-        }
         s_v_max  = load_u16(h, NVS_KEY_VMAX,  (uint16_t)CONFIG_BMU_MAX_VOLTAGE_MV);
         s_i_max  = load_u16(h, NVS_KEY_IMAX,  (uint16_t)CONFIG_BMU_MAX_CURRENT_MA);
         s_v_diff = load_u16(h, NVS_KEY_VDIFF, (uint16_t)CONFIG_BMU_VOLTAGE_DIFF_MV);
@@ -298,28 +284,4 @@ esp_err_t bmu_config_set_mqtt_uri(const char *uri)
 const char *bmu_config_get_mqtt_uri(void)
 {
     return s_mqtt_uri;
-}
-
-/* ── API publique : battery labels ────────────────────────────────── */
-
-esp_err_t bmu_config_set_battery_label(int idx, const char *label)
-{
-    if (idx < 0 || idx >= BMU_MAX_BATTERIES) return ESP_ERR_INVALID_ARG;
-    if (label == nullptr || label[0] == '\0') return ESP_ERR_INVALID_ARG;
-
-    char key[12];
-    snprintf(key, sizeof(key), "bat_lbl_%d", idx);
-    esp_err_t ret = save_str(key, label);
-    if (ret == ESP_OK) {
-        strncpy(s_bat_labels[idx], label, BMU_CONFIG_BATLABEL_MAX - 1);
-        s_bat_labels[idx][BMU_CONFIG_BATLABEL_MAX - 1] = '\0';
-        ESP_LOGI(TAG, "Battery %d label → '%s'", idx, s_bat_labels[idx]);
-    }
-    return ret;
-}
-
-const char *bmu_config_get_battery_label(int idx)
-{
-    if (idx < 0 || idx >= BMU_MAX_BATTERIES) return "?";
-    return s_bat_labels[idx];
 }
