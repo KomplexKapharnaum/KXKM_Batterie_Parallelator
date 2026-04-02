@@ -54,6 +54,8 @@ static ble_uuid128_t s_config_chr_uuid   = BMU_BLE_UUID128_DECLARE(0x32, 0x00);
 static ble_uuid128_t s_status_chr_uuid   = BMU_BLE_UUID128_DECLARE(0x33, 0x00);
 static ble_uuid128_t s_wifi_cfg_chr_uuid = BMU_BLE_UUID128_DECLARE(0x34, 0x00);
 static ble_uuid128_t s_wifi_sts_chr_uuid = BMU_BLE_UUID128_DECLARE(0x35, 0x00);
+static const ble_uuid128_t chr_uuid_bat_label =
+    { BLE_UUID_TYPE_128, BMU_BLE_UUID128_DECLARE(0x36, 0x00) };
 
 static uint16_t s_wifi_sts_val_handle = 0;
 static esp_timer_handle_t s_wifi_notify_timer = NULL;
@@ -65,6 +67,7 @@ enum ctrl_chr_id {
     CTRL_CHR_STATUS,
     CTRL_CHR_WIFI_CONFIG,
     CTRL_CHR_WIFI_STATUS,
+    CTRL_CHR_BAT_LABEL,
 };
 
 /* ── Helper : lire le payload d'un write dans un buffer ──────────── */
@@ -266,6 +269,34 @@ static int control_chr_access_cb(uint16_t conn_handle, uint16_t attr_handle,
         return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
     }
 
+    case CTRL_CHR_BAT_LABEL: { /* BAT_LABEL — set battery label */
+        uint8_t label_buf[10];
+        uint16_t label_buf_len = 0;
+        if (read_write_payload(ctxt, label_buf, sizeof(label_buf), &label_buf_len) != 0
+            || label_buf_len < 2) {
+            ESP_LOGW(TAG, "BAT_LABEL: payload too short (%d)", label_buf_len);
+            return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+        }
+        uint8_t idx = label_buf[0];
+        if (idx >= BMU_MAX_BATTERIES) {
+            s_last_status = {4, idx, 1}; /* invalid idx */
+            notify_status();
+            return BLE_ATT_ERR_UNLIKELY;
+        }
+        char label[BMU_CONFIG_BATLABEL_MAX];
+        int label_len = (int)label_buf_len - 1;
+        if (label_len > (int)(BMU_CONFIG_BATLABEL_MAX - 1))
+            label_len = BMU_CONFIG_BATLABEL_MAX - 1;
+        memcpy(label, label_buf + 1, label_len);
+        label[label_len] = '\0';
+        bmu_config_set_battery_label(idx, label);
+        bmu_config_save_battery_labels();
+        ESP_LOGI(TAG, "BLE BAT_LABEL[%d] = '%s'", idx, label);
+        s_last_status = {4, idx, 0};
+        notify_status();
+        return 0;
+    }
+
     default:
         return BLE_ATT_ERR_UNLIKELY;
     }
@@ -312,6 +343,13 @@ static struct ble_gatt_chr_def s_ctrl_chr_defs[] = {
         .arg        = (void *)(intptr_t)CTRL_CHR_WIFI_STATUS,
         .flags      = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY,
         .val_handle = &s_wifi_sts_val_handle,
+    },
+    /* Battery Label — write encrypted */
+    {
+        .uuid       = &chr_uuid_bat_label.u,
+        .access_cb  = control_chr_access_cb,
+        .arg        = (void *)(intptr_t)CTRL_CHR_BAT_LABEL,
+        .flags      = BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_WRITE_ENC,
     },
     { 0 }, /* Terminateur */
 };
