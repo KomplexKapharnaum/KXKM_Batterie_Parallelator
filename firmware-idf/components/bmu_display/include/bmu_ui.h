@@ -40,7 +40,7 @@ typedef struct {
     bmu_protection_ctx_t           *prot;
     bmu_battery_manager_t          *mgr;
     uint8_t                         nb_ina;
-    bmu_chart_history_t             chart_hist[BMU_MAX_BATTERIES];
+    bmu_chart_history_t            *chart_hist; /* heap-allocated (PSRAM) */
 } bmu_ui_ctx_t;
 
 /* ── Navigation state (managed by bmu_display.cpp) ────────────────── */
