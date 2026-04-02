@@ -28,6 +28,9 @@
 #ifdef CONFIG_BMU_BLE_ENABLED
 #include "bmu_ble.h"
 #endif
+#ifdef CONFIG_BMU_VICTRON_BLE_ENABLED
+#include "bmu_ble_victron.h"
+#endif
 #include "esp_log.h"
 #include "esp_spiffs.h"
 #include "freertos/FreeRTOS.h"
@@ -268,6 +271,11 @@ extern "C" void app_main(void)
 
     /* Update display context avec nb_ina reel */
     disp_ctx.nb_ina = nb_ina;
+
+    /* ── 9b. BLE Victron (si enabled) ──────────────────────────────── */
+#ifdef CONFIG_BMU_VICTRON_BLE_ENABLED
+    bmu_ble_victron_init(&prot, &mgr, nb_ina);
+#endif
 
     /* ── 10. Cloud (si WiFi) ───────────────────────────────────────── */
     if (bmu_wifi_is_connected()) {
