@@ -203,6 +203,54 @@ bool bmu_fat_is_mounted(void)
     return s_fat_mounted;
 }
 
+/* ── TinyUSB MSC (USB mass storage for FAT partition) ────────────────── */
+
+#if CONFIG_BMU_USB_MSC_ENABLED
+
+#include "tinyusb.h"
+#include "tusb_msc_storage.h"
+
+static const char *TAG_USB = "USB_MSC";
+
+esp_err_t bmu_usb_msc_init(void)
+{
+    ESP_LOGI(TAG_USB, "Initializing TinyUSB MSC for FAT partition...");
+
+    /* Configure MSC storage on the wear-levelled FAT partition */
+    const tinyusb_msc_spiflash_config_t msc_cfg = {
+        .wl_handle = s_wl_handle,  /* from bmu_fat_init() */
+    };
+
+    esp_err_t ret = tinyusb_msc_storage_init_spiflash(&msc_cfg);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG_USB, "MSC storage init failed: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    /* TinyUSB driver config */
+    const tinyusb_config_t tusb_cfg = {
+        .device_descriptor = NULL,  /* use default */
+        .string_descriptor = NULL,
+        .external_phy = false,
+        .configuration_descriptor = NULL,
+    };
+
+    ret = tinyusb_driver_install(&tusb_cfg);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG_USB, "TinyUSB install failed: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    ESP_LOGI(TAG_USB, "USB Mass Storage active — FAT partition exposed");
+    return ESP_OK;
+}
+
+#else
+
+esp_err_t bmu_usb_msc_init(void) { return ESP_OK; }
+
+#endif
+
 /* ── NVS ─────────────────────────────────────────────────────────────── */
 
 esp_err_t bmu_nvs_init(void)

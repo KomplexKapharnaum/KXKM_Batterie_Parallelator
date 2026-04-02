@@ -1,0 +1,11 @@
+menu "BMU Storage"
+    config BMU_USB_MSC_ENABLED
+        bool "Enable USB Mass Storage (TinyUSB MSC)"
+        default n
+        help
+            Expose the internal FAT partition as a USB mass storage
+            device. Requires TinyUSB CDC for console (replaces
+            USB-Serial/JTAG). Allows editing batteries.cfg from PC.
+
+            WARNING: Changes USB console mode. Flash via UART if needed.
+endmenu

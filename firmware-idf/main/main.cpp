@@ -198,6 +198,7 @@ extern "C" void app_main(void)
 
     /* ── 5. Storage ──────────────────────────────────────────────────── */
     bmu_fat_init();     /* internal FAT partition (config files, USB-editable) */
+    bmu_usb_msc_init();   /* TinyUSB MSC (if enabled) */
     bmu_config_load_battery_labels();  /* /fatfs/batteries.cfg */
     bmu_sd_init();      /* external SD card (CSV logging) */
 
