@@ -1,0 +1,599 @@
+{
+  "id": 2,
+  "panels": [
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "bfhrzlhskqhoge"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "fillOpacity": 5,
+            "lineWidth": 1,
+            "spanNulls": true,
+            "thresholdsStyle": {
+              "mode": "area"
+            }
+          },
+          "max": 32,
+          "min": 20,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 24
+              },
+              {
+                "color": "green",
+                "value": 25
+              },
+              {
+                "color": "yellow",
+                "value": 29
+              },
+              {
+                "color": "red",
+                "value": 30
+              }
+            ]
+          },
+          "unit": "volt"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "right"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "bfhrzlhskqhoge"
+          },
+          "query": "from(bucket: \"bmu\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"battery_log\")\n  |> filter(fn: (r) => r._field == \"v_mv\")\n  |> filter(fn: (r) => r.bmu =~ /^${bmu:regex}$/)\n  |> map(fn: (r) => ({r with _value: r._value / 1000.0}))\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> keep(columns: [\"_time\", \"_value\", \"bmu\", \"battery_id\"])\n  |> map(fn: (r) => ({r with _field: r.bmu + \" bat\" + r.battery_id}))",
+          "refId": "A"
+        }
+      ],
+      "title": "Battery Voltages (V)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "bfhrzlhskqhoge"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "fillOpacity": 10,
+            "lineWidth": 1,
+            "spanNulls": true
+          },
+          "unit": "amp"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "right"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "bfhrzlhskqhoge"
+          },
+          "query": "from(bucket: \"bmu\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"battery_log\")\n  |> filter(fn: (r) => r._field == \"i_ma\")\n  |> filter(fn: (r) => r.bmu =~ /^${bmu:regex}$/)\n  |> map(fn: (r) => ({r with _value: r._value / 1000.0}))\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> keep(columns: [\"_time\", \"_value\", \"bmu\", \"battery_id\"])\n  |> map(fn: (r) => ({r with _field: r.bmu + \" bat\" + r.battery_id}))",
+          "refId": "A"
+        }
+      ],
+      "title": "Battery Currents (A)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "bfhrzlhskqhoge"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "fillOpacity": 15,
+            "gradientMode": "scheme",
+            "lineWidth": 2,
+            "spanNulls": true
+          },
+          "unit": "amp"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 10
+      },
+      "id": 3,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "bfhrzlhskqhoge"
+          },
+          "query": "from(bucket: \"bmu\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"battery_log_total\")\n  |> filter(fn: (r) => r._field == \"total_current\")\n  |> filter(fn: (r) => r.bmu =~ /^${bmu:regex}$/)\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> keep(columns: [\"_time\", \"_value\", \"bmu\"])\n  |> map(fn: (r) => ({r with _field: r.bmu + \" total\"}))",
+          "refId": "A"
+        }
+      ],
+      "title": "Total Current (A)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "bfhrzlhskqhoge"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed"
+          },
+          "custom": {
+            "fillOpacity": 80
+          },
+          "mappings": [
+            {
+              "options": {
+                "ON": {
+                  "color": "green",
+                  "index": 0,
+                  "text": "ON"
+                }
+              },
+              "type": "value"
+            },
+            {
+              "options": {
+                "OFF": {
+                  "color": "red",
+                  "index": 1,
+                  "text": "OFF"
+                }
+              },
+              "type": "value"
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 10
+      },
+      "id": 4,
+      "options": {
+        "alignValue": "center",
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "mergeValues": true,
+        "rowHeight": 0.8,
+        "showValue": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "bfhrzlhskqhoge"
+          },
+          "query": "from(bucket: \"bmu\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"battery_log\")\n  |> filter(fn: (r) => r._field == \"switch\")\n  |> filter(fn: (r) => r.bmu =~ /^${bmu:regex}$/)\n  |> keep(columns: [\"_time\", \"_value\", \"bmu\", \"battery_id\"])\n  |> map(fn: (r) => ({r with _field: r.bmu + \" bat\" + r.battery_id}))",
+          "refId": "A"
+        }
+      ],
+      "title": "Switch States",
+      "type": "state-timeline"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "bfhrzlhskqhoge"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "fillOpacity": 10,
+            "lineWidth": 1,
+            "spanNulls": true
+          },
+          "unit": "Ah"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 18
+      },
+      "id": 5,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "right"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "bfhrzlhskqhoge"
+          },
+          "query": "from(bucket: \"bmu\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"battery_log\")\n  |> filter(fn: (r) => r._field == \"ah_discharge\")\n  |> filter(fn: (r) => r.bmu =~ /^${bmu:regex}$/)\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> keep(columns: [\"_time\", \"_value\", \"bmu\", \"battery_id\"])\n  |> map(fn: (r) => ({r with _field: r.bmu + \" bat\" + r.battery_id}))",
+          "refId": "A"
+        }
+      ],
+      "title": "Ah Discharge per Battery",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "bfhrzlhskqhoge"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "fillOpacity": 15,
+            "gradientMode": "scheme",
+            "lineWidth": 2,
+            "spanNulls": true
+          },
+          "unit": "Ah"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 18
+      },
+      "id": 6,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "bfhrzlhskqhoge"
+          },
+          "query": "from(bucket: \"bmu\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"battery_log_total\")\n  |> filter(fn: (r) => r._field == \"total_consumption\")\n  |> filter(fn: (r) => r.bmu =~ /^${bmu:regex}$/)\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> keep(columns: [\"_time\", \"_value\", \"bmu\"])\n  |> map(fn: (r) => ({r with _field: r.bmu}))",
+          "refId": "A"
+        }
+      ],
+      "title": "Total Consumption (Ah)",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 26
+      },
+      "id": 10,
+      "title": "BMU Overview",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "bfhrzlhskqhoge"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 24
+              },
+              {
+                "color": "green",
+                "value": 25
+              },
+              {
+                "color": "yellow",
+                "value": 29
+              },
+              {
+                "color": "red",
+                "value": 30
+              }
+            ]
+          },
+          "unit": "volt"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 8,
+        "x": 0,
+        "y": 27
+      },
+      "id": 11,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "bfhrzlhskqhoge"
+          },
+          "query": "from(bucket: \"bmu\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"battery_log\")\n  |> filter(fn: (r) => r._field == \"v_mv\")\n  |> map(fn: (r) => ({r with _value: r._value / 1000.0}))\n  |> group(columns: [\"bmu\"])\n  |> last()\n  |> mean()\n  |> group()\n  |> keep(columns: [\"_value\", \"bmu\"])\n  |> rename(columns: {\"_value\": \"\"})",
+          "refId": "A"
+        }
+      ],
+      "title": "Avg Voltage (V)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "bfhrzlhskqhoge"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "decimals": 1,
+          "unit": "amp"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 8,
+        "x": 8,
+        "y": 27
+      },
+      "id": 12,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "bfhrzlhskqhoge"
+          },
+          "query": "from(bucket: \"bmu\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"battery_log_total\")\n  |> filter(fn: (r) => r._field == \"total_current\")\n  |> group(columns: [\"bmu\"])\n  |> last()\n  |> keep(columns: [\"_value\", \"bmu\"])\n  |> rename(columns: {\"_value\": \"\"})",
+          "refId": "A"
+        }
+      ],
+      "title": "Total Current (A)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "bfhrzlhskqhoge"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "decimals": 1,
+          "unit": "Ah"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 8,
+        "x": 16,
+        "y": 27
+      },
+      "id": 13,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "bfhrzlhskqhoge"
+          },
+          "query": "from(bucket: \"bmu\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"battery_log_total\")\n  |> filter(fn: (r) => r._field == \"total_consumption\")\n  |> group(columns: [\"bmu\"])\n  |> last()\n  |> keep(columns: [\"_value\", \"bmu\"])\n  |> rename(columns: {\"_value\": \"\"})",
+          "refId": "A"
+        }
+      ],
+      "title": "Total Consumption (Ah)",
+      "type": "stat"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": [
+    "bmu",
+    "kxkm",
+    "battery"
+  ],
+  "templating": {
+    "list": [
+      {
+        "allValue": "",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "All"
+        },
+        "includeAll": true,
+        "label": "BMU Device",
+        "multi": true,
+        "name": "bmu",
+        "options": [
+          {
+            "selected": true,
+            "text": "All",
+            "value": "$__all"
+          },
+          {
+            "selected": false,
+            "text": "gocab",
+            "value": "gocab"
+          },
+          {
+            "selected": false,
+            "text": "k-led1",
+            "value": "k-led1"
+          },
+          {
+            "selected": false,
+            "text": "k-led2",
+            "value": "k-led2"
+          },
+          {
+            "selected": false,
+            "text": "tender",
+            "value": "tender"
+          }
+        ],
+        "query": "All,gocab,k-led1,k-led2,tender,kryole",
+        "type": "custom"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "timezone": "browser",
+  "title": "BMU Fleet \u2014 Historical",
+  "uid": "ffhsvwfox29z4e",
+  "version": 2
+}
