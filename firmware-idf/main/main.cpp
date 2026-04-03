@@ -26,6 +26,7 @@
 #include "bmu_vrm.h"
 #include "bmu_i2c_bitbang.h"
 // #include "bmu_soh.h"  // Disabled — TFLite build issues
+#include "bmu_rint.h"
 #ifdef CONFIG_BMU_BLE_ENABLED
 #include "bmu_ble.h"
 #endif
@@ -201,7 +202,7 @@ extern "C" void app_main(void)
     bmu_fat_init();     /* internal FAT partition (config files, USB-editable) */
     bmu_usb_msc_init();   /* TinyUSB MSC (if enabled) */
     bmu_config_load_battery_labels();  /* /fatfs/batteries.cfg */
-    bmu_sd_init();      /* external SD card (CSV logging) */
+    /* SD externe montee a la demande pour garder un boot propre sans carte. */
 
     /* ── 6. SNTP ───────────────────────────────────────────────────── */
     if (bmu_wifi_is_connected()) {
@@ -318,8 +319,17 @@ extern "C" void app_main(void)
 
     /* SOH predictor disabled — TFLite build issues */
 
+#if CONFIG_BMU_RINT_ENABLED
+    bmu_rint_set_ctx(&prot);
+    bmu_rint_init();
+    if (nb_ina > 0) {
+        bmu_rint_start_periodic();
+    }
+#endif
+
     /* Update display context avec nb_ina reel */
     disp_ctx.nb_ina = total_ina;
+    bmu_display_request_update();
 
     /* ── 9b. BLE Victron (si enabled) ──────────────────────────────── */
 #ifdef CONFIG_BMU_VICTRON_BLE_ENABLED
