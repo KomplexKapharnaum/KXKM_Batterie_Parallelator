@@ -1,9 +1,9 @@
 /**
  * @file bmu_ble_battery_svc.cpp
- * @brief Service GATT Battery — 16 characteristics (READ + NOTIFY), timer 1s.
+ * @brief Service GATT Battery — 32 characteristics (READ + NOTIFY), timer 1s.
  *
  * Chaque batterie est encodee dans une struct packed de 15 octets (integer only).
- * UUIDs : Service 0x0001, Chars 0x0010..0x001F.
+ * UUIDs : Service 0x0001, Chars 0x0010..0x002F.
  */
 #include "sdkconfig.h"
 
@@ -130,7 +130,7 @@ void bmu_ble_battery_notify_stop(void)
 
 /* ── Definition du service GATT Battery ──────────────────────────── */
 
-/* UUIDs pour chaque characteristic batterie (0x0010..0x001F) */
+/* UUIDs pour chaque characteristic batterie (0x0010..0x002F) */
 static ble_uuid128_t s_bat_svc_uuid = BMU_BLE_UUID128_DECLARE(0x01, 0x00);
 
 static ble_uuid128_t s_bat_chr_uuids[BMU_MAX_BATTERIES] = {
@@ -150,6 +150,22 @@ static ble_uuid128_t s_bat_chr_uuids[BMU_MAX_BATTERIES] = {
     BMU_BLE_UUID128_DECLARE(0x1D, 0x00),
     BMU_BLE_UUID128_DECLARE(0x1E, 0x00),
     BMU_BLE_UUID128_DECLARE(0x1F, 0x00),
+    BMU_BLE_UUID128_DECLARE(0x20, 0x00),
+    BMU_BLE_UUID128_DECLARE(0x21, 0x00),
+    BMU_BLE_UUID128_DECLARE(0x22, 0x00),
+    BMU_BLE_UUID128_DECLARE(0x23, 0x00),
+    BMU_BLE_UUID128_DECLARE(0x24, 0x00),
+    BMU_BLE_UUID128_DECLARE(0x25, 0x00),
+    BMU_BLE_UUID128_DECLARE(0x26, 0x00),
+    BMU_BLE_UUID128_DECLARE(0x27, 0x00),
+    BMU_BLE_UUID128_DECLARE(0x28, 0x00),
+    BMU_BLE_UUID128_DECLARE(0x29, 0x00),
+    BMU_BLE_UUID128_DECLARE(0x2A, 0x00),
+    BMU_BLE_UUID128_DECLARE(0x2B, 0x00),
+    BMU_BLE_UUID128_DECLARE(0x2C, 0x00),
+    BMU_BLE_UUID128_DECLARE(0x2D, 0x00),
+    BMU_BLE_UUID128_DECLARE(0x2E, 0x00),
+    BMU_BLE_UUID128_DECLARE(0x2F, 0x00),
 };
 
 /* Tableau de characteristics — construit dynamiquement car arg = index */

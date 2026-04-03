@@ -51,6 +51,14 @@ pio run -e kxkm-v3-16MB
 ### Topology Constraint
 Hard validation: `Nb_TCA * 4 == Nb_INA`. Mismatch → fail-safe (all batteries OFF). Typical: 4 TCA + 16 INA.
 
+### I2C Scaling (planned)
+
+Current: single bus I2C_NUM_1 (GPIO40/41 DOCK), 16 bat max.
+Planned: TCA9548A mux on DOCK bus, 32+ batteries.
+Each mux channel repeats INA237+TCA9535 address space.
+Bit-bang I2C alert bus on GPIO38/39 (50kHz, 100ms poll).
+VE.Direct on GPIO21 RX-only (TEXT protocol is TX→RX).
+
 ### Thread Safety
 - `I2CLockGuard` wraps all I2C operations (INAHandler, TCAHandler, WebServerHandler)
 - `stateMutex` in BatteryParallelator and BatteryManager for shared state access across FreeRTOS tasks
@@ -100,9 +108,12 @@ docker run --rm --user $(id -u):$(id -g) -e HOME=/tmp \
 - WiFi/MQTT secrets go in `firmware/src/credentials.h` (template: `credentials.h.example`)
 
 ## CI/CD
-- GitHub Actions: `ci.yml` runs `pio test -e native` on push/PR
-- `sim-host-tests.yml`: matrix of sim-host tests + S3 build + memory budget gate
-- ESP32 hardware build is local-only (not in CI)
+
+- `ci.yml`: PlatformIO `pio test -e native` on push/PR
+- `sim-host-tests.yml`: sim-host + S3 build + memory budget
+- `esp-idf-ci.yml`: 80 host tests (5 suites) + ESP-IDF
+  v5.4 build + memory gate (flash ≤85% of 2MB OTA)
+- Grafana dashboards in `grafana/dashboards/` (JSON)
 
 ## Gates Kill_LIFE
 - S0 ✅ intake + specs

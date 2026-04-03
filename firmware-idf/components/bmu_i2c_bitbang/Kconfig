@@ -1,0 +1,18 @@
+menu "BMU I2C Bit-bang (Bus 2)"
+    config BMU_I2C_BB_ENABLED
+        bool "Enable bit-bang I2C bus 2"
+        default n
+    config BMU_I2C_BB_SDA_GPIO
+        int "SDA GPIO"
+        default 38
+        depends on BMU_I2C_BB_ENABLED
+    config BMU_I2C_BB_SCL_GPIO
+        int "SCL GPIO"
+        default 39
+        depends on BMU_I2C_BB_ENABLED
+    config BMU_I2C_BB_FREQ_HZ
+        int "Frequency (Hz)"
+        default 50000
+        range 10000 400000
+        depends on BMU_I2C_BB_ENABLED
+endmenu

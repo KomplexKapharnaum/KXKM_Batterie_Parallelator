@@ -127,6 +127,9 @@ void test_permanent_lock_at_max_plus_one(void) {
 // -- Runner ------------------------------------------------------------------
 
 #ifdef NATIVE_TEST
+
+extern "C" void setUp(void) {}
+extern "C" void tearDown(void) {}
 // Host build : main() classique
 int main(void) {
 #else

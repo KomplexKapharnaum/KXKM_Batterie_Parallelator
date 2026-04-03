@@ -15,11 +15,13 @@ static const char *TAG = "UI_SOH";
 
 static lv_obj_t *s_soh_mean_label   = NULL;
 static lv_obj_t *s_soh_mean_bar     = NULL;
-static lv_obj_t *s_soh_bars[16]     = {};
-static lv_obj_t *s_soh_pct_labels[16] = {};
-static lv_obj_t *s_soh_warn_labels[16] = {};
+static lv_obj_t *s_soh_bars[32]     = {};
+static lv_obj_t *s_soh_pct_labels[32] = {};
+static lv_obj_t *s_soh_warn_labels[32] = {};
 static lv_obj_t *s_timestamp_label  = NULL;
+static lv_obj_t *s_soh_list = NULL;
 static int s_nb = 0;
+static int s_soh_created = 0;
 
 /* ── Couleur selon seuil ──────────────────────────────────────────── */
 
@@ -34,9 +36,8 @@ static lv_color_t soh_color(float soh_pct)
 
 void bmu_ui_soh_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx)
 {
-    s_nb = (ctx && ctx->nb_ina > 0)
-           ? (ctx->nb_ina <= 16 ? ctx->nb_ina : 16)
-           : 1;
+    s_nb = 0; /* Rows created lazily in update() */
+    s_soh_created = 0;
 
     lv_obj_set_style_bg_color(parent, UI_COLOR_BG, 0);
 
@@ -81,57 +82,18 @@ void bmu_ui_soh_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx)
 
     /* ── Liste scrollable des batteries ────────────────────────────── */
 
-    lv_obj_t *list = lv_obj_create(parent);
-    lv_obj_set_size(list, 300, 140);
-    lv_obj_align(list, LV_ALIGN_TOP_MID, 0, 76);
-    lv_obj_set_flex_flow(list, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(list, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_bg_color(list, UI_COLOR_BG, 0);
-    lv_obj_set_style_border_width(list, 0, 0);
-    lv_obj_set_style_pad_all(list, 2, 0);
-    lv_obj_set_style_pad_row(list, 2, 0);
-    lv_obj_set_scrollbar_mode(list, LV_SCROLLBAR_MODE_AUTO);
+    s_soh_list = lv_obj_create(parent);
+    lv_obj_set_size(s_soh_list, 300, 140);
+    lv_obj_align(s_soh_list, LV_ALIGN_TOP_MID, 0, 76);
+    lv_obj_set_flex_flow(s_soh_list, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(s_soh_list, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_bg_color(s_soh_list, UI_COLOR_BG, 0);
+    lv_obj_set_style_border_width(s_soh_list, 0, 0);
+    lv_obj_set_style_pad_all(s_soh_list, 2, 0);
+    lv_obj_set_style_pad_row(s_soh_list, 2, 0);
+    lv_obj_set_scrollbar_mode(s_soh_list, LV_SCROLLBAR_MODE_AUTO);
 
-    for (int i = 0; i < s_nb; i++) {
-        /* Ligne par batterie */
-        lv_obj_t *row = lv_obj_create(list);
-        lv_obj_set_size(row, 288, 20);
-        lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
-        lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-        lv_obj_set_style_bg_opa(row, LV_OPA_TRANSP, 0);
-        lv_obj_set_style_border_width(row, 0, 0);
-        lv_obj_set_style_pad_all(row, 0, 0);
-        lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
-
-        /* Etiquette batterie (depuis config) */
-        lv_obj_t *blbl = lv_label_create(row);
-        lv_label_set_text(blbl, bmu_config_get_battery_label(i));
-        lv_obj_set_width(blbl, 48);
-        lv_obj_set_style_text_color(blbl, UI_COLOR_TEXT_SEC, 0);
-        lv_obj_set_style_text_font(blbl, &lv_font_montserrat_14, 0);
-
-        /* Barre de santé */
-        s_soh_bars[i] = lv_bar_create(row);
-        lv_obj_set_size(s_soh_bars[i], 160, 10);
-        lv_bar_set_range(s_soh_bars[i], 0, 100);
-        lv_bar_set_value(s_soh_bars[i], 0, LV_ANIM_OFF);
-        lv_obj_set_style_bg_color(s_soh_bars[i], lv_color_hex(0x222222), LV_PART_MAIN);
-        lv_obj_set_style_bg_color(s_soh_bars[i], UI_COLOR_OK, LV_PART_INDICATOR);
-
-        /* Pourcentage */
-        s_soh_pct_labels[i] = lv_label_create(row);
-        lv_label_set_text(s_soh_pct_labels[i], "---%");
-        lv_obj_set_width(s_soh_pct_labels[i], 38);
-        lv_obj_set_style_text_color(s_soh_pct_labels[i], UI_COLOR_TEXT, 0);
-        lv_obj_set_style_text_font(s_soh_pct_labels[i], &lv_font_montserrat_14, 0);
-
-        /* Label "REMPLACER" (masqué par défaut) */
-        s_soh_warn_labels[i] = lv_label_create(row);
-        lv_label_set_text(s_soh_warn_labels[i], "REMPLACER");
-        lv_obj_set_style_text_color(s_soh_warn_labels[i], lv_color_hex(0xFF3333), 0);
-        lv_obj_set_style_text_font(s_soh_warn_labels[i], &lv_font_montserrat_14, 0);
-        lv_obj_add_flag(s_soh_warn_labels[i], LV_OBJ_FLAG_HIDDEN);
-    }
+    /* SOH rows created lazily in update() */
 
     /* ── Légende ────────────────────────────────────────────────────── */
 
@@ -169,14 +131,59 @@ void bmu_ui_soh_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx)
     ESP_LOGI(TAG, "SOH screen créé — %d batteries", s_nb);
 }
 
+/* ── Lazy row creation ────────────────────────────────────────────── */
+
+static void ensure_soh_rows(int nb)
+{
+    if (nb <= s_soh_created || s_soh_list == NULL) return;
+    if (nb > 32) nb = 32;
+
+    for (int i = s_soh_created; i < nb; i++) {
+        lv_obj_t *row = lv_obj_create(s_soh_list);
+        lv_obj_set_size(row, 288, 20);
+        lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+        lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+        lv_obj_set_style_bg_opa(row, LV_OPA_TRANSP, 0);
+        lv_obj_set_style_border_width(row, 0, 0);
+        lv_obj_set_style_pad_all(row, 0, 0);
+        lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
+
+        lv_obj_t *blbl = lv_label_create(row);
+        lv_label_set_text(blbl, bmu_config_get_battery_label(i));
+        lv_obj_set_width(blbl, 48);
+        lv_obj_set_style_text_color(blbl, UI_COLOR_TEXT_SEC, 0);
+
+        s_soh_bars[i] = lv_bar_create(row);
+        lv_obj_set_size(s_soh_bars[i], 160, 10);
+        lv_bar_set_range(s_soh_bars[i], 0, 100);
+        lv_bar_set_value(s_soh_bars[i], 0, LV_ANIM_OFF);
+        lv_obj_set_style_bg_color(s_soh_bars[i], lv_color_hex(0x222222), LV_PART_MAIN);
+        lv_obj_set_style_bg_color(s_soh_bars[i], UI_COLOR_OK, LV_PART_INDICATOR);
+
+        s_soh_pct_labels[i] = lv_label_create(row);
+        lv_label_set_text(s_soh_pct_labels[i], "---%");
+        lv_obj_set_width(s_soh_pct_labels[i], 38);
+        lv_obj_set_style_text_color(s_soh_pct_labels[i], UI_COLOR_TEXT, 0);
+
+        s_soh_warn_labels[i] = lv_label_create(row);
+        lv_label_set_text(s_soh_warn_labels[i], "REMPLACER");
+        lv_obj_set_style_text_color(s_soh_warn_labels[i], lv_color_hex(0xFF3333), 0);
+        lv_obj_add_flag(s_soh_warn_labels[i], LV_OBJ_FLAG_HIDDEN);
+    }
+    s_soh_created = nb;
+    s_nb = nb;
+}
+
 /* ── Update ───────────────────────────────────────────────────────── */
 
 void bmu_ui_soh_update(bmu_ui_ctx_t *ctx)
 {
     if (!ctx) return;
 
-    int nb = ctx->nb_ina <= 16 ? ctx->nb_ina : 16;
-    if (nb == 0) nb = s_nb;
+    int nb = ctx->nb_ina > 32 ? 32 : ctx->nb_ina;
+    if (nb == 0) return;
+
+    ensure_soh_rows(nb);
 
     float sum   = 0.0f;
     int   valid = 0;

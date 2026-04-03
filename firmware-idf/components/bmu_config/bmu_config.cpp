@@ -28,6 +28,10 @@ static const char *TAG = "CFG";
 #define NVS_KEY_IMAX    "i_max"
 #define NVS_KEY_VDIFF   "v_diff"
 #define NVS_KEY_MQTT    "mqtt_uri"
+#define NVS_KEY_VRM_ID     "vrm_id"
+#define NVS_KEY_VRM_EN     "vrm_en"
+#define NVS_KEY_VIC_KEY    "vrm_ble_key"
+#define NVS_KEY_VIC_EN     "vrm_ble_en"
 
 /* ── Cache statique ────────────────────────────────────────────────── */
 static char     s_device_name[BMU_CONFIG_NAME_MAX];
@@ -39,6 +43,10 @@ static uint16_t s_v_max;
 static uint16_t s_i_max;
 static uint16_t s_v_diff;
 static bool     s_loaded = false;
+static char     s_vrm_portal_id[BMU_CONFIG_VRM_ID_MAX];
+static bool     s_vrm_enabled = false;
+static char     s_victron_ble_key[BMU_CONFIG_BLE_KEY_MAX];
+static bool     s_victron_ble_enabled = false;
 
 /* ── Helpers NVS ───────────────────────────────────────────────────── */
 
@@ -128,6 +136,14 @@ esp_err_t bmu_config_load(void)
     s_i_max  = (uint16_t)CONFIG_BMU_MAX_CURRENT_MA;
     s_v_diff = (uint16_t)CONFIG_BMU_VOLTAGE_DIFF_MV;
 
+    /* VRM + BLE Victron defaults */
+    strncpy(s_vrm_portal_id, CONFIG_BMU_VRM_PORTAL_ID, sizeof(s_vrm_portal_id) - 1);
+    s_vrm_portal_id[sizeof(s_vrm_portal_id) - 1] = '\0';
+    s_vrm_enabled = true;
+    strncpy(s_victron_ble_key, CONFIG_BMU_VICTRON_BLE_KEY, sizeof(s_victron_ble_key) - 1);
+    s_victron_ble_key[sizeof(s_victron_ble_key) - 1] = '\0';
+    s_victron_ble_enabled = true;
+
     /* Tenter de surcharger depuis NVS */
     nvs_handle_t h;
     esp_err_t ret = nvs_open(NVS_NS, NVS_READONLY, &h);
@@ -140,6 +156,10 @@ esp_err_t bmu_config_load(void)
         s_v_max  = load_u16(h, NVS_KEY_VMAX,  (uint16_t)CONFIG_BMU_MAX_VOLTAGE_MV);
         s_i_max  = load_u16(h, NVS_KEY_IMAX,  (uint16_t)CONFIG_BMU_MAX_CURRENT_MA);
         s_v_diff = load_u16(h, NVS_KEY_VDIFF, (uint16_t)CONFIG_BMU_VOLTAGE_DIFF_MV);
+        load_str(h, NVS_KEY_VRM_ID, s_vrm_portal_id, sizeof(s_vrm_portal_id), CONFIG_BMU_VRM_PORTAL_ID);
+        load_str(h, NVS_KEY_VIC_KEY, s_victron_ble_key, sizeof(s_victron_ble_key), CONFIG_BMU_VICTRON_BLE_KEY);
+        s_vrm_enabled = load_u16(h, NVS_KEY_VRM_EN, 1) != 0;
+        s_victron_ble_enabled = load_u16(h, NVS_KEY_VIC_EN, 1) != 0;
         nvs_close(h);
     } else if (ret == ESP_ERR_NVS_NOT_FOUND) {
         ESP_LOGI(TAG, "NVS namespace '%s' vide — defauts Kconfig utilises", NVS_NS);
@@ -285,6 +305,54 @@ const char *bmu_config_get_mqtt_uri(void)
 {
     return s_mqtt_uri;
 }
+
+/* ── API: VRM ─────────────────────────────────────────────────────── */
+
+esp_err_t bmu_config_set_vrm_portal_id(const char *id)
+{
+    if (id == nullptr || id[0] == '\0') return ESP_ERR_INVALID_ARG;
+    esp_err_t ret = save_str(NVS_KEY_VRM_ID, id);
+    if (ret == ESP_OK) {
+        strncpy(s_vrm_portal_id, id, sizeof(s_vrm_portal_id) - 1);
+        s_vrm_portal_id[sizeof(s_vrm_portal_id) - 1] = '\0';
+    }
+    return ret;
+}
+
+const char *bmu_config_get_vrm_portal_id(void) { return s_vrm_portal_id; }
+
+esp_err_t bmu_config_set_vrm_enabled(bool enabled)
+{
+    esp_err_t ret = save_u16(NVS_KEY_VRM_EN, enabled ? 1 : 0);
+    if (ret == ESP_OK) s_vrm_enabled = enabled;
+    return ret;
+}
+
+bool bmu_config_get_vrm_enabled(void) { return s_vrm_enabled; }
+
+/* ── API: BLE Victron ─────────────────────────────────────────────── */
+
+esp_err_t bmu_config_set_victron_ble_key(const char *hex_key)
+{
+    if (hex_key == nullptr || strlen(hex_key) != 32) return ESP_ERR_INVALID_ARG;
+    esp_err_t ret = save_str(NVS_KEY_VIC_KEY, hex_key);
+    if (ret == ESP_OK) {
+        strncpy(s_victron_ble_key, hex_key, sizeof(s_victron_ble_key) - 1);
+        s_victron_ble_key[sizeof(s_victron_ble_key) - 1] = '\0';
+    }
+    return ret;
+}
+
+const char *bmu_config_get_victron_ble_key(void) { return s_victron_ble_key; }
+
+esp_err_t bmu_config_set_victron_ble_enabled(bool enabled)
+{
+    esp_err_t ret = save_u16(NVS_KEY_VIC_EN, enabled ? 1 : 0);
+    if (ret == ESP_OK) s_victron_ble_enabled = enabled;
+    return ret;
+}
+
+bool bmu_config_get_victron_ble_enabled(void) { return s_victron_ble_enabled; }
 
 /* ── Battery labels (file-backed, /fatfs/batteries.cfg) ───────────── */
 

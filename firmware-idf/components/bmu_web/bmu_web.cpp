@@ -669,6 +669,70 @@ static esp_err_t handler_api_solar(httpd_req_t *req)
 }
 
 /* -------------------------------------------------------------------------- */
+/*  GET /api/labels                                                           */
+/* -------------------------------------------------------------------------- */
+
+static esp_err_t handler_api_labels_get(httpd_req_t *req)
+{
+    cJSON *root = cJSON_CreateObject();
+    cJSON *arr = cJSON_AddArrayToObject(root, "labels");
+    for (int i = 0; i < BMU_MAX_BATTERIES; i++) {
+        cJSON_AddItemToArray(arr, cJSON_CreateString(bmu_config_get_battery_label(i)));
+    }
+    const char *json = cJSON_PrintUnformatted(root);
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_sendstr(req, json);
+    free((void *)json);
+    cJSON_Delete(root);
+    return ESP_OK;
+}
+
+/* -------------------------------------------------------------------------- */
+/*  POST /api/labels                                                          */
+/* -------------------------------------------------------------------------- */
+
+static esp_err_t handler_api_labels_post(httpd_req_t *req)
+{
+    char buf[512];
+    int received = httpd_req_recv(req, buf, sizeof(buf) - 1);
+    if (received <= 0) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Empty body");
+        return ESP_FAIL;
+    }
+    buf[received] = '\0';
+
+    cJSON *root = cJSON_Parse(buf);
+    if (!root) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid JSON");
+        return ESP_FAIL;
+    }
+
+    cJSON *arr = cJSON_GetObjectItem(root, "labels");
+    if (!cJSON_IsArray(arr)) {
+        cJSON_Delete(root);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Missing labels array");
+        return ESP_FAIL;
+    }
+
+    int count = cJSON_GetArraySize(arr);
+    if (count > BMU_MAX_BATTERIES) count = BMU_MAX_BATTERIES;
+
+    for (int i = 0; i < count; i++) {
+        cJSON *item = cJSON_GetArrayItem(arr, i);
+        if (cJSON_IsString(item) && item->valuestring[0] != '\0') {
+            bmu_config_set_battery_label(i, item->valuestring);
+        }
+    }
+    bmu_config_save_battery_labels();
+
+    cJSON_Delete(root);
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_sendstr(req, "{\"ok\":true}");
+    ESP_LOGI(TAG, "Battery labels updated via API");
+    return ESP_OK;
+}
+
+/* -------------------------------------------------------------------------- */
 /*  GET /api/climate                                                          */
 /* -------------------------------------------------------------------------- */
 
@@ -719,7 +783,7 @@ esp_err_t bmu_web_start(bmu_web_ctx_t *ctx)
     s_ctx = ctx;
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    config.max_uri_handlers  = 12;
+    config.max_uri_handlers  = 16;
     config.uri_match_fn      = httpd_uri_match_wildcard;
 
     esp_err_t ret = httpd_start(&s_server, &config);
@@ -801,6 +865,24 @@ esp_err_t bmu_web_start(bmu_web_ctx_t *ctx)
         .user_ctx = nullptr
     };
     httpd_register_uri_handler(s_server, &uri_climate);
+
+    /* GET /api/labels */
+    const httpd_uri_t uri_labels_get = {
+        .uri      = "/api/labels",
+        .method   = HTTP_GET,
+        .handler  = handler_api_labels_get,
+        .user_ctx = nullptr
+    };
+    httpd_register_uri_handler(s_server, &uri_labels_get);
+
+    /* POST /api/labels */
+    const httpd_uri_t uri_labels_post = {
+        .uri      = "/api/labels",
+        .method   = HTTP_POST,
+        .handler  = handler_api_labels_post,
+        .user_ctx = nullptr
+    };
+    httpd_register_uri_handler(s_server, &uri_labels_post);
 
     #if CONFIG_HTTPD_WS_SUPPORT
     /* GET /ws — WebSocket */

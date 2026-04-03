@@ -1,0 +1,31 @@
+menu "BMU VRM (Victron Remote Monitoring)"
+    config BMU_VRM_ENABLED
+        bool "Enable VRM publication"
+        default n
+
+    config BMU_VRM_PORTAL_ID
+        string "VRM Portal ID"
+        default "70b3d549969af37b"
+        depends on BMU_VRM_ENABLED
+
+    config BMU_VRM_USE_TLS
+        bool "Use TLS (port 8883)"
+        default y
+        depends on BMU_VRM_ENABLED
+
+    config BMU_VRM_PUBLISH_INTERVAL_S
+        int "Publish interval (seconds)"
+        default 30
+        range 10 300
+        depends on BMU_VRM_ENABLED
+
+    config BMU_VRM_SOC_V_MIN
+        int "SOC 0% voltage (mV)"
+        default 24000
+        depends on BMU_VRM_ENABLED
+
+    config BMU_VRM_SOC_V_MAX
+        int "SOC 100% voltage (mV)"
+        default 28800
+        depends on BMU_VRM_ENABLED
+endmenu

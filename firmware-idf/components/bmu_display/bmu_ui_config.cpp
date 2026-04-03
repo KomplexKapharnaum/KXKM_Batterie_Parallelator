@@ -28,6 +28,16 @@ static lv_obj_t *s_vdiff_lbl = NULL;
 static lv_obj_t *s_ble_sw       = NULL;
 static lv_obj_t *s_bright_slider = NULL;
 
+static lv_obj_t *s_vrm_id_ta = NULL;
+static lv_obj_t *s_vrm_sw = NULL;
+static lv_obj_t *s_vic_key_ta = NULL;
+static lv_obj_t *s_vic_sw = NULL;
+
+/* Battery labels editing */
+static int s_label_edit_idx = 0;
+static lv_obj_t *s_label_idx_lbl = NULL;
+static lv_obj_t *s_label_ta = NULL;
+
 /* ------------------------------------------------------------------ */
 /* Stepper                                                             */
 /* ------------------------------------------------------------------ */
@@ -225,6 +235,108 @@ void bmu_ui_config_create(lv_obj_t *parent)
         bsp_display_brightness_set(val);
     }, LV_EVENT_VALUE_CHANGED, NULL);
 
+    /* --- Section : Noms batteries --- */
+    section_label(cont, "NOMS BATTERIES");
+
+    /* Ligne sélecteur d'index : [<] B1 [>] + textarea */
+    lv_obj_t *label_row = lv_obj_create(cont);
+    lv_obj_set_size(label_row, lv_pct(100), 30);
+    lv_obj_set_flex_flow(label_row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(label_row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_bg_opa(label_row, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(label_row, 0, 0);
+    lv_obj_set_style_pad_all(label_row, 0, 0);
+    lv_obj_set_style_pad_column(label_row, 4, 0);
+
+    /* Bouton précédent */
+    lv_obj_t *btn_prev = lv_button_create(label_row);
+    lv_obj_set_size(btn_prev, 28, 24);
+    lv_obj_set_style_bg_color(btn_prev, UI_COLOR_CARD_ALT, 0);
+    lv_obj_t *prev_lbl = lv_label_create(btn_prev);
+    lv_label_set_text(prev_lbl, LV_SYMBOL_LEFT);
+    lv_obj_center(prev_lbl);
+
+    /* Libellé index "B1" */
+    s_label_idx_lbl = lv_label_create(label_row);
+    lv_label_set_text(s_label_idx_lbl, "B1");
+    lv_obj_set_style_text_color(s_label_idx_lbl, UI_COLOR_INFO, 0);
+    lv_obj_set_width(s_label_idx_lbl, 24);
+    lv_obj_set_style_text_align(s_label_idx_lbl, LV_TEXT_ALIGN_CENTER, 0);
+
+    /* Bouton suivant */
+    lv_obj_t *btn_next = lv_button_create(label_row);
+    lv_obj_set_size(btn_next, 28, 24);
+    lv_obj_set_style_bg_color(btn_next, UI_COLOR_CARD_ALT, 0);
+    lv_obj_t *next_lbl = lv_label_create(btn_next);
+    lv_label_set_text(next_lbl, LV_SYMBOL_RIGHT);
+    lv_obj_center(next_lbl);
+
+    /* Textarea du nom de batterie */
+    s_label_ta = lv_textarea_create(label_row);
+    lv_textarea_set_one_line(s_label_ta, true);
+    lv_textarea_set_max_length(s_label_ta, 8);
+    lv_textarea_set_text(s_label_ta, bmu_config_get_battery_label(0));
+    lv_obj_set_width(s_label_ta, 120);
+    lv_obj_set_height(s_label_ta, 26);
+    lv_obj_set_style_bg_color(s_label_ta, UI_COLOR_CARD, 0);
+    lv_obj_set_style_text_color(s_label_ta, UI_COLOR_TEXT, 0);
+    lv_obj_set_style_border_color(s_label_ta, UI_COLOR_BORDER, 0);
+
+    lv_obj_add_event_cb(btn_prev, [](lv_event_t *e) {
+        (void)e;
+        const char *txt = lv_textarea_get_text(s_label_ta);
+        if (txt && txt[0] != '\0') bmu_config_set_battery_label(s_label_edit_idx, txt);
+        if (s_label_edit_idx > 0) s_label_edit_idx--;
+        char idx_buf[16];
+        snprintf(idx_buf, sizeof(idx_buf), "B%d", s_label_edit_idx + 1);
+        lv_label_set_text(s_label_idx_lbl, idx_buf);
+        lv_textarea_set_text(s_label_ta, bmu_config_get_battery_label(s_label_edit_idx));
+    }, LV_EVENT_CLICKED, NULL);
+
+    lv_obj_add_event_cb(btn_next, [](lv_event_t *e) {
+        (void)e;
+        const char *txt = lv_textarea_get_text(s_label_ta);
+        if (txt && txt[0] != '\0') bmu_config_set_battery_label(s_label_edit_idx, txt);
+        if (s_label_edit_idx < 15) s_label_edit_idx++;
+        char idx_buf[16];
+        snprintf(idx_buf, sizeof(idx_buf), "B%d", s_label_edit_idx + 1);
+        lv_label_set_text(s_label_idx_lbl, idx_buf);
+        lv_textarea_set_text(s_label_ta, bmu_config_get_battery_label(s_label_edit_idx));
+    }, LV_EVENT_CLICKED, NULL);
+
+    /* --- Section : Victron --- */
+    section_label(cont, "VICTRON");
+
+    s_vrm_id_ta = create_textarea(cont, bmu_config_get_vrm_portal_id(), false, 19);
+
+    lv_obj_t *vrm_row = lv_obj_create(cont);
+    lv_obj_set_size(vrm_row, lv_pct(100), 28);
+    lv_obj_set_flex_flow(vrm_row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(vrm_row, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_bg_opa(vrm_row, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(vrm_row, 0, 0);
+    lv_obj_set_style_pad_all(vrm_row, 0, 0);
+    lv_obj_t *vrm_lbl = lv_label_create(vrm_row);
+    lv_label_set_text(vrm_lbl, "VRM Cloud");
+    lv_obj_set_style_text_color(vrm_lbl, UI_COLOR_TEXT_SEC, 0);
+    s_vrm_sw = lv_switch_create(vrm_row);
+    if (bmu_config_get_vrm_enabled()) lv_obj_add_state(s_vrm_sw, LV_STATE_CHECKED);
+
+    s_vic_key_ta = create_textarea(cont, bmu_config_get_victron_ble_key(), false, 32);
+
+    lv_obj_t *vic_row = lv_obj_create(cont);
+    lv_obj_set_size(vic_row, lv_pct(100), 28);
+    lv_obj_set_flex_flow(vic_row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(vic_row, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_bg_opa(vic_row, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(vic_row, 0, 0);
+    lv_obj_set_style_pad_all(vic_row, 0, 0);
+    lv_obj_t *vic_lbl = lv_label_create(vic_row);
+    lv_label_set_text(vic_lbl, "BLE Victron");
+    lv_obj_set_style_text_color(vic_lbl, UI_COLOR_TEXT_SEC, 0);
+    s_vic_sw = lv_switch_create(vic_row);
+    if (bmu_config_get_victron_ble_enabled()) lv_obj_add_state(s_vic_sw, LV_STATE_CHECKED);
+
     /* --- Bouton Sauvegarder --- */
     lv_obj_t *save_btn = lv_button_create(cont);
     lv_obj_set_size(save_btn, lv_pct(100), 36);
@@ -235,11 +347,19 @@ void bmu_ui_config_create(lv_obj_t *parent)
     lv_obj_center(save_lbl);
     lv_obj_add_event_cb(save_btn, [](lv_event_t *e) {
         (void)e;
+        /* Sauvegarde du nom de batterie en cours d'édition */
+        const char *lbl_txt = lv_textarea_get_text(s_label_ta);
+        if (lbl_txt && lbl_txt[0] != '\0') bmu_config_set_battery_label(s_label_edit_idx, lbl_txt);
+        bmu_config_save_battery_labels();
         bmu_config_set_device_name(lv_textarea_get_text(s_name_ta));
         bmu_config_set_wifi(lv_textarea_get_text(s_ssid_ta),
                             lv_textarea_get_text(s_pass_ta));
         bmu_config_set_thresholds(s_v_min, s_v_max, s_i_max, s_v_diff);
         bmu_config_set_mqtt_uri(lv_textarea_get_text(s_mqtt_ta));
+        bmu_config_set_vrm_portal_id(lv_textarea_get_text(s_vrm_id_ta));
+        bmu_config_set_vrm_enabled(lv_obj_has_state(s_vrm_sw, LV_STATE_CHECKED));
+        bmu_config_set_victron_ble_key(lv_textarea_get_text(s_vic_key_ta));
+        bmu_config_set_victron_ble_enabled(lv_obj_has_state(s_vic_sw, LV_STATE_CHECKED));
         ESP_LOGI("UI_CFG", "Config sauvegardee dans NVS");
     }, LV_EVENT_CLICKED, NULL);
 

@@ -28,6 +28,12 @@ struct DashboardView: View {
                     }
                     .padding(.top, 60)
                 } else {
+                    if let solar = vm.solarData {
+                        SolarCardView(solar: solar)
+                            .padding(.horizontal)
+                            .padding(.top, 8)
+                    }
+
                     // Header: battery count summary
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {

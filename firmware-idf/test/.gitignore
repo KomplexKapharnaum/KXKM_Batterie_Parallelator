@@ -1,0 +1,5 @@
+# Host test build output
+build/
+
+# Unity downloaded sources
+unity/

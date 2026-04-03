@@ -18,6 +18,9 @@
 #include "esp_timer.h"
 #include "lvgl.h"
 
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "esp_heap_caps.h"
 #include <cstring>
 
 static const char *TAG = "DISP";
@@ -62,7 +65,8 @@ static void backlight_check_dim(void)
 
 static void chart_history_push_all(void)
 {
-    int nb = s_ui_ctx.nb_ina > 16 ? 16 : s_ui_ctx.nb_ina;
+    if (s_ui_ctx.chart_hist == NULL) return;
+    int nb = s_ui_ctx.nb_ina > BMU_MAX_BATTERIES ? BMU_MAX_BATTERIES : s_ui_ctx.nb_ina;
     for (int i = 0; i < nb; i++) {
         float v_mv = bmu_protection_get_voltage(s_ui_ctx.prot, i);
         float i_a = 0.0f;
@@ -123,8 +127,14 @@ esp_err_t bmu_display_init(bmu_display_ctx_t *ctx)
     s_nav.detail_battery = -1;
     s_nav.detail_panel = NULL;
 
-    /* Init chart history (zero) */
-    memset(s_ui_ctx.chart_hist, 0, sizeof(s_ui_ctx.chart_hist));
+    /* Allocate chart history in PSRAM (32 × 4.8KB = 153KB) */
+    if (s_ui_ctx.chart_hist == NULL) {
+        s_ui_ctx.chart_hist = (bmu_chart_history_t *)heap_caps_calloc(
+            BMU_MAX_BATTERIES, sizeof(bmu_chart_history_t), MALLOC_CAP_SPIRAM);
+        if (s_ui_ctx.chart_hist == NULL) {
+            ESP_LOGE(TAG, "chart_hist PSRAM alloc failed!");
+        }
+    }
 
     ESP_LOGI(TAG, "=== Initialisation affichage BMU via BSP BOX-3 ===");
 
@@ -181,6 +191,7 @@ esp_err_t bmu_display_init(bmu_display_ctx_t *ctx)
     }
 
     /* ── Creer le contenu de chaque ecran ─────────────────────────── */
+    /* Battery + SOH rows created lazily in update() — fast init */
     bmu_ui_main_set_nav_state(&s_nav);
     bmu_ui_detail_set_nav_state(&s_nav);
     bmu_ui_main_create(tab_batt, &s_ui_ctx);
