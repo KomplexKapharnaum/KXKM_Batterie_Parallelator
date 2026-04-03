@@ -1,0 +1,52 @@
+menu "BMU Internal Resistance"
+
+    config BMU_RINT_ENABLED
+        bool "Enable R_int measurement"
+        default y
+
+    config BMU_RINT_PERIODIC_ENABLED
+        bool "Enable periodic R_int measurement"
+        default y
+        depends on BMU_RINT_ENABLED
+
+    config BMU_RINT_PERIOD_MIN
+        int "Periodic measurement interval (minutes)"
+        default 30
+        range 5 1440
+        depends on BMU_RINT_PERIODIC_ENABLED
+
+    config BMU_RINT_MIN_CURRENT_MA
+        int "Minimum load current for valid measurement (mA)"
+        default 500
+        range 100 5000
+        depends on BMU_RINT_ENABLED
+
+    config BMU_RINT_PULSE_FAST_MS
+        int "Delay before V2 read — ohmique (ms)"
+        default 100
+        range 50 500
+        depends on BMU_RINT_ENABLED
+
+    config BMU_RINT_PULSE_TOTAL_MS
+        int "Total pulse OFF duration (ms)"
+        default 1000
+        range 500 5000
+        depends on BMU_RINT_ENABLED
+
+    config BMU_RINT_R_MAX_MOHM
+        int "Maximum plausible R_int (mohm)"
+        default 500
+        range 100 2000
+        depends on BMU_RINT_ENABLED
+
+    config BMU_RINT_DISPLAY_WARN_MOHM
+        int "Display warning threshold (mohm, orange)"
+        default 50
+        depends on BMU_RINT_ENABLED
+
+    config BMU_RINT_DISPLAY_CRIT_MOHM
+        int "Display critical threshold (mohm, red)"
+        default 100
+        depends on BMU_RINT_ENABLED
+
+endmenu
