@@ -8,6 +8,9 @@
 
 #include "bmu_soh.h"
 #include "bmu_ina237.h"
+#if CONFIG_BMU_RINT_ENABLED
+#include "bmu_rint.h"
+#endif
 
 #include "esp_log.h"
 #include "tensorflow/lite/micro/micro_interpreter.h"
@@ -145,8 +148,18 @@ float bmu_soh_predict(bmu_battery_manager_t *mgr,
     float dv_dt  = (a->n > 1) ? (v - a->prev_v) : 0.0f;
     float di_dt  = (a->n > 1) ? (i_a - a->prev_i) : 0.0f;
 
-    /* Estimate internal resistance: R = dV/dI (simple) */
-    float r_int = (fabsf(di_dt) > 0.001f) ? fabsf(dv_dt / di_dt) : 0.05f;
+    /* Resistance interne : priorité à la mesure rint cachée, fallback dV/dI */
+    float r_int;
+#if CONFIG_BMU_RINT_ENABLED
+    bmu_rint_result_t rint_cached = bmu_rint_get_cached(idx);
+    if (rint_cached.valid) {
+        r_int = rint_cached.r_total_mohm / 1000.0f;  /* mΩ → Ω */
+    } else {
+        r_int = (fabsf(di_dt) > 0.001f) ? fabsf(dv_dt / di_dt) : 0.05f;
+    }
+#else
+    r_int = (fabsf(di_dt) > 0.001f) ? fabsf(dv_dt / di_dt) : 0.05f;
+#endif
 
     a->prev_v = v;
     a->prev_i = i_a;
