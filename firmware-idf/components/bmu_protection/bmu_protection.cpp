@@ -1,4 +1,5 @@
 #include "bmu_protection.h"
+#include "bmu_rint.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include <cmath>
@@ -200,6 +201,9 @@ esp_err_t bmu_protection_check_battery(bmu_protection_ctx_t *ctx, int idx)
     case BMU_STATE_DISCONNECTED:
         ESP_LOGI(TAG, "BAT[%d] disconnected V=%.0fmV I=%.3fA", idx + 1, v_mv, i_a);
         switch_battery(ctx, idx, false);
+#if CONFIG_BMU_RINT_ENABLED
+        bmu_rint_on_disconnect(idx, v_mv, i_a);
+#endif
         break;
 
     case BMU_STATE_ERROR:
@@ -271,6 +275,23 @@ float bmu_protection_get_voltage(bmu_protection_ctx_t *ctx, int idx)
         }
     }
     return v;
+}
+
+esp_err_t bmu_protection_get_switch_count(bmu_protection_ctx_t *ctx, int idx,
+                                          int *switch_count_out)
+{
+    if (ctx == NULL || switch_count_out == NULL ||
+        idx < 0 || idx >= BMU_MAX_BATTERIES) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(20)) != pdTRUE) {
+        return ESP_ERR_TIMEOUT;
+    }
+
+    *switch_count_out = ctx->nb_switch[idx];
+    xSemaphoreGive(ctx->state_mutex);
+    return ESP_OK;
 }
 
 /* ── Web-initiated switch — validates through protection (audit H-06) ─── */
