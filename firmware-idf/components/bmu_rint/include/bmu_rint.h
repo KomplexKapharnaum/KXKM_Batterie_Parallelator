@@ -4,11 +4,11 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "bmu_protection.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#define BMU_MAX_BATTERIES 32
 
 typedef enum {
     BMU_RINT_TRIGGER_OPPORTUNISTIC,
@@ -26,6 +26,11 @@ typedef struct {
     int64_t timestamp_ms;       // Measurement time (epoch ms or uptime ms)
     bool    valid;              // Measurement passed all checks
 } bmu_rint_result_t;
+
+/**
+ * Injecter le contexte protection (appeler avant init).
+ */
+void bmu_rint_set_ctx(bmu_protection_ctx_t *ctx);
 
 esp_err_t bmu_rint_init(void);
 esp_err_t bmu_rint_measure(uint8_t battery_idx, bmu_rint_trigger_t trigger);
