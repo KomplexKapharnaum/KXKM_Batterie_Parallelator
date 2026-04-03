@@ -21,6 +21,10 @@
 #include "host/ble_gatt.h"
 #include "os/os_mbuf.h"
 
+#if CONFIG_BMU_RINT_ENABLED
+#include "bmu_rint.h"
+#endif
+
 static const char *TAG = "BLE_BAT";
 
 /* ── Struct payload BLE batterie (15 octets, little-endian) ──────── */
@@ -57,10 +61,9 @@ static void build_battery_payload(int idx, ble_battery_char_t *out)
     out->ah_discharge_mah = (int32_t)(ah_d * 1000.0f);
     out->ah_charge_mah    = (int32_t)(ah_c * 1000.0f);
 
-    /* nb_switch protege par state_mutex */
-    if (xSemaphoreTake(prot->state_mutex, pdMS_TO_TICKS(50)) == pdTRUE) {
-        out->nb_switch = (uint8_t)(prot->nb_switch[idx] > 255 ? 255 : prot->nb_switch[idx]);
-        xSemaphoreGive(prot->state_mutex);
+    int nb_switch = 0;
+    if (bmu_protection_get_switch_count(prot, idx, &nb_switch) == ESP_OK) {
+        out->nb_switch = (uint8_t)(nb_switch > 255 ? 255 : nb_switch);
     } else {
         out->nb_switch = 0xFF; /* Indique erreur lecture */
     }
@@ -168,8 +171,89 @@ static ble_uuid128_t s_bat_chr_uuids[BMU_MAX_BATTERIES] = {
     BMU_BLE_UUID128_DECLARE(0x2F, 0x00),
 };
 
+/* ── R_int BLE structs et UUIDs (optionnel, CONFIG_BMU_RINT_ENABLED) ─ */
+#if CONFIG_BMU_RINT_ENABLED
+
+typedef struct __attribute__((packed)) {
+    uint16_t r_ohmic_mohm_x10;   /* R_ohmic * 10 (resolution 0.1 mΩ) */
+    uint16_t r_total_mohm_x10;   /* R_total * 10 */
+    uint16_t v_load_mv;
+    uint16_t v_ocv_mv;           /* V stable */
+    int16_t  i_load_ma;          /* Courant en mA */
+    uint8_t  valid;
+} ble_rint_char_t;
+
+static ble_uuid128_t s_rint_trigger_uuid = BMU_BLE_UUID128_DECLARE(0x38, 0x00);
+static ble_uuid128_t s_rint_result_uuid  = BMU_BLE_UUID128_DECLARE(0x39, 0x00);
+
+static uint16_t s_rint_result_val_handle;
+
+/* Callback WRITE — 0xFF = mesure toutes les batteries, 0x00-0x1F = batterie N */
+static int rint_trigger_access_cb(uint16_t conn_handle, uint16_t attr_handle,
+                                   struct ble_gatt_access_ctxt *ctxt, void *arg)
+{
+    if (ctxt->op != BLE_GATT_ACCESS_OP_WRITE_CHR) {
+        return BLE_ATT_ERR_UNLIKELY;
+    }
+
+    uint8_t cmd = 0;
+    uint16_t len = OS_MBUF_PKTLEN(ctxt->om);
+    if (len < 1) {
+        return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+    }
+    os_mbuf_copydata(ctxt->om, 0, 1, &cmd);
+
+    if (cmd == 0xFF) {
+        esp_err_t rc = bmu_rint_measure_all(BMU_RINT_TRIGGER_ON_DEMAND);
+        if (rc != ESP_OK) {
+            ESP_LOGW(TAG, "rint_measure_all rc=%d", rc);
+        }
+    } else if (cmd < BMU_MAX_BATTERIES) {
+        esp_err_t rc = bmu_rint_measure(cmd, BMU_RINT_TRIGGER_ON_DEMAND);
+        if (rc != ESP_OK) {
+            ESP_LOGW(TAG, "rint_measure[%d] rc=%d", cmd, rc);
+        }
+    } else {
+        return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+    }
+
+    return 0;
+}
+
+/* Callback READ — retourne les structs de toutes les batteries en sequence */
+static int rint_result_access_cb(uint16_t conn_handle, uint16_t attr_handle,
+                                  struct ble_gatt_access_ctxt *ctxt, void *arg)
+{
+    if (ctxt->op != BLE_GATT_ACCESS_OP_READ_CHR) {
+        return BLE_ATT_ERR_UNLIKELY;
+    }
+
+    uint8_t nb_ina = bmu_ble_get_nb_ina();
+
+    for (int i = 0; i < nb_ina; i++) {
+        bmu_rint_result_t res = bmu_rint_get_cached((uint8_t)i);
+        ble_rint_char_t payload = {
+            .r_ohmic_mohm_x10 = (uint16_t)(res.r_ohmic_mohm * 10.0f),
+            .r_total_mohm_x10 = (uint16_t)(res.r_total_mohm * 10.0f),
+            .v_load_mv        = (uint16_t)(res.v_load_mv),
+            .v_ocv_mv         = (uint16_t)(res.v_ocv_stable_mv),
+            .i_load_ma        = (int16_t)(res.i_load_a * 1000.0f),
+            .valid            = (uint8_t)(res.valid ? 1 : 0),
+        };
+        int rc = os_mbuf_append(ctxt->om, &payload, sizeof(payload));
+        if (rc != 0) {
+            return BLE_ATT_ERR_INSUFFICIENT_RES;
+        }
+    }
+
+    return 0;
+}
+
+#endif /* CONFIG_BMU_RINT_ENABLED */
+
 /* Tableau de characteristics — construit dynamiquement car arg = index */
-static struct ble_gatt_chr_def s_bat_chr_defs[BMU_MAX_BATTERIES + 1]; /* +1 terminateur */
+/* +1 terminateur, +2 pour les chars R_int optionnelles */
+static struct ble_gatt_chr_def s_bat_chr_defs[BMU_MAX_BATTERIES + 3];
 
 static struct ble_gatt_svc_def s_bat_svc[] = {
     {
@@ -193,8 +277,27 @@ const struct ble_gatt_svc_def *bmu_ble_battery_svc_defs(void)
             s_bat_chr_defs[i].flags      = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY;
             s_bat_chr_defs[i].val_handle = &s_battery_val_handles[i];
         }
+        /* Characteristics R_int optionnelles (trigger write + result read) */
+#if CONFIG_BMU_RINT_ENABLED
+        int rint_base = BMU_MAX_BATTERIES;
+        s_bat_chr_defs[rint_base].uuid       = &s_rint_trigger_uuid.u;
+        s_bat_chr_defs[rint_base].access_cb  = rint_trigger_access_cb;
+        s_bat_chr_defs[rint_base].arg        = NULL;
+        s_bat_chr_defs[rint_base].flags      = BLE_GATT_CHR_F_WRITE;
+        s_bat_chr_defs[rint_base].val_handle = NULL;
+
+        s_bat_chr_defs[rint_base + 1].uuid       = &s_rint_result_uuid.u;
+        s_bat_chr_defs[rint_base + 1].access_cb  = rint_result_access_cb;
+        s_bat_chr_defs[rint_base + 1].arg        = NULL;
+        s_bat_chr_defs[rint_base + 1].flags      = BLE_GATT_CHR_F_READ;
+        s_bat_chr_defs[rint_base + 1].val_handle = &s_rint_result_val_handle;
+
+        /* Terminateur */
+        memset(&s_bat_chr_defs[BMU_MAX_BATTERIES + 2], 0, sizeof(struct ble_gatt_chr_def));
+#else
         /* Terminateur */
         memset(&s_bat_chr_defs[BMU_MAX_BATTERIES], 0, sizeof(struct ble_gatt_chr_def));
+#endif
 
         /* Creer le timer de notification (pas encore demarre) */
         const esp_timer_create_args_t timer_args = {
