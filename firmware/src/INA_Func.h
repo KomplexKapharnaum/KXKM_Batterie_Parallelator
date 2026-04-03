@@ -2,6 +2,10 @@
 ** INA                                                       **
 ***************************************************************/
 
+#ifndef KXKM_ALLOW_LEGACY_HEADERS
+#error "Legacy header INA_Func.h is deprecated. Use INAHandler.{h,cpp} instead. Define KXKM_ALLOW_LEGACY_HEADERS only for explicit migration tasks."
+#endif
+
 /* INA Adresses :
 40 41 42 43 44 45 46 47 48 49 4A 4B 4C 4D 4E 4F
 */

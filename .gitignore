@@ -116,3 +116,11 @@ models/features_v2.parquet
 kxkm-bmu-app/.gradle/
 kxkm-bmu-app/build/
 .venv-ml/
+
+# Xcode local user state
+**/xcuserdata/
+**/*.xcuserstate
+
+# Local accidental duplicates seen in this workspace
+firmware/test/test_tca_ina 2/
+iosApp/KXKMBmu 2.xcodeproj/

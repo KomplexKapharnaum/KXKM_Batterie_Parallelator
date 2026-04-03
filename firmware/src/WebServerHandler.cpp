@@ -323,7 +323,11 @@ void WebServerHandler::handleSwitchOff(AsyncWebServerRequest *request) {
  * @param offset L'offset de différence de tension en volts.
  */
 void WebServerHandler::setVoltageOffset(float offset) {
-  BattParallelator.set_max_diff_voltage(offset);
+  if (offset < 0.0f) {
+    offset = 0.0f;
+  }
+  // API Web expresses offset in volts, BatteryParallelator stores mV.
+  BattParallelator.set_max_diff_voltage(offset * 1000.0f);
 }
 
 /**

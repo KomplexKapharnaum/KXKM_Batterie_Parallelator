@@ -27,6 +27,7 @@ const char *kInfluxTempFile = "/influxdb_temp.txt";
 const char *kInfluxTempFileRotated = "/influxdb_temp_prev.txt";
 // Keep the buffered file bounded to reduce SPIFFS pressure in long offline periods.
 static constexpr size_t kInfluxTempFileMaxBytes = 32 * 1024;
+static constexpr size_t kInfluxMaxBufferedLineLen = 512;
 
 bool rotateInfluxTempIfNeeded() {
     if (!SPIFFS.exists(kInfluxTempFile)) {
@@ -99,6 +100,16 @@ bool replayStoredFile(const char *filePath, InfluxDBClient &clientRef) {
     SPIFFS.remove(filePath);
     return true;
 }
+
+bool appendBufferedLine(const char *filePath, const String &line) {
+    File file = SPIFFS.open(filePath, FILE_APPEND);
+    if (!file) {
+        return false;
+    }
+    file.println(line);
+    file.close();
+    return true;
+}
 } // namespace
 
 #define WRITE_PRECISION WritePrecision::S
@@ -110,7 +121,6 @@ bool replayStoredFile(const char *filePath, InfluxDBClient &clientRef) {
 // buffer is full and new points are added, old points are dropped. the buffer
 // size must be at least as large as the batch size. The buffer size need RAM
 // !!!
-// TODO : USE SD CARD TO STORE DATA and send in the buffer
 #define WRITE_BUFFER_SIZE 50
 
 // Assurez-vous que `debugLogger` est déclaré et initialisé correctement
@@ -303,6 +313,27 @@ void InfluxDBHandler::writeAggregatedBatteryData(const char *measurement,
 
 void InfluxDBHandler::storeData(const char *measurement, const char *tags,
                                 const char *fields) {
+    if (measurement == nullptr || tags == nullptr || fields == nullptr) {
+        debugLogger.println(KxLogger::INFLUXDB,
+                            "storeData refused: null input segment");
+        return;
+    }
+
+    const String line = String(measurement) + "," + String(tags) + "," +
+                        String(fields);
+    if (line.length() == 0 || line.length() > kInfluxMaxBufferedLineLen) {
+        debugLogger.println(KxLogger::INFLUXDB,
+                            "storeData refused: invalid line length");
+        return;
+    }
+
+    ParsedInfluxBufferLine parsed;
+    if (!parseInfluxBufferLine(std::string(line.c_str()), parsed)) {
+        debugLogger.println(KxLogger::INFLUXDB,
+                            "storeData refused: malformed line");
+        return;
+    }
+
     const String Filename = String(kInfluxTempFile);
 
     if (ESP.getFreeHeap() < 5000) {
@@ -329,17 +360,16 @@ void InfluxDBHandler::storeData(const char *measurement, const char *tags,
                             "Failed to rotate Influx temp file");
     }
 
-    File file = SPIFFS.open(Filename.c_str(), FILE_APPEND);
-    if (file) {
-        file.print(measurement);
-        file.print(",");
-        file.print(tags);
-        file.print(",");
-        file.println(fields);
-        file.close();
+    if (appendBufferedLine(Filename.c_str(), line)) {
         debugLogger.println(KxLogger::INFLUXDB, "Data stored temporarily on SPIFFS");
     } else {
-        debugLogger.println(KxLogger::INFLUXDB, "Failed to open file for writing");
+        if (appendBufferedLine(kInfluxTempFileRotated, line)) {
+            debugLogger.println(KxLogger::INFLUXDB,
+                                "Primary file unavailable, data buffered in rotated file");
+        } else {
+            debugLogger.println(KxLogger::INFLUXDB,
+                                "Failed to persist buffered data in SPIFFS");
+        }
     }
 }
 

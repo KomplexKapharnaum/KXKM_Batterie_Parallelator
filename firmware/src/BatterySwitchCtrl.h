@@ -1,3 +1,7 @@
+#ifndef KXKM_ALLOW_LEGACY_HEADERS
+#error "Legacy header BatterySwitchCtrl.h is deprecated. Use BATTParallelator/TCAHandler APIs instead. Define KXKM_ALLOW_LEGACY_HEADERS only for explicit migration tasks."
+#endif
+
 // Nb_switch_max défini dans config.h
 int Nb_switch[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 int check_switch[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
