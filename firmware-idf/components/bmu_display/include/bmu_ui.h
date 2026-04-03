@@ -103,6 +103,16 @@ const char *bmu_ui_debug_get_log_line(int index); /* 0=newest */
 int         bmu_ui_debug_get_device_count(void);
 int         bmu_ui_debug_get_error_count(void);
 
+/* ── Debug screen — I2C log + R_int (impl in bmu_ui_debug.cpp) ─────── */
+
+void bmu_ui_debug_create(lv_obj_t *parent);
+void bmu_ui_debug_update(void);
+
+#if CONFIG_BMU_RINT_ENABLED
+void bmu_ui_debug_create_rint_section(lv_obj_t *parent, uint8_t nb_ina);
+void bmu_ui_debug_update_rint(uint8_t nb_ina);
+#endif
+
 /* ── SOH prediction screen ───────────────────────────────────────── */
 
 void bmu_ui_soh_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx);
