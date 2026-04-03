@@ -18,9 +18,13 @@
 #include "bmu_protection.h"
 #include "bmu_battery_manager.h"
 #include "bmu_config.h"
+#include "bmu_storage.h"
 #include "bmu_wifi.h"
 #include "bmu_vedirect.h"
 #include "bmu_climate.h"
+#if CONFIG_BMU_RINT_ENABLED
+#include "bmu_rint.h"
+#endif
 
 #include "esp_http_server.h"
 #include "esp_log.h"
@@ -333,7 +337,13 @@ static esp_err_t handler_api_log(httpd_req_t *req)
      * On lit le fichier entier par chunks pour trouver les lignes de fin.
      * Stratégie : seek vers la fin, lire en arrière pour trouver 50 newlines.
      */
-    const char *log_path = "/sdcard/bmu.log";
+    if (bmu_sd_init() != ESP_OK) {
+        httpd_resp_set_type(req, "application/json");
+        httpd_resp_sendstr(req, "{\"lines\":[],\"error\":\"log not available\"}");
+        return ESP_OK;
+    }
+
+    const char *log_path = BMU_SD_LOG_PATH;
     FILE *f = fopen(log_path, "r");
     if (f == nullptr) {
         httpd_resp_set_type(req, "application/json");
@@ -770,6 +780,160 @@ static esp_err_t handler_api_climate(httpd_req_t *req)
 }
 
 /* -------------------------------------------------------------------------- */
+/*  R_int API                                                                 */
+/* -------------------------------------------------------------------------- */
+
+#if CONFIG_BMU_RINT_ENABLED
+
+/** Construit le tableau JSON des résultats R_int mis en cache. */
+static cJSON *build_rint_results_json(uint8_t nb)
+{
+    cJSON *root = cJSON_CreateObject();
+    cJSON *arr  = cJSON_AddArrayToObject(root, "batteries");
+
+    for (int i = 0; i < nb; ++i) {
+        bmu_rint_result_t r = bmu_rint_get_cached((uint8_t)i);
+        cJSON *obj = cJSON_CreateObject();
+        cJSON_AddNumberToObject(obj, "idx",              i);
+        cJSON_AddNumberToObject(obj, "r_ohmic_mohm",     (double)r.r_ohmic_mohm);
+        cJSON_AddNumberToObject(obj, "r_total_mohm",     (double)r.r_total_mohm);
+        cJSON_AddNumberToObject(obj, "r_polar_mohm",     (double)(r.r_total_mohm - r.r_ohmic_mohm));
+        cJSON_AddNumberToObject(obj, "v_load_mv",        (double)r.v_load_mv);
+        cJSON_AddNumberToObject(obj, "v_ocv_stable_mv",  (double)r.v_ocv_stable_mv);
+        cJSON_AddNumberToObject(obj, "i_load_a",         (double)r.i_load_a);
+        cJSON_AddNumberToObject(obj, "timestamp",        (double)r.timestamp_ms);
+        cJSON_AddBoolToObject(obj,   "valid",            r.valid);
+        cJSON_AddItemToArray(arr, obj);
+    }
+
+    return root;
+}
+
+/** GET /api/rint/results — lecture seule, pas d'auth */
+static esp_err_t handler_rint_results(httpd_req_t *req)
+{
+    if (s_ctx == nullptr || s_ctx->prot == nullptr) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "No context");
+        return ESP_FAIL;
+    }
+
+    cJSON *root = build_rint_results_json(s_ctx->prot->nb_ina);
+    if (root == nullptr) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "JSON alloc failed");
+        return ESP_FAIL;
+    }
+
+    char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (json == nullptr) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "JSON print failed");
+        return ESP_FAIL;
+    }
+
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_sendstr(req, json);
+    free(json);
+    return ESP_OK;
+}
+
+/** POST /api/rint/measure — déclenche une mesure (auth + rate limit) */
+static esp_err_t handler_rint_measure(httpd_req_t *req)
+{
+    const char *route = "/api/rint/measure";
+
+    /* 1. Token activé ? */
+    if (!bmu_web_token_enabled()) {
+        ESP_LOGW(TAG, "RINT %s REJETÉ: mutations désactivées (token vide)", route);
+        httpd_resp_set_status(req, "403 Forbidden");
+        httpd_resp_sendstr(req, "{\"error\":\"mutations disabled\"}");
+        return ESP_OK;
+    }
+
+    /* 2. Rate limit */
+    uint32_t ip = get_client_ip(req);
+    if (bmu_web_rate_check(ip, now_ms())) {
+        ESP_LOGW(TAG, "RINT %s REJETÉ: rate limit (IP 0x%08" PRIx32 ")", route, ip);
+        httpd_resp_set_status(req, "429 Too Many Requests");
+        httpd_resp_sendstr(req, "{\"error\":\"rate limit exceeded\"}");
+        return ESP_OK;
+    }
+
+    /* 3. Parse token depuis le body { "token": "..." } */
+    char body[256];
+    int recv_len = httpd_req_recv(req, body, sizeof(body) - 1);
+    if (recv_len <= 0) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Empty body");
+        return ESP_FAIL;
+    }
+    body[recv_len] = '\0';
+
+    cJSON *root_body = cJSON_Parse(body);
+    if (root_body == nullptr) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid JSON");
+        return ESP_FAIL;
+    }
+
+    char token[128] = {0};
+    cJSON *j_tok = cJSON_GetObjectItem(root_body, "token");
+    if (j_tok != nullptr && cJSON_IsString(j_tok) && j_tok->valuestring != nullptr) {
+        strncpy(token, j_tok->valuestring, sizeof(token) - 1);
+        token[sizeof(token) - 1] = '\0';
+    }
+    cJSON_Delete(root_body);
+
+    /* 4. Vérif token */
+    if (!bmu_web_token_valid(token)) {
+        ESP_LOGW(TAG, "RINT %s REJETÉ: token invalide (IP 0x%08" PRIx32 ")", route, ip);
+        httpd_resp_set_status(req, "403 Forbidden");
+        httpd_resp_sendstr(req, "{\"error\":\"invalid token\"}");
+        return ESP_OK;
+    }
+
+    /* 5. Contexte */
+    if (s_ctx == nullptr || s_ctx->prot == nullptr) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "No context");
+        return ESP_FAIL;
+    }
+
+    /* 6. Mesure */
+    esp_err_t ret = bmu_rint_measure_all(BMU_RINT_TRIGGER_ON_DEMAND);
+    if (ret == ESP_ERR_NOT_FOUND) {
+        ESP_LOGW(TAG, "RINT %s: aucune batterie éligible", route);
+        httpd_resp_set_status(req, "409 Conflict");
+        httpd_resp_sendstr(req, "{\"error\":\"no eligible batteries\"}");
+        return ESP_OK;
+    }
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "RINT %s ERREUR: %s", route, esp_err_to_name(ret));
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Measure failed");
+        return ESP_FAIL;
+    }
+
+    ESP_LOGI(TAG, "RINT %s OK (IP 0x%08" PRIx32 ")", route, ip);
+
+    /* 7. Retourner les résultats */
+    cJSON *root_resp = build_rint_results_json(s_ctx->prot->nb_ina);
+    if (root_resp == nullptr) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "JSON alloc failed");
+        return ESP_FAIL;
+    }
+
+    char *json = cJSON_PrintUnformatted(root_resp);
+    cJSON_Delete(root_resp);
+    if (json == nullptr) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "JSON print failed");
+        return ESP_FAIL;
+    }
+
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_sendstr(req, json);
+    free(json);
+    return ESP_OK;
+}
+
+#endif /* CONFIG_BMU_RINT_ENABLED */
+
+/* -------------------------------------------------------------------------- */
 /*  Start / Stop                                                              */
 /* -------------------------------------------------------------------------- */
 
@@ -857,6 +1021,24 @@ esp_err_t bmu_web_start(bmu_web_ctx_t *ctx)
     };
     httpd_register_uri_handler(s_server, &uri_log);
 
+    /* GET /api/system */
+    const httpd_uri_t uri_system = {
+        .uri      = "/api/system",
+        .method   = HTTP_GET,
+        .handler  = handler_api_system,
+        .user_ctx = nullptr
+    };
+    httpd_register_uri_handler(s_server, &uri_system);
+
+    /* GET /api/solar */
+    const httpd_uri_t uri_solar = {
+        .uri      = "/api/solar",
+        .method   = HTTP_GET,
+        .handler  = handler_api_solar,
+        .user_ctx = nullptr
+    };
+    httpd_register_uri_handler(s_server, &uri_solar);
+
     /* GET /api/climate */
     const httpd_uri_t uri_climate = {
         .uri      = "/api/climate",
@@ -883,6 +1065,26 @@ esp_err_t bmu_web_start(bmu_web_ctx_t *ctx)
         .user_ctx = nullptr
     };
     httpd_register_uri_handler(s_server, &uri_labels_post);
+
+    #if CONFIG_BMU_RINT_ENABLED
+    /* GET /api/rint/results */
+    const httpd_uri_t uri_rint_results = {
+        .uri      = "/api/rint/results",
+        .method   = HTTP_GET,
+        .handler  = handler_rint_results,
+        .user_ctx = nullptr
+    };
+    httpd_register_uri_handler(s_server, &uri_rint_results);
+
+    /* POST /api/rint/measure */
+    const httpd_uri_t uri_rint_measure = {
+        .uri      = "/api/rint/measure",
+        .method   = HTTP_POST,
+        .handler  = handler_rint_measure,
+        .user_ctx = nullptr
+    };
+    httpd_register_uri_handler(s_server, &uri_rint_measure);
+    #endif /* CONFIG_BMU_RINT_ENABLED */
 
     #if CONFIG_HTTPD_WS_SUPPORT
     /* GET /ws — WebSocket */
