@@ -12,17 +12,6 @@ kotlin {
         }
     }
 
-    iosX64()
-    iosArm64()
-    iosSimulatorArm64()
-
-    cocoapods {
-        summary = "KXKM BMU shared logic"
-        homepage = "https://github.com/kxkm/bmu-app"
-        ios.deploymentTarget = "16.0"
-        framework { baseName = "Shared" }
-    }
-
     sourceSets {
         val commonMain by getting {
             dependencies {
@@ -57,16 +46,6 @@ kotlin {
                 implementation("org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5")
             }
         }
-        val iosMain by creating {
-            dependsOn(commonMain)
-            dependencies {
-                implementation("io.ktor:ktor-client-darwin:2.3.12")
-                implementation("app.cash.sqldelight:native-driver:2.0.2")
-            }
-        }
-        val iosX64Main by getting { dependsOn(iosMain) }
-        val iosArm64Main by getting { dependsOn(iosMain) }
-        val iosSimulatorArm64Main by getting { dependsOn(iosMain) }
     }
 }
 
