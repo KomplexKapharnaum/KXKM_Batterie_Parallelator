@@ -40,6 +40,14 @@ class MonitoringUseCase(
     fun observeSystem(): Flow<SystemInfo?> = transport.observeSystem()
     fun observeSolar(): Flow<SolarData?> = transport.observeSolar()
 
+    fun observeHealth(): Flow<List<BatteryHealth>> = transport.observeHealth()
+
+    fun observeHealth(index: Int): Flow<BatteryHealth?> =
+        transport.observeHealth().map { it.firstOrNull { h -> h.index == index } }
+
+    suspend fun triggerRintMeasurement(batteryIndex: Int): CommandResult =
+        transport.triggerRintMeasurement(batteryIndex)
+
     fun getHistory(batteryIndex: Int, hours: Int): List<BatteryHistoryPoint> {
         val sinceMs = Clock.System.now().toEpochMilliseconds() - hours * 3600 * 1000L
         return db.getHistory(batteryIndex, sinceMs)
@@ -61,6 +69,18 @@ class MonitoringUseCase(
     fun observeSystem(callback: (SystemInfo?) -> Unit) {
         scope.launch {
             observeSystem().collect { callback(it) }
+        }
+    }
+
+    fun observeHealth(callback: (List<BatteryHealth>) -> Unit) {
+        scope.launch {
+            observeHealth().collect { callback(it) }
+        }
+    }
+
+    fun observeHealth(index: Int, callback: (BatteryHealth?) -> Unit) {
+        scope.launch {
+            observeHealth(index).collect { callback(it) }
         }
     }
 
