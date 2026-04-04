@@ -20,4 +20,13 @@ menu "BMU Bluetooth"
         depends on BMU_BLE_ENABLED
         help
             Nombre max de clients BLE connectes simultanement.
+
+    config BMU_BLE_SOH_ENABLED
+        bool "Enable BLE SOH characteristic"
+        default y
+        depends on BMU_BLE_ENABLED
+        depends on BMU_RINT_ENABLED
+        help
+            Expose SOH and R_int summary via BLE characteristic 0x003A.
+            Requires bmu_soh and bmu_rint components.
 endmenu

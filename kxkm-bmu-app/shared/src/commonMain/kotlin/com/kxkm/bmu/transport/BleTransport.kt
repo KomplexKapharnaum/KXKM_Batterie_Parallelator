@@ -14,6 +14,7 @@ class BleTransport : Transport {
     private val _batteries = MutableStateFlow<List<BatteryState>>(emptyList())
     private val _system = MutableStateFlow<SystemInfo?>(null)
     private val _solar = MutableStateFlow<SolarData?>(null)
+    private val _health = MutableStateFlow<List<BatteryHealth>>(emptyList())
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
     companion object {
@@ -30,6 +31,7 @@ class BleTransport : Transport {
     override fun observeBatteries(): Flow<List<BatteryState>> = _batteries
     override fun observeSystem(): Flow<SystemInfo?> = _system
     override fun observeSolar(): Flow<SolarData?> = _solar
+    override fun observeHealth(): Flow<List<BatteryHealth>> = _health
 
     override suspend fun connect() {
         // Scan for KXKM-BMU device
@@ -99,6 +101,16 @@ class BleTransport : Transport {
                 _solar.value = GattParser.parseSolar(bytes)
             }
         }
+
+        // Subscribe to SOH notifications (0x003A)
+        scope.launch {
+            try {
+                p.observe(characteristicOf(BATTERY_SVC, chrUuid(0x003A))).collect { bytes ->
+                    val healthList = GattParser.parseSohAll(bytes)
+                    _health.value = healthList
+                }
+            } catch (_: Exception) { /* SOH characteristic may not be present */ }
+        }
     }
 
     override suspend fun switchBattery(index: Int, on: Boolean): CommandResult {
@@ -123,6 +135,25 @@ class BleTransport : Transport {
         delay(200)
         val status = p.read(characteristicOf(CONTROL_SVC, chrUuid(0x0033)))
         return GattParser.parseCommandStatus(status)
+    }
+
+    override suspend fun triggerRintMeasurement(batteryIndex: Int): CommandResult {
+        val p = peripheral ?: return CommandResult.error("Not connected")
+        p.write(
+            characteristicOf(BATTERY_SVC, chrUuid(0x0038)),
+            GattParser.encodeRintTrigger(batteryIndex)
+        )
+        // Poll R_int result after measurement (~1.2s)
+        delay(1500)
+        return try {
+            val resultBytes = p.read(characteristicOf(BATTERY_SVC, chrUuid(0x0039)))
+            val results = GattParser.parseRintAll(resultBytes)
+            val target = if (batteryIndex >= 0) results.getOrNull(batteryIndex) else null
+            if (target?.rintValid == true || batteryIndex < 0) CommandResult.ok()
+            else CommandResult.error("Measurement invalid")
+        } catch (e: Exception) {
+            CommandResult.error(e.message ?: "Read failed")
+        }
     }
 
     override suspend fun setWifiConfig(ssid: String, password: String): CommandResult {

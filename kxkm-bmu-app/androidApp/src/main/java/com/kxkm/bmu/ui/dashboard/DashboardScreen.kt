@@ -33,6 +33,7 @@ fun DashboardScreen(
 ) {
     val batteries by viewModel.batteries.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val healthMap by viewModel.healthMap.collectAsState()
 
     when {
         isLoading -> {
@@ -77,6 +78,7 @@ fun DashboardScreen(
                 items(batteries, key = { it.index }) { battery ->
                     BatteryCellCard(
                         battery = battery,
+                        health = healthMap[battery.index],
                         onClick = { onBatteryClick(battery.index) },
                     )
                 }

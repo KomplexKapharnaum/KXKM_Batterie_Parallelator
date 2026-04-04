@@ -75,6 +75,12 @@ class TransportManager(
     fun observeSolar(): Flow<SolarData?> =
         _activeTransport.flatMapLatest { it.observeSolar() }
 
+    fun observeHealth(): Flow<List<BatteryHealth>> =
+        _activeTransport.flatMapLatest { it.observeHealth() }
+
+    suspend fun triggerRintMeasurement(batteryIndex: Int): CommandResult =
+        _activeTransport.value.triggerRintMeasurement(batteryIndex)
+
     suspend fun switchBattery(index: Int, on: Boolean): CommandResult =
         _activeTransport.value.switchBattery(index, on)
 

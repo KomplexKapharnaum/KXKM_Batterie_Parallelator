@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kxkm.bmu.shared.domain.ControlUseCase
 import com.kxkm.bmu.shared.domain.MonitoringUseCase
+import com.kxkm.bmu.shared.model.BatteryHealth
 import com.kxkm.bmu.shared.model.BatteryHistoryPoint
 import com.kxkm.bmu.shared.model.BatteryState
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -32,10 +33,21 @@ class BatteryDetailViewModel @Inject constructor(
     private val _commandResult = MutableStateFlow<String?>(null)
     val commandResult: StateFlow<String?> = _commandResult.asStateFlow()
 
+    private val _health = MutableStateFlow<BatteryHealth?>(null)
+    val health: StateFlow<BatteryHealth?> = _health.asStateFlow()
+
+    private val _rintMeasuring = MutableStateFlow(false)
+    val rintMeasuring: StateFlow<Boolean> = _rintMeasuring.asStateFlow()
+
     init {
         viewModelScope.launch {
             monitoringUseCase.observeBattery(batteryIndex) { state ->
                 _battery.value = state
+            }
+        }
+        viewModelScope.launch {
+            monitoringUseCase.observeHealth(batteryIndex) { h ->
+                _health.value = h
             }
         }
         loadHistory()
@@ -55,6 +67,16 @@ class BatteryDetailViewModel @Inject constructor(
                 _commandResult.value =
                     if (result.isSuccess) "OK" else "Erreur: ${result.errorMessage ?: ""}"
             }
+        }
+    }
+
+    fun triggerRintMeasurement() {
+        viewModelScope.launch {
+            _rintMeasuring.value = true
+            val result = monitoringUseCase.triggerRintMeasurement(batteryIndex)
+            _commandResult.value = if (result.isSuccess) "R_int mesure lancee"
+                else "Erreur: ${result.errorMessage ?: ""}"
+            _rintMeasuring.value = false
         }
     }
 

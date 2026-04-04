@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.BoltOutlined
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -33,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.kxkm.bmu.shared.model.BatteryHealth
 import com.kxkm.bmu.shared.model.BatteryState
 import com.kxkm.bmu.ui.components.BatteryStateIcon
 import com.kxkm.bmu.ui.components.ConfirmActionDialog
@@ -83,6 +85,12 @@ fun BatteryDetailScreen(
 
         // State card
         battery?.let { bat -> StateCard(bat) }
+
+        // Health card (SOH + R_int)
+        val health by viewModel.health.collectAsState()
+        val rintMeasuring by viewModel.rintMeasuring.collectAsState()
+
+        health?.let { h -> HealthCard(h, rintMeasuring, onTriggerRint = { viewModel.triggerRintMeasurement() }) }
 
         // Chart
         Card(
@@ -249,6 +257,85 @@ private fun ControlsCard(
             ) {
                 Icon(Icons.Filled.Refresh, contentDescription = null)
                 Text("Reset compteur", modifier = Modifier.padding(start = 4.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun HealthCard(
+    health: BatteryHealth,
+    measuring: Boolean,
+    onTriggerRint: () -> Unit,
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = "Sante batterie",
+                style = MaterialTheme.typography.titleMedium,
+            )
+
+            // SOH gauge row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column {
+                    Text(
+                        text = "SOH",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = if (health.sohPercent > 0) "${health.sohPercent}%" else "--",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontFamily = FontFamily.Monospace,
+                    )
+                }
+                Column {
+                    Text(
+                        text = "Confiance",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = "${health.sohConfidence}%",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontFamily = FontFamily.Monospace,
+                    )
+                }
+            }
+
+            // R_int values
+            if (health.rintValid) {
+                CounterRow("R ohmic", "%.1f m\u03A9".format(health.rOhmicMohm))
+                CounterRow("R total", "%.1f m\u03A9".format(health.rTotalMohm))
+            } else {
+                Text(
+                    text = "R_int non disponible",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            // Trigger R_int button
+            OutlinedButton(
+                onClick = onTriggerRint,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !measuring,
+            ) {
+                if (measuring) {
+                    Text("Mesure en cours...")
+                } else {
+                    Icon(Icons.Filled.Speed, contentDescription = null)
+                    Text("Mesurer R_int", modifier = Modifier.padding(start = 4.dp))
+                }
             }
         }
     }

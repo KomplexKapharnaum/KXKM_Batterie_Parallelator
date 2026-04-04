@@ -96,6 +96,69 @@ object GattParser {
         else CommandResult.error("code=$result")
     }
 
+    /** Parse single SOH characteristic (7 bytes) from buffer at offset */
+    fun parseSohSingle(index: Int, bytes: ByteArray, offset: Int): BatteryHealth {
+        val o = offset
+        return BatteryHealth(
+            index = index,
+            sohPercent = bytes[o].toInt() and 0xFF,
+            rOhmicMohm = readUInt16LE(bytes, o + 1) / 10.0f,
+            rTotalMohm = readUInt16LE(bytes, o + 3) / 10.0f,
+            rintValid = bytes[o + 5].toInt() != 0,
+            sohConfidence = bytes[o + 6].toInt() and 0xFF
+        )
+    }
+
+    /** Parse concatenated SOH characteristics (7 bytes per battery) */
+    fun parseSohAll(bytes: ByteArray): List<BatteryHealth> {
+        val perBattery = 7
+        val count = bytes.size / perBattery
+        return (0 until count).map { i ->
+            parseSohSingle(i, bytes, i * perBattery)
+        }
+    }
+
+    /** Data class for R_int BLE result (per battery, 11 bytes) */
+    data class RintResult(
+        val index: Int,
+        val rOhmicMohm: Float,
+        val rTotalMohm: Float,
+        val vLoadMv: Int,
+        val vOcvMv: Int,
+        val iLoadMa: Int,
+        val rintValid: Boolean
+    )
+
+    /** Parse single R_int result (11 bytes) from buffer at offset */
+    fun parseRintSingle(index: Int, bytes: ByteArray, offset: Int): RintResult {
+        val o = offset
+        return RintResult(
+            index = index,
+            rOhmicMohm = readUInt16LE(bytes, o) / 10.0f,
+            rTotalMohm = readUInt16LE(bytes, o + 2) / 10.0f,
+            vLoadMv = readUInt16LE(bytes, o + 4),
+            vOcvMv = readUInt16LE(bytes, o + 6),
+            iLoadMa = readInt16LE(bytes, o + 8),
+            rintValid = bytes[o + 10].toInt() != 0
+        )
+    }
+
+    /** Parse concatenated R_int results (11 bytes per battery) */
+    fun parseRintAll(bytes: ByteArray): List<RintResult> {
+        val perBattery = 11
+        val count = bytes.size / perBattery
+        return (0 until count).map { i ->
+            parseRintSingle(i, bytes, i * perBattery)
+        }
+    }
+
+    /** Encode R_int trigger command: single byte = battery index (0xFF = all) */
+    fun encodeRintTrigger(batteryIndex: Int): ByteArray {
+        return byteArrayOf(
+            if (batteryIndex < 0) 0xFF.toByte() else batteryIndex.toByte()
+        )
+    }
+
     // -- Little-endian helpers --
 
     private fun readInt32LE(b: ByteArray, off: Int): Int =
