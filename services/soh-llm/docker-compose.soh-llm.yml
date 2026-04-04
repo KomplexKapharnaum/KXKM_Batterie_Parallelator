@@ -1,0 +1,54 @@
+# SOH LLM Diagnostic Service
+# Deploy on kxkm-ai alongside existing services
+#
+# Usage:
+#   docker compose -f docker-compose.soh-llm.yml up -d
+#   docker compose -f docker-compose.soh-llm.yml logs -f soh-llm
+
+services:
+  soh-llm:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: soh-llm
+    restart: unless-stopped
+    ports:
+      - "8401:8401"
+    volumes:
+      - llm-models:/models
+    environment:
+      - LLM_BASE_MODEL=Qwen/Qwen2.5-7B
+      - LLM_LORA_ADAPTER=/models/qwen-bmu-diag/lora-adapter
+      - LLM_API_PORT=8401
+      - LLM_DAILY_DIGEST_HOUR=6
+      - LLM_CACHE_TTL_HOURS=24
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-}
+      - INFLUXDB_ORG=kxkm
+      - INFLUXDB_BUCKET=bmu
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+        limits:
+          memory: 20G
+    networks:
+      - bmu-net
+    depends_on:
+      - influxdb
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  llm-models:
+    driver: local
+
+networks:
+  bmu-net:
+    external: true
