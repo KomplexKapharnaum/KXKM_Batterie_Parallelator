@@ -1,0 +1,76 @@
+# SOH Scoring Pipeline — Docker Compose for kxkm-ai
+# Deploy: docker compose -f services/soh-scoring/docker-compose.yml up -d
+
+version: "3.8"
+
+services:
+  soh-api:
+    build:
+      context: .
+      target: soh-api
+    container_name: soh-api
+    restart: unless-stopped
+    ports:
+      - "8400:8400"
+    environment:
+      SOH_INFLUXDB_URL: http://influxdb:8086
+      SOH_INFLUXDB_TOKEN: ${INFLUXDB_TOKEN}
+      SOH_INFLUXDB_ORG: kxkm
+      SOH_INFLUXDB_BUCKET: bmu
+      SOH_INFLUXDB_OUTPUT_BUCKET: bmu
+      SOH_TSMIXER_ONNX_PATH: /models/tsmixer_soh.onnx
+      SOH_GNN_ONNX_PATH: /models/gnn_fleet.pt
+    volumes:
+      - model-data:/models
+    networks:
+      - kxkm
+    depends_on:
+      - soh-scheduler
+
+  soh-scheduler:
+    build:
+      context: .
+      target: soh-scheduler
+    container_name: soh-scheduler
+    restart: unless-stopped
+    environment:
+      SOH_INFLUXDB_URL: http://influxdb:8086
+      SOH_INFLUXDB_TOKEN: ${INFLUXDB_TOKEN}
+      SOH_INFLUXDB_ORG: kxkm
+      SOH_INFLUXDB_BUCKET: bmu
+      SOH_INFLUXDB_OUTPUT_BUCKET: bmu
+      SOH_SCORING_INTERVAL_MIN: 30
+      SOH_TSMIXER_ONNX_PATH: /models/tsmixer_soh.onnx
+      SOH_GNN_ONNX_PATH: /models/gnn_fleet.pt
+    volumes:
+      - model-data:/models
+    networks:
+      - kxkm
+
+  soh-train:
+    build:
+      context: .
+      target: soh-train
+    container_name: soh-train
+    profiles: ["train"]  # Only starts with: docker compose --profile train up soh-train
+    environment:
+      SOH_INFLUXDB_URL: http://influxdb:8086
+      SOH_INFLUXDB_TOKEN: ${INFLUXDB_TOKEN}
+    volumes:
+      - model-data:/models
+      - ./src:/app/src  # Live code mount for development
+    networks:
+      - kxkm
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
+
+volumes:
+  model-data:
+    driver: local
+
+networks:
+  kxkm:
+    external: true  # Shared with existing infra (MQTT, InfluxDB, Grafana)
