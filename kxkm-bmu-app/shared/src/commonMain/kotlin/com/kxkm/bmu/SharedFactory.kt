@@ -37,6 +37,16 @@ class SharedFactory(driverFactory: DriverFactory) {
         transportManager.setMqtt(mqtt)
     }
 
+    val sohRestClient = SohRestClient(
+        baseUrl = "http://kxkm-ai:8400",
+        apiKey = ""
+    )
+
+    val sohUseCase = SohUseCase(
+        restClient = sohRestClient,
+        db = db
+    )
+
     fun createMonitoringUseCase() = MonitoringUseCase(transportManager, db)
     fun createControlUseCase() = ControlUseCase(transportManager, auditUseCase) { currentUserId }
     fun createConfigUseCase() = ConfigUseCase(transportManager, auditUseCase) { currentUserId }

@@ -116,6 +116,103 @@ class DatabaseHelper(driverFactory: DriverFactory) {
 
     // -- Sync queue --
     fun countPendingSync(): Long = queries.countPendingSync().executeAsOne()
+
+    // -- ML Scores cache --
+    fun upsertMlScore(score: MlScore) {
+        queries.upsertMlScore(
+            battery_index = score.battery.toLong(),
+            battery_index_ = score.battery.toLong(),
+            soh_score = score.sohScore.toDouble(),
+            rul_days = score.rulDays.toLong(),
+            anomaly_score = score.anomalyScore.toDouble(),
+            r_int_trend = score.rIntTrendMohmPerDay.toDouble(),
+            timestamp = score.timestamp
+        )
+    }
+
+    fun getLatestMlScores(): List<MlScore> {
+        return queries.getLatestMlScores().executeAsList().map {
+            MlScore(
+                battery = it.battery_index.toInt(),
+                sohScore = it.soh_score.toFloat(),
+                rulDays = it.rul_days.toInt(),
+                anomalyScore = it.anomaly_score.toFloat(),
+                rIntTrendMohmPerDay = it.r_int_trend.toFloat(),
+                timestamp = it.timestamp
+            )
+        }
+    }
+
+    fun getMlScore(batteryIndex: Int): MlScore? {
+        return queries.getMlScore(batteryIndex.toLong()).executeAsOneOrNull()?.let {
+            MlScore(
+                battery = it.battery_index.toInt(),
+                sohScore = it.soh_score.toFloat(),
+                rulDays = it.rul_days.toInt(),
+                anomalyScore = it.anomaly_score.toFloat(),
+                rIntTrendMohmPerDay = it.r_int_trend.toFloat(),
+                timestamp = it.timestamp
+            )
+        }
+    }
+
+    // -- Fleet Health cache --
+    fun upsertFleetHealth(fleet: FleetHealth) {
+        queries.upsertFleetHealth(
+            fleet_health_score = fleet.fleetHealth.toDouble(),
+            outlier_idx = fleet.outlierIdx.toLong(),
+            outlier_score = fleet.outlierScore.toDouble(),
+            imbalance_severity = fleet.imbalanceSeverity.toDouble(),
+            timestamp = fleet.timestamp
+        )
+    }
+
+    fun getLatestFleetHealth(): FleetHealth? {
+        return queries.getLatestFleetHealth().executeAsOneOrNull()?.let {
+            FleetHealth(
+                fleetHealth = it.fleet_health_score.toFloat(),
+                outlierIdx = it.outlier_idx.toInt(),
+                outlierScore = it.outlier_score.toFloat(),
+                imbalanceSeverity = it.imbalance_severity.toFloat(),
+                timestamp = it.timestamp
+            )
+        }
+    }
+
+    // -- Diagnostics cache --
+    fun upsertDiagnostic(diag: Diagnostic) {
+        queries.upsertDiagnostic(
+            battery_index = diag.battery.toLong(),
+            battery_index_ = diag.battery.toLong(),
+            diagnostic_text = diag.diagnostic,
+            severity = diag.severity.name,
+            generated_at = diag.generatedAt
+        )
+    }
+
+    fun getDiagnostic(batteryIndex: Int): Diagnostic? {
+        return queries.getDiagnostic(batteryIndex.toLong()).executeAsOneOrNull()?.let {
+            Diagnostic(
+                battery = it.battery_index.toInt(),
+                diagnostic = it.diagnostic_text,
+                severity = runCatching { DiagnosticSeverity.valueOf(it.severity) }
+                    .getOrDefault(DiagnosticSeverity.info),
+                generatedAt = it.generated_at
+            )
+        }
+    }
+
+    fun getAllDiagnostics(): List<Diagnostic> {
+        return queries.getAllDiagnostics().executeAsList().map {
+            Diagnostic(
+                battery = it.battery_index.toInt(),
+                diagnostic = it.diagnostic_text,
+                severity = runCatching { DiagnosticSeverity.valueOf(it.severity) }
+                    .getOrDefault(DiagnosticSeverity.info),
+                generatedAt = it.generated_at
+            )
+        }
+    }
 }
 
 data class BatteryHistoryPoint(

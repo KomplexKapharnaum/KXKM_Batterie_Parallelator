@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Hub
 import androidx.compose.material.icons.filled.ListAlt
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Settings
@@ -35,6 +37,8 @@ import com.kxkm.bmu.ui.config.UserManagementScreen
 import com.kxkm.bmu.ui.config.WifiConfigScreen
 import com.kxkm.bmu.ui.dashboard.DashboardScreen
 import com.kxkm.bmu.ui.detail.BatteryDetailScreen
+import com.kxkm.bmu.ui.fleet.FleetScreen
+import com.kxkm.bmu.ui.soh.SohDashboardScreen
 import com.kxkm.bmu.ui.system.SystemScreen
 import com.kxkm.bmu.util.canConfigure
 import com.kxkm.bmu.viewmodel.AuthViewModel
@@ -43,6 +47,8 @@ sealed class BmuRoute(val route: String, val label: String, val icon: ImageVecto
     data object Dashboard : BmuRoute("dashboard", "Batteries", Icons.Filled.Bolt)
     data object System : BmuRoute("system", "Syst\u00e8me", Icons.Filled.Memory)
     data object Audit : BmuRoute("audit", "Audit", Icons.Filled.ListAlt)
+    data object Soh : BmuRoute("soh", "SOH", Icons.Filled.Favorite)
+    data object Fleet : BmuRoute("fleet", "Flotte", Icons.Filled.Hub)
     data object Config : BmuRoute("config", "Config", Icons.Filled.Settings)
 }
 
@@ -55,6 +61,8 @@ fun BmuNavHost(authVM: AuthViewModel) {
 
     val tabs = buildList {
         add(BmuRoute.Dashboard)
+        add(BmuRoute.Soh)
+        add(BmuRoute.Fleet)
         add(BmuRoute.System)
         add(BmuRoute.Audit)
         if (currentUser?.role?.canConfigure == true) {
@@ -94,6 +102,22 @@ fun BmuNavHost(authVM: AuthViewModel) {
         ) {
             composable(BmuRoute.Dashboard.route) {
                 DashboardScreen(
+                    onBatteryClick = { index ->
+                        navController.navigate("battery_detail/$index")
+                    },
+                )
+            }
+
+            composable(BmuRoute.Soh.route) {
+                SohDashboardScreen(
+                    onBatteryClick = { index ->
+                        navController.navigate("battery_detail/$index")
+                    },
+                )
+            }
+
+            composable(BmuRoute.Fleet.route) {
+                FleetScreen(
                     onBatteryClick = { index ->
                         navController.navigate("battery_detail/$index")
                     },

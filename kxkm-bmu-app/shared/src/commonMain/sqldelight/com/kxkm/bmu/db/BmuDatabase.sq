@@ -121,3 +121,84 @@ DELETE FROM sync_queue WHERE id IN ?;
 
 countPendingSync:
 SELECT COUNT(*) FROM sync_queue;
+
+-- ML scores cache (from kxkm-ai TSMixer)
+CREATE TABLE ml_scores (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    battery_index INTEGER NOT NULL,
+    soh_score REAL NOT NULL,
+    rul_days INTEGER NOT NULL,
+    anomaly_score REAL NOT NULL,
+    r_int_trend REAL NOT NULL DEFAULT 0.0,
+    timestamp INTEGER NOT NULL
+);
+
+CREATE INDEX idx_ml_scores_battery ON ml_scores(battery_index, timestamp);
+
+-- Fleet health cache (from kxkm-ai GNN)
+CREATE TABLE fleet_health (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    fleet_health_score REAL NOT NULL,
+    outlier_idx INTEGER NOT NULL,
+    outlier_score REAL NOT NULL,
+    imbalance_severity REAL NOT NULL DEFAULT 0.0,
+    timestamp INTEGER NOT NULL
+);
+
+CREATE INDEX idx_fleet_time ON fleet_health(timestamp);
+
+-- LLM diagnostic cache
+CREATE TABLE diagnostics (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    battery_index INTEGER NOT NULL,
+    diagnostic_text TEXT NOT NULL,
+    severity TEXT NOT NULL,
+    generated_at INTEGER NOT NULL
+);
+
+CREATE INDEX idx_diag_battery ON diagnostics(battery_index, generated_at);
+
+-- Queries: ml_scores
+upsertMlScore:
+INSERT OR REPLACE INTO ml_scores (id, battery_index, soh_score, rul_days, anomaly_score, r_int_trend, timestamp)
+VALUES (
+    (SELECT id FROM ml_scores WHERE battery_index = ?),
+    ?, ?, ?, ?, ?, ?
+);
+
+getLatestMlScores:
+SELECT * FROM ml_scores ORDER BY battery_index ASC;
+
+getMlScore:
+SELECT * FROM ml_scores WHERE battery_index = ?;
+
+purgeOldMlScores:
+DELETE FROM ml_scores WHERE timestamp < ?;
+
+-- Queries: fleet_health
+upsertFleetHealth:
+INSERT INTO fleet_health (fleet_health_score, outlier_idx, outlier_score, imbalance_severity, timestamp)
+VALUES (?, ?, ?, ?, ?);
+
+getLatestFleetHealth:
+SELECT * FROM fleet_health ORDER BY timestamp DESC LIMIT 1;
+
+purgeOldFleetHealth:
+DELETE FROM fleet_health WHERE timestamp < ?;
+
+-- Queries: diagnostics
+upsertDiagnostic:
+INSERT OR REPLACE INTO diagnostics (id, battery_index, diagnostic_text, severity, generated_at)
+VALUES (
+    (SELECT id FROM diagnostics WHERE battery_index = ?),
+    ?, ?, ?, ?
+);
+
+getDiagnostic:
+SELECT * FROM diagnostics WHERE battery_index = ? ORDER BY generated_at DESC LIMIT 1;
+
+getAllDiagnostics:
+SELECT * FROM diagnostics ORDER BY battery_index ASC;
+
+purgeOldDiagnostics:
+DELETE FROM diagnostics WHERE generated_at < ?;
