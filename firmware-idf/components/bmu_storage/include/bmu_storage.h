@@ -14,6 +14,7 @@ extern "C" {
 #define BMU_SD_CLK      GPIO_NUM_12
 #define BMU_SD_CS       GPIO_NUM_10
 #define BMU_SD_MOUNT    "/sdcard"
+#define BMU_SD_LOG_PATH BMU_SD_MOUNT "/bmu_log.csv"
 
 esp_err_t bmu_sd_init(void);
 bool bmu_sd_is_mounted(void);

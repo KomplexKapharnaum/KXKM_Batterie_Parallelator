@@ -78,9 +78,12 @@ static int build_battery_adv(uint8_t *buf, size_t buf_len)
 {
     if (s_nb_ina == 0) return 0;
 
-    float avg_mv = bmu_battery_manager_get_avg_voltage_mv(s_mgr);
+    float avg_mv = 0.0f;
+    float total_i = 0.0f;
+    if (bmu_battery_manager_get_summary(s_mgr, &avg_mv, &total_i, NULL) != ESP_OK) {
+        return 0;
+    }
     float avg_v = avg_mv / 1000.0f;
-    float total_i = bmu_battery_manager_get_total_current_a(s_mgr);
 
     /* SOC estimation */
     float v_min = 24.0f;  /* CONFIG_BMU_VRM_SOC_V_MIN / 1000 */
@@ -219,7 +222,9 @@ esp_err_t bmu_ble_victron_init(bmu_protection_ctx_t *prot,
     const esp_timer_create_args_t timer_args = {
         .callback = adv_rotate_cb,
         .arg = NULL,
+        .dispatch_method = ESP_TIMER_TASK,
         .name = "vic_adv",
+        .skip_unhandled_events = true,
     };
     ESP_ERROR_CHECK(esp_timer_create(&timer_args, &s_adv_timer));
     ESP_ERROR_CHECK(esp_timer_start_periodic(

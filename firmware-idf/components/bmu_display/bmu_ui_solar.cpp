@@ -155,16 +155,16 @@ void bmu_ui_solar_update(void)
 
     char buf[32];
 
-    snprintf(buf, sizeof(buf), "%.1f V", d->panel_voltage_v);
+    snprintf(buf, sizeof(buf), "%.2fV", d->panel_voltage_v);
     lv_label_set_text(s_pv_voltage, buf);
 
     snprintf(buf, sizeof(buf), "%d W", d->panel_power_w);
     lv_label_set_text(s_pv_power, buf);
 
-    snprintf(buf, sizeof(buf), "%.1f A", d->battery_current_a);
+    snprintf(buf, sizeof(buf), "%.1fA", d->battery_current_a);
     lv_label_set_text(s_charge_current, buf);
 
-    snprintf(buf, sizeof(buf), "%.2f V", d->battery_voltage_v);
+    snprintf(buf, sizeof(buf), "%.2fV", d->battery_voltage_v);
     lv_label_set_text(s_batt_voltage, buf);
 
     /* Etat charge avec couleur */

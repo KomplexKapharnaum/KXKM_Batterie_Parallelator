@@ -2,6 +2,7 @@
 
 #include "driver/i2c_master.h"
 #include "esp_err.h"
+#include "freertos/FreeRTOS.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -15,6 +16,7 @@ extern "C" {
 esp_err_t bmu_i2c_init(i2c_master_bus_handle_t *bus_handle);
 esp_err_t bmu_i2c_add_device(i2c_master_bus_handle_t bus, uint8_t addr,
                               i2c_master_dev_handle_t *dev);
+esp_err_t bmu_i2c_probe(i2c_master_bus_handle_t bus, uint8_t addr, TickType_t timeout_ticks);
 int bmu_i2c_scan(i2c_master_bus_handle_t bus);
 
 /**

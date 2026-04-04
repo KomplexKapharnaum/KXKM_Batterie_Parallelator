@@ -200,50 +200,73 @@ static struct ble_gatt_chr_def s_sys_chr_defs[] = {
         .uuid       = &s_firmware_chr_uuid.u,
         .access_cb  = system_chr_access_cb,
         .arg        = (void *)(intptr_t)SYS_CHR_FIRMWARE,
+        .descriptors = nullptr,
         .flags      = BLE_GATT_CHR_F_READ,
+        .min_key_size = 0,
+        .val_handle = nullptr,
+        .cpfd = nullptr,
     },
     {
         .uuid       = &s_heap_chr_uuid.u,
         .access_cb  = system_chr_access_cb,
         .arg        = (void *)(intptr_t)SYS_CHR_HEAP,
+        .descriptors = nullptr,
         .flags      = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY,
+        .min_key_size = 0,
         .val_handle = &s_heap_val_handle,
+        .cpfd = nullptr,
     },
     {
         .uuid       = &s_uptime_chr_uuid.u,
         .access_cb  = system_chr_access_cb,
         .arg        = (void *)(intptr_t)SYS_CHR_UPTIME,
+        .descriptors = nullptr,
         .flags      = BLE_GATT_CHR_F_READ,
+        .min_key_size = 0,
+        .val_handle = nullptr,
+        .cpfd = nullptr,
     },
     {
         .uuid       = &s_wifi_ip_chr_uuid.u,
         .access_cb  = system_chr_access_cb,
         .arg        = (void *)(intptr_t)SYS_CHR_WIFI_IP,
+        .descriptors = nullptr,
         .flags      = BLE_GATT_CHR_F_READ,
+        .min_key_size = 0,
+        .val_handle = nullptr,
+        .cpfd = nullptr,
     },
     {
         .uuid       = &s_topology_chr_uuid.u,
         .access_cb  = system_chr_access_cb,
         .arg        = (void *)(intptr_t)SYS_CHR_TOPOLOGY,
+        .descriptors = nullptr,
         .flags      = BLE_GATT_CHR_F_READ,
+        .min_key_size = 0,
+        .val_handle = nullptr,
+        .cpfd = nullptr,
     },
     {
         .uuid       = &s_solar_chr_uuid.u,
         .access_cb  = system_chr_access_cb,
         .arg        = (void *)(intptr_t)SYS_CHR_SOLAR,
+        .descriptors = nullptr,
         .flags      = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY,
+        .min_key_size = 0,
         .val_handle = &s_solar_val_handle,
+        .cpfd = nullptr,
     },
-    { 0 }, /* Terminateur */
+    {}, /* Terminateur */
 };
 
 static struct ble_gatt_svc_def s_sys_svc[] = {
     {
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
         .uuid = &s_sys_svc_uuid.u,
+        .includes = nullptr,
         .characteristics = s_sys_chr_defs,
     },
-    { 0 },
+    {},
 };
 
 static bool s_inited = false;

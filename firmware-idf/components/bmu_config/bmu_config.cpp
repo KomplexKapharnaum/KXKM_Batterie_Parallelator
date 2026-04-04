@@ -379,7 +379,7 @@ esp_err_t bmu_config_load_battery_labels(void)
 
     FILE *f = fopen(BAT_LABEL_PATH, "r");
     if (f == nullptr) {
-        ESP_LOGI(TAG, "Pas de %s — labels par defaut B1..B16", BAT_LABEL_PATH);
+        ESP_LOGI(TAG, "Pas de %s — labels par defaut B1..B32", BAT_LABEL_PATH);
         return ESP_ERR_NOT_FOUND;
     }
 

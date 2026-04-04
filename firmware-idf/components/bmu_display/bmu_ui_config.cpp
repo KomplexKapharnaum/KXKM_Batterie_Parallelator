@@ -48,7 +48,8 @@ typedef struct {
     uint16_t    max_val;
     uint16_t    step;
     lv_obj_t  **label;
-    const char *fmt; /* ex: "%u mV" */
+    const char *fmt; /* used when display_as_volts == false */
+    bool        display_as_volts;
 } stepper_ctx_t;
 
 static stepper_ctx_t s_steppers[4]; /* v_min, v_max, i_max, v_diff */
@@ -56,7 +57,11 @@ static stepper_ctx_t s_steppers[4]; /* v_min, v_max, i_max, v_diff */
 static void stepper_update_label(stepper_ctx_t *sc)
 {
     char buf[24];
-    snprintf(buf, sizeof(buf), sc->fmt, *sc->value);
+    if (sc->display_as_volts) {
+        snprintf(buf, sizeof(buf), "%.2fV", *sc->value / 1000.0f);
+    } else {
+        snprintf(buf, sizeof(buf), sc->fmt, *sc->value);
+    }
     lv_label_set_text(*sc->label, buf);
 }
 
@@ -180,10 +185,10 @@ void bmu_ui_config_create(lv_obj_t *parent)
     section_label(cont, "SEUILS PROTECTION");
     bmu_config_get_thresholds(&s_v_min, &s_v_max, &s_i_max, &s_v_diff);
 
-    s_steppers[0] = {&s_v_min,  20000, 30000,  500, &s_vmin_lbl,  "%u mV"};
-    s_steppers[1] = {&s_v_max,  25000, 35000,  500, &s_vmax_lbl,  "%u mV"};
-    s_steppers[2] = {&s_i_max,   1000, 50000, 1000, &s_imax_lbl,  "%u mA"};
-    s_steppers[3] = {&s_v_diff,   100,  5000,  100, &s_vdiff_lbl, "%u mV"};
+    s_steppers[0] = {&s_v_min,  20000, 30000,  500, &s_vmin_lbl,  "%u mV", true};
+    s_steppers[1] = {&s_v_max,  25000, 35000,  500, &s_vmax_lbl,  "%u mV", true};
+    s_steppers[2] = {&s_i_max,   1000, 50000, 1000, &s_imax_lbl,  "%u mA", false};
+    s_steppers[3] = {&s_v_diff,   100,  5000,  100, &s_vdiff_lbl, "%u mV", true};
 
     create_stepper(cont, "V min",  &s_steppers[0]);
     create_stepper(cont, "V max",  &s_steppers[1]);
@@ -206,11 +211,14 @@ void bmu_ui_config_create(lv_obj_t *parent)
     lv_obj_set_style_border_width(ble_row, 0, 0);
     lv_obj_set_style_pad_all(ble_row, 0, 0);
     lv_obj_t *ble_lbl = lv_label_create(ble_row);
-    lv_label_set_text(ble_lbl, "BLE");
+    lv_label_set_text(ble_lbl, "BLE BMU");
     lv_obj_set_style_text_color(ble_lbl, UI_COLOR_TEXT_SEC, 0);
     s_ble_sw = lv_switch_create(ble_row);
     lv_obj_set_style_bg_color(s_ble_sw, UI_COLOR_OK, (lv_style_selector_t)LV_PART_INDICATOR | (lv_style_selector_t)LV_STATE_CHECKED);
-    lv_obj_add_state(s_ble_sw, LV_STATE_CHECKED); /* BLE activé par défaut */
+#if CONFIG_BMU_BLE_ENABLED
+    lv_obj_add_state(s_ble_sw, LV_STATE_CHECKED);
+#endif
+    lv_obj_add_state(s_ble_sw, LV_STATE_DISABLED);
 
     /* Ligne luminosité */
     lv_obj_t *br_row = lv_obj_create(cont);
@@ -260,7 +268,7 @@ void bmu_ui_config_create(lv_obj_t *parent)
     s_label_idx_lbl = lv_label_create(label_row);
     lv_label_set_text(s_label_idx_lbl, "B1");
     lv_obj_set_style_text_color(s_label_idx_lbl, UI_COLOR_INFO, 0);
-    lv_obj_set_width(s_label_idx_lbl, 24);
+    lv_obj_set_width(s_label_idx_lbl, 32);
     lv_obj_set_style_text_align(s_label_idx_lbl, LV_TEXT_ALIGN_CENTER, 0);
 
     /* Bouton suivant */
@@ -297,7 +305,7 @@ void bmu_ui_config_create(lv_obj_t *parent)
         (void)e;
         const char *txt = lv_textarea_get_text(s_label_ta);
         if (txt && txt[0] != '\0') bmu_config_set_battery_label(s_label_edit_idx, txt);
-        if (s_label_edit_idx < 15) s_label_edit_idx++;
+        if (s_label_edit_idx < (BMU_MAX_BATTERIES - 1)) s_label_edit_idx++;
         char idx_buf[16];
         snprintf(idx_buf, sizeof(idx_buf), "B%d", s_label_edit_idx + 1);
         lv_label_set_text(s_label_idx_lbl, idx_buf);

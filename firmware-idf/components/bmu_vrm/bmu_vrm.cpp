@@ -95,9 +95,12 @@ static void publish_battery(void)
     if (s_nb_ina == 0 || s_mgr == NULL) return;
 
     /* Utilise l'API bmu_battery_manager — pas d'acces direct aux ina_devices */
-    float avg_mv = bmu_battery_manager_get_avg_voltage_mv(s_mgr);
+    float avg_mv = 0.0f;
+    float total_i = 0.0f;
+    if (bmu_battery_manager_get_summary(s_mgr, &avg_mv, &total_i, NULL) != ESP_OK) {
+        return;
+    }
     float avg_v  = avg_mv / 1000.0f;
-    float total_i = bmu_battery_manager_get_total_current_a(s_mgr);
     float soc = estimate_soc(avg_v);
 
     /* Cumul Ah decharge sur toutes les batteries */

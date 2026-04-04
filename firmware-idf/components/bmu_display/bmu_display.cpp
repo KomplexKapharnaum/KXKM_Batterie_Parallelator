@@ -40,12 +40,46 @@ static esp_timer_handle_t s_periodic_timer = NULL;
 static int s_chart_push_counter = 0;
 #define CHART_PUSH_INTERVAL  5  // 5 * 100ms = 500ms
 
+/* ── Runtime UI context sync ───────────────────────────────────────── */
+
+static uint8_t visible_battery_count(void)
+{
+    uint8_t count = 0;
+
+    if (s_ctx != NULL) {
+        count = s_ctx->nb_ina;
+    }
+
+    if (s_ui_ctx.prot != NULL) {
+        const uint8_t prot_count = s_ui_ctx.prot->nb_ina;
+        count = (count == 0 || prot_count < count) ? prot_count : count;
+    }
+
+    if (s_ui_ctx.mgr != NULL) {
+        const uint8_t mgr_count = s_ui_ctx.mgr->nb_ina;
+        count = (count == 0 || mgr_count < count) ? mgr_count : count;
+    }
+
+    if (count > BMU_MAX_BATTERIES) {
+        count = BMU_MAX_BATTERIES;
+    }
+
+    return count;
+}
+
+static void sync_ui_runtime_state(void)
+{
+    /* Keep display count aligned with the live protection/manager state.
+     * This prevents the UI from rendering batteries that are not actually
+     * backed by initialized sensor/state objects yet. */
+    s_ui_ctx.nb_ina = visible_battery_count();
+}
+
 /* ── Backlight ──────────────────────────────────────────────────────── */
 
 static void backlight_set_full(void)
 {
     bsp_display_brightness_set(100);
-    bsp_display_backlight_on();
     s_dimmed = false;
 }
 
@@ -65,12 +99,15 @@ static void backlight_check_dim(void)
 
 static void chart_history_push_all(void)
 {
-    if (s_ui_ctx.chart_hist == NULL) return;
-    int nb = s_ui_ctx.nb_ina > BMU_MAX_BATTERIES ? BMU_MAX_BATTERIES : s_ui_ctx.nb_ina;
+    if (s_ui_ctx.chart_hist == NULL || s_ui_ctx.mgr == NULL) return;
+
+    const int nb = visible_battery_count();
     for (int i = 0; i < nb; i++) {
-        float v_mv = bmu_protection_get_voltage(s_ui_ctx.prot, i);
-        float i_a = 0.0f;
-        bmu_ina237_read_current(&s_ui_ctx.mgr->ina_devices[i], &i_a);
+        float v_mv = bmu_battery_manager_get_last_voltage_mv(s_ui_ctx.mgr, i);
+        if (v_mv <= 1000.0f && s_ui_ctx.prot != NULL) {
+            v_mv = bmu_protection_get_voltage(s_ui_ctx.prot, i);
+        }
+        float i_a = bmu_battery_manager_get_last_current_a(s_ui_ctx.mgr, i);
         bmu_chart_history_push(&s_ui_ctx.chart_hist[i], v_mv, i_a);
     }
 }
@@ -83,6 +120,8 @@ static void display_periodic_cb(void *arg)
     backlight_check_dim();
 
     if (s_disp == NULL || !s_ui_ready) return;
+
+    sync_ui_runtime_state();
 
     /* Push chart data toutes les 500ms */
     s_chart_push_counter++;
@@ -119,7 +158,7 @@ esp_err_t bmu_display_init(bmu_display_ctx_t *ctx)
     s_ctx = ctx;
     s_ui_ctx.prot = ctx->prot;
     s_ui_ctx.mgr = ctx->mgr;
-    s_ui_ctx.nb_ina = ctx->nb_ina;
+    sync_ui_runtime_state();
     s_ui_ready = false;
 
     /* Init navigation state */
@@ -220,7 +259,9 @@ esp_err_t bmu_display_init(bmu_display_ctx_t *ctx)
         const esp_timer_create_args_t timer_args = {
             .callback = display_periodic_cb,
             .arg = NULL,
+            .dispatch_method = ESP_TIMER_TASK,
             .name = "disp_periodic",
+            .skip_unhandled_events = true,
         };
         ESP_ERROR_CHECK(esp_timer_create(&timer_args, &s_periodic_timer));
         ESP_ERROR_CHECK(esp_timer_start_periodic(

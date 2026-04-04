@@ -3,9 +3,9 @@ package com.kxkm.bmu.transport
 import com.kxkm.bmu.model.*
 
 object GattParser {
-    /** Parse 15-byte battery characteristic (little-endian) */
+    /** Parse battery characteristic (little-endian) */
     fun parseBattery(index: Int, bytes: ByteArray): BatteryState {
-        require(bytes.size >= 15) { "Battery payload must be >= 15 bytes, got ${bytes.size}" }
+        require(bytes.size >= 17) { "Battery payload must be >= 17 bytes, got ${bytes.size}" }
         return BatteryState(
             index = index,
             voltageMv = readInt32LE(bytes, 0),

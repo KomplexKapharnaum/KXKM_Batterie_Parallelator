@@ -41,6 +41,20 @@
 
 static const char *TAG = "MAIN";
 
+static bool bitbang_bus_conflicts_with_vedirect(void)
+{
+#if CONFIG_BMU_I2C_BB_ENABLED && defined(CONFIG_BMU_VEDIRECT_ENABLED) && CONFIG_BMU_VEDIRECT_ENABLED
+    const int bb_sda = CONFIG_BMU_I2C_BB_SDA_GPIO;
+    const int bb_scl = CONFIG_BMU_I2C_BB_SCL_GPIO;
+    const int ve_rx = CONFIG_BMU_VEDIRECT_RX_GPIO;
+    const int ve_tx = CONFIG_BMU_VEDIRECT_TX_GPIO;
+    return ve_rx == bb_sda || ve_rx == bb_scl ||
+           (ve_tx >= 0 && (ve_tx == bb_sda || ve_tx == bb_scl));
+#else
+    return false;
+#endif
+}
+
 /* ── Cloud telemetry task ──────────────────────────────────────────── */
 typedef struct {
     bmu_protection_ctx_t  *prot;
@@ -223,18 +237,6 @@ extern "C" void app_main(void)
         ESP_LOGW(TAG, "I2C BMU init failed: %s — running sans sensors", esp_err_to_name(i2c_ret));
     }
 
-    /* ── 7b. Capteur climat AHT30 (si bus ok) ────────────────────── */
-    if (i2c_ok) {
-        esp_err_t clim_ret = bmu_climate_init(i2c_bus);
-        if (clim_ret == ESP_OK) {
-            ESP_LOGI(TAG, "AHT30 climat OK — T=%.1f°C  H=%.1f%%",
-                     bmu_climate_get_temperature(), bmu_climate_get_humidity());
-        } else {
-            ESP_LOGW(TAG, "AHT30 init failed: %s — pas de capteur climat",
-                     esp_err_to_name(clim_ret));
-        }
-    }
-
     /* ── 8. Scan I2C + init sensors (si bus ok) ──────────────────── */
     static bmu_ina237_t ina[BMU_MAX_BATTERIES] = {};
     uint8_t nb_ina = 0;
@@ -263,6 +265,18 @@ extern "C" void app_main(void)
         }
     }
 
+    /* ── 8a. Capteur climat AHT30 (apres scan BMU pour eviter la concurrence boot) ── */
+    if (i2c_ok) {
+        esp_err_t clim_ret = bmu_climate_init(i2c_bus);
+        if (clim_ret == ESP_OK) {
+            ESP_LOGI(TAG, "AHT30 climat OK — T=%.1f°C  H=%.1f%%",
+                     bmu_climate_get_temperature(), bmu_climate_get_humidity());
+        } else {
+            ESP_LOGW(TAG, "AHT30 init failed: %s — pas de capteur climat",
+                     esp_err_to_name(clim_ret));
+        }
+    }
+
     /* ── 8b. I2C Bus 2 — bit-bang (batteries 17-32) ──────────────────── */
 #if CONFIG_BMU_I2C_BB_ENABLED
     static bmu_ina237_bb_t ina_bb[INA237_MAX_DEVICES] = {};
@@ -270,6 +284,16 @@ extern "C" void app_main(void)
     static bmu_tca9535_bb_handle_t tca_bb[TCA9535_MAX_DEVICES] = {};
     uint8_t nb_tca_bb = 0;
 
+#if defined(CONFIG_BMU_VEDIRECT_ENABLED) && CONFIG_BMU_VEDIRECT_ENABLED
+    if (bitbang_bus_conflicts_with_vedirect()) {
+        ESP_LOGW(TAG, "I2C bus 2 skippe: conflit de pins avec VE.Direct "
+                      "(BB SDA=%d SCL=%d, VE RX=%d TX=%d)",
+                 CONFIG_BMU_I2C_BB_SDA_GPIO,
+                 CONFIG_BMU_I2C_BB_SCL_GPIO,
+                 CONFIG_BMU_VEDIRECT_RX_GPIO,
+                 CONFIG_BMU_VEDIRECT_TX_GPIO);
+    } else
+#endif
     {
         bmu_i2c_bb_config_t bb_cfg = {
             .sda_gpio = CONFIG_BMU_I2C_BB_SDA_GPIO,
@@ -371,11 +395,17 @@ extern "C" void app_main(void)
              (unsigned long)esp_get_free_heap_size(), BMU_LOOP_PERIOD_MS);
 
     /* ── Main loop ─────────────────────────────────────────────────── */
+    bool topology_fail_safe_applied = false;
     while (true) {
         if (i2c_ok) {
             if (!topology_ok) {
-                bmu_protection_all_off(&prot);
+                if (!topology_fail_safe_applied) {
+                    ESP_LOGW(TAG, "Topology invalid — fail-safe all OFF applied once");
+                    bmu_protection_all_off(&prot);
+                    topology_fail_safe_applied = true;
+                }
             } else {
+                topology_fail_safe_applied = false;
                 for (int i = 0; i < nb_ina; i++) {
                     bmu_protection_check_battery(&prot, i);
                 }

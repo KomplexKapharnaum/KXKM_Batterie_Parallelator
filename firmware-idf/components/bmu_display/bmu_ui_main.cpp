@@ -35,6 +35,24 @@ static lv_obj_t *s_grid_parent = NULL;
 static bmu_ui_ctx_t *s_ctx_ref = NULL;
 static bmu_nav_state_t *s_nav  = NULL;
 
+static void load_runtime_voltage_window(float *min_mv_out, float *max_mv_out)
+{
+    uint16_t min_mv = BMU_MIN_VOLTAGE_MV;
+    uint16_t max_mv = BMU_MAX_VOLTAGE_MV;
+    uint16_t max_ma = BMU_MAX_CURRENT_MA;
+    uint16_t diff_mv = BMU_VOLTAGE_DIFF_MV;
+
+    bmu_config_get_thresholds(&min_mv, &max_mv, &max_ma, &diff_mv);
+
+    if (max_mv <= min_mv) {
+        min_mv = BMU_MIN_VOLTAGE_MV;
+        max_mv = BMU_MAX_VOLTAGE_MV;
+    }
+
+    if (min_mv_out != NULL) *min_mv_out = (float)min_mv;
+    if (max_mv_out != NULL) *max_mv_out = (float)max_mv;
+}
+
 /* ── Callback tap sur cellule ─────────────────────────────────────── */
 
 static void cell_clicked_cb(lv_event_t *e)
@@ -118,7 +136,7 @@ void bmu_ui_main_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx)
     lv_obj_align(vmoy_key, LV_ALIGN_TOP_LEFT, 0, 0);
 
     s_vmoy_label = lv_label_create(vmoy_tile);
-    lv_label_set_text(s_vmoy_label, "--.-V");
+    lv_label_set_text(s_vmoy_label, "0.00V");
     lv_obj_set_style_text_color(s_vmoy_label, UI_COLOR_TEXT, 0);
     lv_obj_set_style_text_font(s_vmoy_label, &lv_font_montserrat_14, 0);
     lv_obj_align(s_vmoy_label, LV_ALIGN_BOTTOM_LEFT, 0, 0);
@@ -258,7 +276,7 @@ static void ensure_battery_rows(int nb)
         s_bat_bars[i] = bar;
 
         lv_obj_t *vlbl = lv_label_create(row);
-        lv_label_set_text(vlbl, "--.-V");
+        lv_label_set_text(vlbl, "0.00V");
         lv_obj_set_style_text_color(vlbl, UI_COLOR_TEXT, 0);
         lv_obj_set_style_text_font(vlbl, &lv_font_montserrat_14, 0);
         lv_obj_set_width(vlbl, 48);
@@ -287,6 +305,12 @@ void bmu_ui_main_update(bmu_ui_ctx_t *ctx)
     }
 
     int nb = ctx->nb_ina > 32 ? 32 : ctx->nb_ina;
+    float min_voltage_mv = (float)BMU_MIN_VOLTAGE_MV;
+    float max_voltage_mv = (float)BMU_MAX_VOLTAGE_MV;
+    load_runtime_voltage_window(&min_voltage_mv, &max_voltage_mv);
+    const float voltage_span_mv = (max_voltage_mv > min_voltage_mv)
+                                      ? (max_voltage_mv - min_voltage_mv)
+                                      : 1.0f;
 
     /* Create battery rows lazily when nb_ina becomes known */
     ensure_battery_rows(nb);
@@ -300,22 +324,22 @@ void bmu_ui_main_update(bmu_ui_ctx_t *ctx)
         bmu_battery_state_t state = bmu_protection_get_state(ctx->prot, i);
 
         /* Courant : dernier point de l'historique graphique */
-        bmu_chart_history_t *h = &ctx->chart_hist[i];
+        bmu_chart_history_t *h = (ctx->chart_hist != NULL) ? &ctx->chart_hist[i] : NULL;
         float i_a = 0.0f;
-        if (h->count > 0) {
+        if (h != NULL && h->count > 0) {
             int last = (h->head - 1 + CONFIG_BMU_CHART_HISTORY_POINTS) % CONFIG_BMU_CHART_HISTORY_POINTS;
             i_a = h->current_a[last];
         }
 
         /* Labels tension et courant */
         char buf[16];
-        snprintf(buf, sizeof(buf), "%.1fV", v);
+        snprintf(buf, sizeof(buf), "%.2fV", v);
         lv_label_set_text(s_bat_vlabels[i], buf);
         snprintf(buf, sizeof(buf), "%.1fA", i_a);
         lv_label_set_text(s_bat_ilabels[i], buf);
 
         /* Barre : map tension → 0-100% */
-        int pct = (int)((v_mv - 24000.0f) / 6000.0f * 100.0f);
+        int pct = (int)(((v_mv - min_voltage_mv) / voltage_span_mv) * 100.0f);
         if (pct < 0)   pct = 0;
         if (pct > 100) pct = 100;
         lv_bar_set_value(s_bat_bars[i], pct, LV_ANIM_OFF);
@@ -324,7 +348,9 @@ void bmu_ui_main_update(bmu_ui_ctx_t *ctx)
         lv_color_t col;
         if (state == BMU_STATE_CONNECTED) {
             col = UI_COLOR_OK;
-        } else if (state == BMU_STATE_DISCONNECTED || state == BMU_STATE_LOCKED) {
+        } else if (state == BMU_STATE_DISCONNECTED ||
+                   state == BMU_STATE_ERROR ||
+                   state == BMU_STATE_LOCKED) {
             col = UI_COLOR_ERR;
         } else {
             col = UI_COLOR_WARN;
@@ -353,10 +379,13 @@ void bmu_ui_main_update(bmu_ui_ctx_t *ctx)
     /* Mise a jour barre stats */
     char buf[24];
     float avg_v = n_active > 0 ? sum_v / n_active : 0;
-    snprintf(buf, sizeof(buf), "%.1fV", avg_v);
+    snprintf(buf, sizeof(buf), "%.2fV", avg_v);
     lv_label_set_text(s_vmoy_label, buf);
     lv_obj_set_style_text_color(s_vmoy_label,
-        (avg_v >= 24.0f && avg_v <= 30.0f) ? UI_COLOR_OK : UI_COLOR_WARN, 0);
+        (avg_v * 1000.0f >= min_voltage_mv && avg_v * 1000.0f <= max_voltage_mv)
+            ? UI_COLOR_OK
+            : UI_COLOR_WARN,
+        0);
 
     snprintf(buf, sizeof(buf), "%.1fA", sum_i);
     lv_label_set_text(s_itot_label, buf);

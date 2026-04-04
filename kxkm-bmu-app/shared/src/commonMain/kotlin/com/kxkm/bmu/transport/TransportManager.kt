@@ -5,10 +5,10 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 
 class TransportManager(
-    private val ble: BleTransport,
-    private val wifi: WifiTransport?,
-    private val mqtt: MqttTransport?,
-    private val offline: OfflineTransport
+    private val ble: Transport,
+    private var wifi: Transport?,
+    private var mqtt: Transport?,
+    private val offline: Transport
 ) {
     companion object {
         val PRIORITY_ORDER = listOf(
@@ -33,13 +33,27 @@ class TransportManager(
     fun start() {
         scope.launch {
             while (true) {
-                val best = selectBestTransport()
-                if (best.channel != _activeChannel.value) {
-                    _activeTransport.value = best
-                    _activeChannel.value = best.channel
-                }
+                updateActiveTransport()
                 delay(2000) // Re-evaluate every 2s
             }
+        }
+    }
+
+    fun setWifi(transport: WifiTransport?) {
+        wifi = transport
+        updateActiveTransport()
+    }
+
+    fun setMqtt(transport: MqttTransport?) {
+        mqtt = transport
+        updateActiveTransport()
+    }
+
+    private fun updateActiveTransport() {
+        val best = selectBestTransport()
+        if (best.channel != _activeChannel.value) {
+            _activeTransport.value = best
+            _activeChannel.value = best.channel
         }
     }
 
@@ -92,4 +106,15 @@ class TransportManager(
 
     suspend fun setWifiConfig(ssid: String, password: String): CommandResult =
         _activeTransport.value.setWifiConfig(ssid, password)
+
+    fun supports(capability: TransportCapability): Boolean =
+        _activeTransport.value.supports(capability)
+
+    fun close() {
+        scope.cancel()
+        ble.close()
+        wifi?.close()
+        mqtt?.close()
+        offline.close()
+    }
 }

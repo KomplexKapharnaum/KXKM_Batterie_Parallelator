@@ -123,9 +123,11 @@ esp_err_t bmu_protection_check_battery(bmu_protection_ctx_t *ctx, int idx)
     /* Read shared state under mutex */
     int local_nb_switch = 0;
     int64_t local_reconnect_time = 0;
+    bmu_battery_state_t local_prev_state = BMU_STATE_DISCONNECTED;
     if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
         local_nb_switch = ctx->nb_switch[idx];
         local_reconnect_time = ctx->reconnect_time_ms[idx];
+        local_prev_state = ctx->battery_state[idx];
         xSemaphoreGive(ctx->state_mutex);
     } else {
         ESP_LOGW(TAG, "BAT[%d] mutex timeout — skip", idx + 1);
@@ -199,10 +201,14 @@ esp_err_t bmu_protection_check_battery(bmu_protection_ctx_t *ctx, int idx)
         break;
 
     case BMU_STATE_DISCONNECTED:
-        ESP_LOGI(TAG, "BAT[%d] disconnected V=%.0fmV I=%.3fA", idx + 1, v_mv, i_a);
+        if (local_prev_state != BMU_STATE_DISCONNECTED) {
+            ESP_LOGI(TAG, "BAT[%d] disconnected V=%.0fmV I=%.3fA", idx + 1, v_mv, i_a);
+        }
         switch_battery(ctx, idx, false);
 #if CONFIG_BMU_RINT_ENABLED
-        bmu_rint_on_disconnect(idx, v_mv, i_a);
+        if (local_prev_state != BMU_STATE_DISCONNECTED) {
+            bmu_rint_on_disconnect(idx, v_mv, i_a);
+        }
 #endif
         break;
 

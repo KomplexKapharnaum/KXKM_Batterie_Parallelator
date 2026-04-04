@@ -28,6 +28,23 @@ static bmu_nav_state_t *s_nav_ref = NULL;
 static bmu_protection_ctx_t *s_prot = NULL;
 static bool s_switch_action = false;
 
+static void load_runtime_voltage_window(int32_t *min_mv_out, int32_t *max_mv_out)
+{
+    uint16_t min_mv = BMU_MIN_VOLTAGE_MV;
+    uint16_t max_mv = BMU_MAX_VOLTAGE_MV;
+    uint16_t max_ma = BMU_MAX_CURRENT_MA;
+    uint16_t diff_mv = BMU_VOLTAGE_DIFF_MV;
+
+    bmu_config_get_thresholds(&min_mv, &max_mv, &max_ma, &diff_mv);
+    if (max_mv <= min_mv) {
+        min_mv = BMU_MIN_VOLTAGE_MV;
+        max_mv = BMU_MAX_VOLTAGE_MV;
+    }
+
+    if (min_mv_out != NULL) *min_mv_out = (int32_t)min_mv;
+    if (max_mv_out != NULL) *max_mv_out = (int32_t)max_mv;
+}
+
 /* ── Noms d'etats ─────────────────────────────────────────────────── */
 
 static const char *state_name(bmu_battery_state_t s)
@@ -188,7 +205,10 @@ void bmu_ui_detail_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx, int idx)
 
     /* Serie tension (axe Y primaire) — bleu */
     s_ser_v = lv_chart_add_series(s_chart, UI_COLOR_INFO, LV_CHART_AXIS_PRIMARY_Y);
-    lv_chart_set_range(s_chart, LV_CHART_AXIS_PRIMARY_Y, 20000, 32000); // plage initiale, auto-scale apres
+    int32_t min_mv = BMU_MIN_VOLTAGE_MV;
+    int32_t max_mv = BMU_MAX_VOLTAGE_MV;
+    load_runtime_voltage_window(&min_mv, &max_mv);
+    lv_chart_set_range(s_chart, LV_CHART_AXIS_PRIMARY_Y, min_mv - 1000, max_mv + 1000);
 
     /* Serie courant (axe Y secondaire) — vert */
     s_ser_i = lv_chart_add_series(s_chart, UI_COLOR_OK, LV_CHART_AXIS_SECONDARY_Y);
@@ -264,12 +284,13 @@ void bmu_ui_detail_update(bmu_ui_ctx_t *ctx, int idx)
     bmu_battery_state_t state = bmu_protection_get_state(ctx->prot, idx);
     float ah_d = bmu_battery_manager_get_ah_discharge(ctx->mgr, idx);
     float ah_c = bmu_battery_manager_get_ah_charge(ctx->mgr, idx);
-    int nb_sw = ctx->prot->nb_switch[idx];
+    int nb_sw = 0;
+    esp_err_t nb_sw_ret = bmu_protection_get_switch_count(ctx->prot, idx, &nb_sw);
 
     /* Calculer courant et puissance depuis l'historique */
-    bmu_chart_history_t *h = &ctx->chart_hist[idx];
+    bmu_chart_history_t *h = (ctx->chart_hist != NULL) ? &ctx->chart_hist[idx] : NULL;
     float i_a = 0.0f;
-    if (h->count > 0) {
+    if (h != NULL && h->count > 0) {
         int last = (h->head - 1 + CONFIG_BMU_CHART_HISTORY_POINTS) % CONFIG_BMU_CHART_HISTORY_POINTS;
         i_a = h->current_a[last];
     }
@@ -277,7 +298,7 @@ void bmu_ui_detail_update(bmu_ui_ctx_t *ctx, int idx)
 
     /* Valeurs numeriques */
     char buf[20];
-    snprintf(buf, sizeof(buf), "%.2f V", v);
+    snprintf(buf, sizeof(buf), "%.2fV", v);
     lv_label_set_text(s_val_labels[0], buf);
 
     snprintf(buf, sizeof(buf), "%.2f A", i_a);
@@ -300,14 +321,18 @@ void bmu_ui_detail_update(bmu_ui_ctx_t *ctx, int idx)
     snprintf(buf, sizeof(buf), "%.3f", ah_d);
     lv_label_set_text(s_val_labels[5], buf);
 
-    snprintf(buf, sizeof(buf), "%d", nb_sw);
-    lv_label_set_text(s_val_labels[6], buf);
+    if (nb_sw_ret == ESP_OK) {
+        snprintf(buf, sizeof(buf), "%d", nb_sw);
+        lv_label_set_text(s_val_labels[6], buf);
+    } else {
+        lv_label_set_text(s_val_labels[6], "---");
+    }
 
     lv_label_set_text(s_val_labels[7], state_name(state));
     lv_obj_set_style_text_color(s_val_labels[7], state_color(state), 0);
 
     /* Mettre a jour le graphique avec les donnees du ring buffer */
-    if (s_chart != NULL && h->count > 0) {
+    if (s_chart != NULL && h != NULL && h->count > 0) {
         int points = h->count < 60 ? h->count : 60;
         int start = (h->head - points + CONFIG_BMU_CHART_HISTORY_POINTS) % CONFIG_BMU_CHART_HISTORY_POINTS;
 

@@ -307,50 +307,76 @@ static struct ble_gatt_chr_def s_ctrl_chr_defs[] = {
         .uuid       = &s_switch_chr_uuid.u,
         .access_cb  = control_chr_access_cb,
         .arg        = (void *)(intptr_t)CTRL_CHR_SWITCH,
+        .descriptors = nullptr,
         .flags      = BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_WRITE_ENC,
+        .min_key_size = 0,
+        .val_handle = nullptr,
+        .cpfd = nullptr,
     },
     {
         .uuid       = &s_reset_chr_uuid.u,
         .access_cb  = control_chr_access_cb,
         .arg        = (void *)(intptr_t)CTRL_CHR_RESET,
+        .descriptors = nullptr,
         .flags      = BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_WRITE_ENC,
+        .min_key_size = 0,
+        .val_handle = nullptr,
+        .cpfd = nullptr,
     },
     {
         .uuid       = &s_config_chr_uuid.u,
         .access_cb  = control_chr_access_cb,
         .arg        = (void *)(intptr_t)CTRL_CHR_CONFIG,
+        .descriptors = nullptr,
         .flags      = BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_WRITE_ENC,
+        .min_key_size = 0,
+        .val_handle = nullptr,
+        .cpfd = nullptr,
     },
     {
         .uuid       = &s_status_chr_uuid.u,
         .access_cb  = control_chr_access_cb,
         .arg        = (void *)(intptr_t)CTRL_CHR_STATUS,
+        .descriptors = nullptr,
         .flags      = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY,
+        .min_key_size = 0,
         .val_handle = &s_status_val_handle,
+        .cpfd = nullptr,
     },
     /* WiFi Config — write encrypted */
     {
         .uuid       = &s_wifi_cfg_chr_uuid.u,
         .access_cb  = control_chr_access_cb,
         .arg        = (void *)(intptr_t)CTRL_CHR_WIFI_CONFIG,
+        .descriptors = nullptr,
         .flags      = BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_WRITE_ENC,
+        .min_key_size = 0,
+        .val_handle = nullptr,
+        .cpfd = nullptr,
     },
     /* WiFi Status — read + notify */
     {
         .uuid       = &s_wifi_sts_chr_uuid.u,
         .access_cb  = control_chr_access_cb,
         .arg        = (void *)(intptr_t)CTRL_CHR_WIFI_STATUS,
+        .descriptors = nullptr,
         .flags      = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY,
+        .min_key_size = 0,
         .val_handle = &s_wifi_sts_val_handle,
+        .cpfd = nullptr,
     },
     /* Battery Label — write encrypted */
     {
         .uuid       = &s_bat_label_chr_uuid.u,
         .access_cb  = control_chr_access_cb,
         .arg        = (void *)(intptr_t)CTRL_CHR_BAT_LABEL,
+        .descriptors = nullptr,
         .flags      = BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_WRITE_ENC,
+        .min_key_size = 0,
+        .val_handle = nullptr,
+        .cpfd = nullptr,
     },
-    { 0 }, /* Terminateur */
+    {}, /* Terminateur */
 };
 
 /* ── WiFi status notify timer ─────────────────────────────────────── */
@@ -368,7 +394,9 @@ void bmu_ble_wifi_notify_start(void)
     const esp_timer_create_args_t args = {
         .callback = wifi_notify_cb,
         .arg = NULL,
+        .dispatch_method = ESP_TIMER_TASK,
         .name = "ble_wifi_ntf",
+        .skip_unhandled_events = true,
     };
     esp_timer_create(&args, &s_wifi_notify_timer);
     esp_timer_start_periodic(s_wifi_notify_timer, 10000000ULL); /* 10s */
@@ -387,9 +415,10 @@ static struct ble_gatt_svc_def s_ctrl_svc[] = {
     {
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
         .uuid = &s_ctrl_svc_uuid.u,
+        .includes = nullptr,
         .characteristics = s_ctrl_chr_defs,
     },
-    { 0 },
+    {},
 };
 
 const struct ble_gatt_svc_def *bmu_ble_control_svc_defs(void)

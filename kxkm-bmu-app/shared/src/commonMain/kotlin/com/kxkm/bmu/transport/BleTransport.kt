@@ -9,6 +9,13 @@ class BleTransport : Transport {
     override val channel = TransportChannel.BLE
     private val _isConnected = MutableStateFlow(false)
     override val isConnected: StateFlow<Boolean> = _isConnected
+    override val capabilities = setOf(
+        TransportCapability.OBSERVE,
+        TransportCapability.SWITCH_BATTERY,
+        TransportCapability.RESET_SWITCH,
+        TransportCapability.SET_CONFIG,
+        TransportCapability.SET_WIFI
+    )
 
     private var peripheral: Peripheral? = null
     private val _batteries = MutableStateFlow<List<BatteryState>>(emptyList())
@@ -50,6 +57,11 @@ class BleTransport : Transport {
 
     override suspend fun disconnect() {
         peripheral?.disconnect()
+        _isConnected.value = false
+    }
+
+    override fun close() {
+        scope.cancel()
         _isConnected.value = false
     }
 

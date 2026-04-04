@@ -14,6 +14,7 @@ class MqttTransport(
     override val channel = TransportChannel.MQTT_CLOUD
     private val _isConnected = MutableStateFlow(false)
     override val isConnected: StateFlow<Boolean> = _isConnected
+    override val capabilities = setOf(TransportCapability.OBSERVE)
 
     private val _batteries = MutableStateFlow<List<BatteryState>>(emptyList())
     private val _system = MutableStateFlow<SystemInfo?>(null)
@@ -29,7 +30,7 @@ class MqttTransport(
         // Android: Paho MQTT client
         // iOS: Custom wrapper or CocoaMQTT via expect/actual
         // Subscribes to bmu/battery/# and parses JSON payloads
-        _isConnected.value = true
+        _isConnected.value = false
     }
 
     override suspend fun disconnect() {

@@ -19,6 +19,7 @@
 #include "freertos/task.h"
 
 #include <cmath>
+#include <inttypes.h>
 
 static const char *TAG = "CLIMATE";
 
@@ -38,6 +39,7 @@ static esp_timer_handle_t      s_timer   = NULL;
 static volatile bool           s_available = false;
 static volatile float          s_temperature = NAN;
 static volatile float          s_humidity    = NAN;
+static uint32_t                s_failure_streak = 0;
 
 /* ── Fonctions internes ──────────────────────────────────────────────── */
 
@@ -135,14 +137,25 @@ static void climate_timer_callback(void *arg)
     (void)arg;
     float temp = NAN, hum = NAN;
     esp_err_t ret = aht30_trigger_and_read(&temp, &hum);
+    if (ret != ESP_OK && (ret == ESP_ERR_TIMEOUT || ret == ESP_ERR_NOT_FINISHED)) {
+        ret = aht30_trigger_and_read(&temp, &hum);
+    }
     if (ret == ESP_OK) {
+        s_failure_streak = 0;
         s_temperature = temp;
         s_humidity    = hum;
         s_available   = true;
         ESP_LOGD(TAG, "AHT30: T=%.1f°C  H=%.1f%%", temp, hum);
     } else {
         /* Ne pas invalider les anciennes valeurs en cas d'erreur ponctuelle */
-        ESP_LOGW(TAG, "AHT30 lecture echouee: %s", esp_err_to_name(ret));
+        s_failure_streak++;
+        if (s_failure_streak == 1 || (s_failure_streak % 12) == 0) {
+            ESP_LOGW(TAG, "AHT30 lecture echouee: %s (serie=%" PRIu32 ")",
+                     esp_err_to_name(ret), s_failure_streak);
+        } else {
+            ESP_LOGD(TAG, "AHT30 lecture echouee: %s (serie=%" PRIu32 ")",
+                     esp_err_to_name(ret), s_failure_streak);
+        }
     }
 }
 

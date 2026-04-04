@@ -311,7 +311,7 @@ void bmu_ui_system_update(bmu_ui_ctx_t *ctx)
             lv_obj_set_style_text_color(s_mppt_state, cs_color(vd->charge_state), 0);
 
             /* PV tension + puissance + tension batterie */
-            snprintf(buf, sizeof(buf), "PV %.1fV  %dW  Batt %.2fV",
+            snprintf(buf, sizeof(buf), "PV %.2fV  %dW  Batt %.2fV",
                      vd->panel_voltage_v,
                      vd->panel_power_w,
                      vd->battery_voltage_v);

@@ -95,4 +95,8 @@ class MonitoringUseCase(
             callback(getHistory(batteryIndex, hours))
         }
     }
+
+    fun close() {
+        scope.cancel()
+    }
 }

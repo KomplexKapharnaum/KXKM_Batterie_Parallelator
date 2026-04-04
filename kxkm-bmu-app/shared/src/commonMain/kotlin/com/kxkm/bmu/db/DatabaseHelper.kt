@@ -30,6 +30,20 @@ class DatabaseHelper(driverFactory: DriverFactory) {
         }
     }
 
+    fun getLastKnownBatteries(): List<BatteryState> {
+        return queries.getLastKnownBatteries().executeAsList().map {
+            BatteryState(
+                index = it.battery_index.toInt(),
+                voltageMv = it.voltage_mv.toInt(),
+                currentMa = it.current_ma.toInt(),
+                state = runCatching { BatteryStatus.valueOf(it.state) }.getOrDefault(BatteryStatus.ERROR),
+                ahDischargeMah = it.ah_discharge_mah.toInt(),
+                ahChargeMah = it.ah_charge_mah.toInt(),
+                nbSwitch = 0
+            )
+        }
+    }
+
     fun purgeOldHistory(olderThanMs: Long) {
         queries.purgeOldHistory(olderThanMs)
     }
@@ -56,6 +70,26 @@ class DatabaseHelper(driverFactory: DriverFactory) {
             batteryIndex?.toLong(), batteryIndex?.toLong(),
             limit.toLong()
         ).executeAsList().map { it.toAuditEvent() }
+    }
+
+    fun getUnsyncedAudit(limit: Int = 100): List<PendingAuditSyncItem> {
+        return queries.getUnsyncedAudit(limit.toLong()).executeAsList().map {
+            PendingAuditSyncItem(
+                id = it.id,
+                event = AuditEvent(
+                    timestamp = it.timestamp,
+                    userId = it.user_id,
+                    action = it.action,
+                    target = it.target?.toInt(),
+                    detail = it.detail
+                )
+            )
+        }
+    }
+
+    fun markAuditSynced(ids: List<Long>) {
+        if (ids.isEmpty()) return
+        queries.markAuditSynced(ids)
     }
 
     fun countUnsyncedAudit(): Long = queries.countUnsyncedAudit().executeAsOne()
@@ -88,6 +122,11 @@ data class BatteryHistoryPoint(
     val timestamp: Long,
     val voltageMv: Int,
     val currentMa: Int
+)
+
+data class PendingAuditSyncItem(
+    val id: Long,
+    val event: AuditEvent
 )
 
 private fun Audit_events.toAuditEvent() = AuditEvent(

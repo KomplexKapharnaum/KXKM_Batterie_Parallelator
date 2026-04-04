@@ -5,10 +5,21 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.emptyFlow
 
+enum class TransportCapability {
+    OBSERVE,
+    SWITCH_BATTERY,
+    RESET_SWITCH,
+    SET_CONFIG,
+    SET_WIFI
+}
+
 /** Unified transport interface — implemented by BLE, WiFi, MQTT, REST, Offline */
 interface Transport {
     val channel: TransportChannel
     val isConnected: StateFlow<Boolean>
+    val capabilities: Set<TransportCapability>
+
+    fun supports(capability: TransportCapability): Boolean = capability in capabilities
 
     /** Reactive battery state stream */
     fun observeBatteries(): Flow<List<BatteryState>>
@@ -31,4 +42,7 @@ interface Transport {
     /** Connection lifecycle */
     suspend fun connect()
     suspend fun disconnect()
+
+    /** Release internal resources/scope when no longer needed. */
+    fun close() {}
 }

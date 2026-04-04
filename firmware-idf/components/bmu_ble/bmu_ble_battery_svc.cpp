@@ -339,9 +339,10 @@ static struct ble_gatt_svc_def s_bat_svc[] = {
     {
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
         .uuid = &s_bat_svc_uuid.u,
+        .includes = nullptr,
         .characteristics = s_bat_chr_defs,
     },
-    { 0 }, /* Terminateur */
+    {}, /* Terminateur */
 };
 
 static bool s_inited = false;

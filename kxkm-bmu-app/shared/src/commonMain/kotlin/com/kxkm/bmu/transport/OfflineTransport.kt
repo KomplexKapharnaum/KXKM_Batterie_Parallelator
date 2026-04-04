@@ -8,8 +8,9 @@ import kotlinx.coroutines.flow.*
 class OfflineTransport(private val db: DatabaseHelper) : Transport {
     override val channel = TransportChannel.OFFLINE
     override val isConnected: StateFlow<Boolean> = MutableStateFlow(false)
+    override val capabilities = setOf(TransportCapability.OBSERVE)
 
-    override fun observeBatteries(): Flow<List<BatteryState>> = flowOf(emptyList())
+    override fun observeBatteries(): Flow<List<BatteryState>> = flowOf(db.getLastKnownBatteries())
     override fun observeSystem(): Flow<SystemInfo?> = flowOf(null)
     override fun observeSolar(): Flow<SolarData?> = flowOf(null)
 

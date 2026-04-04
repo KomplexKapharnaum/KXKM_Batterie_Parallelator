@@ -373,6 +373,19 @@ void bmu_rint_on_disconnect(uint8_t battery_idx, float v_before_mv, float i_befo
         return;
     }
 
+    if (s_measuring) {
+        ESP_LOGD(TAG, "Bat %d opportuniste : mesure active deja en cours", battery_idx);
+        return;
+    }
+
+    const float i_min_a = CONFIG_BMU_RINT_MIN_CURRENT_MA / 1000.0f;
+    if (v_before_mv < BMU_MIN_VOLTAGE_MV || fabsf(i_before_a) < i_min_a) {
+        ESP_LOGD(TAG, "Bat %d opportuniste : skip (V=%.0f mV I=%.3f A)",
+                 battery_idx, v_before_mv, i_before_a);
+        return;
+    }
+
+    s_measuring = true;
     ESP_LOGI(TAG, "Bat %d : mesure opportuniste (V_before=%.0f mV, I=%.3f A)",
              battery_idx, v_before_mv, i_before_a);
 
@@ -386,6 +399,7 @@ void bmu_rint_on_disconnect(uint8_t battery_idx, float v_before_mv, float i_befo
         &s_prot->ina_devices[battery_idx], &v2, &dummy);
     if (ret != ESP_OK) {
         ESP_LOGD(TAG, "Bat %d opportuniste : erreur V2", battery_idx);
+        s_measuring = false;
         return;
     }
 
@@ -400,6 +414,7 @@ void bmu_rint_on_disconnect(uint8_t battery_idx, float v_before_mv, float i_befo
         &s_prot->ina_devices[battery_idx], &v3, &dummy);
     if (ret != ESP_OK) {
         ESP_LOGD(TAG, "Bat %d opportuniste : erreur V3", battery_idx);
+        s_measuring = false;
         return;
     }
 
@@ -411,6 +426,7 @@ void bmu_rint_on_disconnect(uint8_t battery_idx, float v_before_mv, float i_befo
     }
 
     rint_output_route(battery_idx, BMU_RINT_TRIGGER_OPPORTUNISTIC, &result);
+    s_measuring = false;
 }
 
 /* ── Tâche périodique ─────────────────────────────────────────────────── */

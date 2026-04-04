@@ -55,6 +55,15 @@ SELECT * FROM battery_history
 WHERE battery_index = ? AND timestamp > ?
 ORDER BY timestamp ASC;
 
+getLastKnownBatteries:
+SELECT * FROM battery_history
+WHERE id IN (
+    SELECT MAX(id)
+    FROM battery_history
+    GROUP BY battery_index
+)
+ORDER BY battery_index ASC;
+
 purgeOldHistory:
 DELETE FROM battery_history WHERE timestamp < ?;
 

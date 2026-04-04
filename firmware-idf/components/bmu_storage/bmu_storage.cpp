@@ -26,8 +26,12 @@ static const char *TAG_NVS = "NVS";
 static bool s_sd_mounted = false;
 static sdmmc_card_t *s_card = nullptr;
 
-#define BMU_SD_LOG_PATH BMU_SD_MOUNT "/bmu_log.csv"
 #define BMU_SD_SPI_HOST SPI2_HOST
+
+static esp_err_t ensure_sd_mounted(void)
+{
+    return s_sd_mounted ? ESP_OK : bmu_sd_init();
+}
 
 esp_err_t bmu_sd_init(void)
 {
@@ -63,6 +67,8 @@ esp_err_t bmu_sd_init(void)
     mount_cfg.format_if_mount_failed = false;
     mount_cfg.max_files              = 4;
     mount_cfg.allocation_unit_size   = 16 * 1024;
+    mount_cfg.disk_status_check_enable = false;
+    mount_cfg.use_one_fat              = false;
 
     ret = esp_vfs_fat_sdspi_mount(BMU_SD_MOUNT, &host, &slot_cfg, &mount_cfg, &s_card);
     if (ret != ESP_OK) {
@@ -85,11 +91,12 @@ bool bmu_sd_is_mounted(void)
 
 esp_err_t bmu_sd_log_line(const char *line)
 {
-    if (!s_sd_mounted) {
-        return ESP_ERR_INVALID_STATE;
-    }
     if (line == nullptr) {
         return ESP_ERR_INVALID_ARG;
+    }
+    esp_err_t ret = ensure_sd_mounted();
+    if (ret != ESP_OK) {
+        return ret;
     }
 
     FILE *f = fopen(BMU_SD_LOG_PATH, "a");
@@ -105,11 +112,13 @@ esp_err_t bmu_sd_log_line(const char *line)
 
 esp_err_t bmu_sd_read_last_lines(char *buf, size_t buf_size, int max_lines)
 {
-    if (!s_sd_mounted) {
-        return ESP_ERR_INVALID_STATE;
-    }
     if (buf == nullptr || buf_size == 0 || max_lines <= 0) {
         return ESP_ERR_INVALID_ARG;
+    }
+    esp_err_t ret = ensure_sd_mounted();
+    if (ret != ESP_OK) {
+        buf[0] = '\0';
+        return ret;
     }
 
     FILE *f = fopen(BMU_SD_LOG_PATH, "r");
@@ -184,6 +193,8 @@ esp_err_t bmu_fat_init(void)
         .format_if_mount_failed = true,
         .max_files = 4,
         .allocation_unit_size = CONFIG_WL_SECTOR_SIZE,
+        .disk_status_check_enable = false,
+        .use_one_fat = false,
     };
 
     esp_err_t ret = esp_vfs_fat_spiflash_mount_rw_wl(

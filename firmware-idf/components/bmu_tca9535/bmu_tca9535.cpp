@@ -142,7 +142,12 @@ esp_err_t bmu_tca9535_init(i2c_master_bus_handle_t bus,
         return ret;
     }
 
-    return tca9535_configure(handle);
+    ret = tca9535_configure(handle);
+    if (ret != ESP_OK) {
+        i2c_master_bus_rm_device(handle->dev);
+        handle->dev = NULL;
+    }
+    return ret;
 }
 
 esp_err_t bmu_tca9535_scan_init(i2c_master_bus_handle_t bus,
@@ -158,6 +163,10 @@ esp_err_t bmu_tca9535_scan_init(i2c_master_bus_handle_t bus,
 
     for (uint8_t i = 0; i < TCA9535_MAX_DEVICES && *found < max_devices; i++) {
         uint8_t addr = TCA9535_BASE_ADDR + i;
+
+        if (bmu_i2c_probe(bus, addr, pdMS_TO_TICKS(20)) != ESP_OK) {
+            continue;
+        }
 
         /* Tenter de lire le registre Input Port 0 pour detecter la presence */
         i2c_master_dev_handle_t dev;
@@ -184,6 +193,8 @@ esp_err_t bmu_tca9535_scan_init(i2c_master_bus_handle_t bus,
         ret = tca9535_configure(h);
         if (ret != ESP_OK) {
             ESP_LOGW(TAG, "TCA9535 @ 0x%02X detecte mais erreur de configuration", addr);
+            i2c_master_bus_rm_device(dev);
+            h->dev = NULL;
             continue;
         }
 
@@ -232,6 +243,10 @@ esp_err_t bmu_tca9535_switch_battery(bmu_tca9535_handle_t *handle,
     }
 
     uint8_t bit = switch_bit(channel);
+    const bool current_state = (handle->out_p0 & (1 << bit)) != 0;
+    if (current_state == on) {
+        return ESP_OK;
+    }
 
     if (on) {
         handle->out_p0 |= (1 << bit);
@@ -261,18 +276,25 @@ esp_err_t bmu_tca9535_set_led(bmu_tca9535_handle_t *handle,
     /* Mapping LED : channel N → red = bit (2*N), green = bit (2*N + 1) */
     uint8_t red_bit   = (uint8_t)(channel * 2);
     uint8_t green_bit = (uint8_t)(channel * 2 + 1);
+    uint8_t desired_p1 = handle->out_p1;
 
     if (red) {
-        handle->out_p1 |= (1 << red_bit);
+        desired_p1 |= (1 << red_bit);
     } else {
-        handle->out_p1 &= ~(1 << red_bit);
+        desired_p1 &= ~(1 << red_bit);
     }
 
     if (green) {
-        handle->out_p1 |= (1 << green_bit);
+        desired_p1 |= (1 << green_bit);
     } else {
-        handle->out_p1 &= ~(1 << green_bit);
+        desired_p1 &= ~(1 << green_bit);
     }
+
+    if (desired_p1 == handle->out_p1) {
+        return ESP_OK;
+    }
+
+    handle->out_p1 = desired_p1;
 
     esp_err_t ret = tca9535_write_reg8(handle->dev,
                                        TCA9535_REG_OUTPUT_PORT1,

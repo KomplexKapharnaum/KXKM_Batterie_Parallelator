@@ -27,18 +27,24 @@ class SharedFactory(driverFactory: DriverFactory) {
 
     fun configureWifi(baseUrl: String, token: String) {
         wifi = WifiTransport(baseUrl, token)
+        transportManager.setWifi(wifi)
     }
 
     fun configureCloud(apiUrl: String, apiKey: String, mqttBroker: String,
                        mqttUser: String, mqttPass: String) {
         restClient = CloudRestClient(apiUrl, apiKey)
         mqtt = MqttTransport(mqttBroker, mqttUser, mqttPass)
+        transportManager.setMqtt(mqtt)
     }
 
     fun createMonitoringUseCase() = MonitoringUseCase(transportManager, db)
     fun createControlUseCase() = ControlUseCase(transportManager, auditUseCase) { currentUserId }
     fun createConfigUseCase() = ConfigUseCase(transportManager, auditUseCase) { currentUserId }
     fun createSyncManager() = SyncManager(db, restClient)
+
+    fun close() {
+        transportManager.close()
+    }
 
     companion object {
         // iOS needs a companion object factory since constructors with expect/actual are complex

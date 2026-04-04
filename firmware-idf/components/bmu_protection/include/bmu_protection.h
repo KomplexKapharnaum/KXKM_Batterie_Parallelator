@@ -45,6 +45,8 @@ esp_err_t bmu_protection_reset_switch_count(bmu_protection_ctx_t *ctx, int batte
 bmu_battery_state_t bmu_protection_get_state(bmu_protection_ctx_t *ctx, int battery_idx);
 
 float bmu_protection_get_voltage(bmu_protection_ctx_t *ctx, int battery_idx);
+esp_err_t bmu_protection_get_switch_count(bmu_protection_ctx_t *ctx, int battery_idx,
+                                          int *switch_count_out);
 
 /**
  * @brief Web-initiated switch command. Validates voltage precondition before switching.

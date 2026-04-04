@@ -6,6 +6,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlin.test.assertFalse
+import kotlin.test.assertFailsWith
 
 class GattParserTest {
     @Test
@@ -55,10 +56,16 @@ class GattParserTest {
     }
 
     @Test
+    fun parseBatteryRequiresAtLeast17Bytes() {
+        val shortPayload = ByteArray(16)
+        assertFailsWith<IllegalArgumentException> {
+            GattParser.parseBattery(0, shortPayload)
+        }
+    }
+
+    @Test
     fun parseSohCharacteristic() {
         // 7 bytes: soh_pct(u8) + r_ohmic_x10(u16 LE) + r_total_x10(u16 LE) + valid(u8) + confidence(u8)
-        // soh = 92, r_ohmic = 15.2 mOhm (x10 = 152 = 0x0098 LE = 98 00)
-        // r_total = 18.5 mOhm (x10 = 185 = 0x00B9 LE = B9 00), valid = 1, confidence = 100
         val bytes = byteArrayOf(
             92.toByte(),                   // soh_pct
             0x98.toByte(), 0x00,           // r_ohmic_mohm_x10 = 152
@@ -77,7 +84,6 @@ class GattParserTest {
 
     @Test
     fun parseSohMultipleBatteries() {
-        // 2 batteries x 7 bytes = 14 bytes
         val bytes = byteArrayOf(
             // Battery 0: SOH 92, r_ohm 15.2, r_tot 18.5, valid, confidence 100
             92.toByte(), 0x98.toByte(), 0x00, 0xB9.toByte(), 0x00, 0x01, 100.toByte(),
@@ -96,12 +102,11 @@ class GattParserTest {
 
     @Test
     fun parseRintResult() {
-        // 11 bytes per battery: r_ohmic_x10(u16) + r_total_x10(u16) + v_load(u16) + v_ocv(u16) + i_load(i16) + valid(u8)
         val bytes = byteArrayOf(
             0x98.toByte(), 0x00,           // r_ohmic_mohm_x10
             0xB9.toByte(), 0x00,           // r_total_mohm_x10
             0x74, 0x67,                    // v_load_mv = 26484
-            0x78, 0x69,                    // v_ocv_mv = 26999 (0x6978 LE)
+            0x78, 0x69,                    // v_ocv_mv = 26999
             0x50, 0x14,                    // i_load_ma = 5200
             0x01                           // valid
         )
