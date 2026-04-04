@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import com.kxkm.bmu.shared.model.BatteryHealth
 import com.kxkm.bmu.shared.model.BatteryState
 import com.kxkm.bmu.ui.components.BatteryStateIcon
 import com.kxkm.bmu.util.color
@@ -27,6 +28,7 @@ import com.kxkm.bmu.util.voltageDisplay
 @Composable
 fun BatteryCellCard(
     battery: BatteryState,
+    health: BatteryHealth? = null,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -68,6 +70,28 @@ fun BatteryCellCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
+            // SOH badge (if available)
+            health?.let { h ->
+                if (h.sohPercent > 0) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Text(
+                            text = "SOH",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Text(
+                            text = "${h.sohPercent}%",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontFamily = FontFamily.Monospace,
+                            color = sohColor(h.sohPercent),
+                        )
+                    }
+                }
+            }
+
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -86,6 +110,13 @@ fun BatteryCellCard(
             }
         }
     }
+}
+
+@Composable
+private fun sohColor(percent: Int) = when {
+    percent >= 80 -> MaterialTheme.colorScheme.primary     // green/healthy
+    percent >= 60 -> MaterialTheme.colorScheme.tertiary    // orange/warning
+    else -> MaterialTheme.colorScheme.error                // red/critical
 }
 
 @Composable
