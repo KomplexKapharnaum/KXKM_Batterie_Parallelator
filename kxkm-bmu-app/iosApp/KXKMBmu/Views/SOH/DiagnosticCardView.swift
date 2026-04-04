@@ -36,7 +36,7 @@ struct DiagnosticCardView: View {
                 Text(diag.diagnostic)
                     .font(.body)
                 let date = Date(timeIntervalSince1970: TimeInterval(diag.generatedAt))
-                Text("G\u00e9n\u00e9r\u00e9 le \(date.formatted(date: .abbreviated, time: .shortened))")
+                Text("Généré le \(date.formatted(date: .abbreviated, time: .shortened))")
                     .font(.caption)
                     .foregroundColor(.secondary)
             } else {

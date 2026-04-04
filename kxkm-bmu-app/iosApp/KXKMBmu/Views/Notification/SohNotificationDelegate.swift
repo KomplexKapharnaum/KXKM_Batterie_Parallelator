@@ -17,11 +17,11 @@ class SohNotificationDelegate {
 
             let sohPct = Int(score.sohScore * 100)
             let content = UNMutableNotificationContent()
-            content.title = "Batterie \(score.battery + 1) \u2014 Alerte"
+            content.title = "Batterie \(score.battery + 1) — Alerte"
             if score.anomalyScore > 0.7 {
-                content.body = String(format: "Anomalie d\u00e9tect\u00e9e: %.0f%%", score.anomalyScore * 100)
+                content.body = String(format: "Anomalie détectée: %.0f%%", score.anomalyScore * 100)
             } else {
-                content.body = "SOH critique: \(sohPct)%. RUL estim\u00e9: \(score.rulDays) jours."
+                content.body = "SOH critique: \(sohPct)%. RUL estimé: \(score.rulDays) jours."
             }
             content.sound = .default
 

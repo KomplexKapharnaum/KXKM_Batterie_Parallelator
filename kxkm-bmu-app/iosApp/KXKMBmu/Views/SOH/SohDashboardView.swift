@@ -10,7 +10,7 @@ struct SohDashboardView: View {
         NavigationView {
             ScrollView {
                 if viewModel.scores.isEmpty {
-                    Text("Aucune donn\u00e9e SOH disponible")
+                    Text("Aucune donnée SOH disponible")
                         .foregroundColor(.secondary)
                         .padding(.top, 40)
                 } else {
