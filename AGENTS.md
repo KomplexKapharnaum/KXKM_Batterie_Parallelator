@@ -6,6 +6,12 @@
 - Safety is mandatory: do not weaken battery protection logic, topology checks, authentication checks, or reconnect behavior.
 - Prefer focused diffs in firmware/src/ and firmware-idf/. Avoid unrelated edits in hardware folders unless explicitly requested.
 
+## Code Style
+- Keep naming/comment language consistent with surrounding files (French-first in legacy firmware paths).
+- Preserve existing API shapes and file-local style; avoid unrelated refactors.
+- Prefer small, reviewable patches and reuse existing helpers before introducing new abstractions.
+- For diagnostics, use DebugLogger categories over ad-hoc Serial.print.
+
 ## Build and Test
 - Core firmware checks (before substantial firmware edits):
   - pio test -e sim-host
@@ -14,6 +20,8 @@
   - scripts/check_memory_budget.sh --env kxkm-s3-16MB --ram-max 75 --flash-max 85
 - ESP-IDF track (when editing firmware-idf/):
   - cd firmware-idf && idf.py build
+- PlatformIO gotcha:
+  - Keep framework=arduino in [arduino_base] only; do not move it to global [env] (breaks sim-host/native tests).
 - Canonical command reference:
   - CLAUDE.md
   - README.md
@@ -56,6 +64,7 @@
 - Reuse existing validation/security helpers and keep diffs minimal.
 - Update nearby tests when behavior changes (especially protection, routes, auth, rate limiting).
 - For risk-focused review work, prefer narrow agents in .github/agents/ over broad generic reviews.
+- Link to existing documentation rather than embedding long duplicated guidance in code changes.
 
 ## Link-First References
 - Safety and implementation context: CLAUDE.md
@@ -63,3 +72,5 @@
 - Kill_LIFE specs and gates: specs/00_intake.md, specs/01_spec.md, specs/02_arch.md, specs/03_plan.md, specs/04_validation.md
 - Current execution plan and safety refactor tracking: plan/refactor-safety-core-web-remote-1.md
 - CI/QA orchestration: scripts/ci/README.md, .github/workflows/
+- ML governance and artifacts: docs/ML_BATTERY_HEALTH_SPEC.md, models/
+- QA environments and remote proof flow: docs/QA_CICD_ENVIRONNEMENTS.md, docs/QA_REMOTE_PROOF_LATEST.md

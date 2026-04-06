@@ -124,3 +124,6 @@ kxkm-bmu-app/build/
 # Local accidental duplicates seen in this workspace
 firmware/test/test_tca_ina 2/
 iosApp/KXKMBmu 2.xcodeproj/
+scripts/llm/__pycache__/
+services/soh-llm/__pycache__/
+tests/llm/__pycache__/
