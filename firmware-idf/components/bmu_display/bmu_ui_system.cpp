@@ -2,6 +2,7 @@
 #include "bmu_wifi.h"
 #include "bmu_mqtt.h"
 #include "bmu_ble.h"
+#include "bmu_ble_victron_scan.h"
 #include "bmu_climate.h"
 #include "bmu_vedirect.h"
 #include "bmu_storage.h"
@@ -364,4 +365,72 @@ void bmu_ui_system_update(bmu_ui_ctx_t *ctx)
             lv_label_set_text(s_i2c_log[i], line ? line : "");
         }
     }
+
+    /* ── Victron devices ─────────────────────────────────────────────── */
+#ifdef CONFIG_BMU_VIC_SCAN_ENABLED
+    {
+        static lv_obj_t *s_vic_labels[4] = {};
+        static lv_obj_t *s_vic_section = NULL;
+
+        int vic_count = bmu_vic_scan_count();
+
+        /* Create section lazily on first device detection */
+        if (vic_count > 0 && s_vic_section == NULL) {
+            lv_obj_t *parent = lv_obj_get_parent(s_i2c_info);
+
+            lv_obj_t *title = (lv_obj_t *)lv_label_create(parent);
+            lv_label_set_text(title, "VICTRON");
+            lv_obj_set_style_text_color(title, lv_color_hex(0x00AAFF), 0);
+            lv_obj_set_style_text_opa(title, LV_OPA_50, 0);
+            lv_obj_set_style_text_font(title, &lv_font_montserrat_14, 0);
+            lv_obj_align(title, LV_ALIGN_TOP_LEFT, 4, 240);
+            s_vic_section = title;
+
+            for (int i = 0; i < 4; i++) {
+                s_vic_labels[i] = (lv_obj_t *)lv_label_create(parent);
+                lv_label_set_text(s_vic_labels[i], "");
+                lv_obj_set_style_text_color(s_vic_labels[i], UI_COLOR_TEXT_SEC, 0);
+                lv_obj_set_style_text_font(s_vic_labels[i], &lv_font_montserrat_14, 0);
+                lv_obj_align(s_vic_labels[i], LV_ALIGN_TOP_LEFT, 4, 256 + i * 16);
+            }
+        }
+
+        if (s_vic_section != NULL) {
+            bmu_vic_device_t devs[4];
+            int n = bmu_vic_scan_get_devices(devs, 4);
+            char line[48];
+
+            for (int i = 0; i < 4; i++) {
+                if (i < n) {
+                    if (!devs[i].decrypted) {
+                        snprintf(line, sizeof(line), "%02X:%02X:%02X (locked)",
+                                 devs[i].mac[3], devs[i].mac[4], devs[i].mac[5]);
+                    } else if (devs[i].record_type == 0x01) {
+                        snprintf(line, sizeof(line), "%-6s %.1fV %dW %s",
+                                 devs[i].label[0] ? devs[i].label : "MPPT",
+                                 devs[i].solar.vbat_cv / 100.0f,
+                                 devs[i].solar.ppv_w,
+                                 devs[i].solar.cs == 3 ? "Bulk" :
+                                 devs[i].solar.cs == 4 ? "Abs" :
+                                 devs[i].solar.cs == 5 ? "Float" : "Off");
+                    } else if (devs[i].record_type == 0x02) {
+                        snprintf(line, sizeof(line), "%-6s %.1fV %.1fA %d%%",
+                                 devs[i].label[0] ? devs[i].label : "Shunt",
+                                 devs[i].battery.v_cv / 100.0f,
+                                 devs[i].battery.i_da / 10.0f,
+                                 devs[i].battery.soc_pm / 10);
+                    } else {
+                        snprintf(line, sizeof(line), "%-6s type=%d",
+                                 devs[i].label[0] ? devs[i].label : "???",
+                                 devs[i].record_type);
+                    }
+                    lv_label_set_text(s_vic_labels[i], line);
+                    lv_obj_clear_flag(s_vic_labels[i], LV_OBJ_FLAG_HIDDEN);
+                } else {
+                    lv_obj_add_flag(s_vic_labels[i], LV_OBJ_FLAG_HIDDEN);
+                }
+            }
+        }
+    }
+#endif
 }

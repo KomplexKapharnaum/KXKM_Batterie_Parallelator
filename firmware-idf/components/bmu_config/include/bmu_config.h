@@ -75,6 +75,18 @@ const char *bmu_config_get_victron_ble_key(void);
 esp_err_t   bmu_config_set_victron_ble_enabled(bool enabled);
 bool        bmu_config_get_victron_ble_enabled(void);
 
+/* Victron device keys (per-MAC AES-128 for Instant Readout decryption) */
+#define BMU_CONFIG_VIC_MAX_DEVICES  8
+#define BMU_CONFIG_VIC_KEY_LEN      33  /* 32 hex + NUL */
+#define BMU_CONFIG_VIC_LABEL_LEN    16
+
+esp_err_t   bmu_config_set_victron_device_key(const uint8_t mac[6], const char *hex_key);
+esp_err_t   bmu_config_get_victron_device_key(const uint8_t mac[6], char *hex_key, size_t len);
+esp_err_t   bmu_config_del_victron_device_key(const uint8_t mac[6]);
+esp_err_t   bmu_config_set_victron_device_label(const uint8_t mac[6], const char *label);
+esp_err_t   bmu_config_get_victron_device_label(const uint8_t mac[6], char *label, size_t len);
+int         bmu_config_list_victron_devices(uint8_t macs[][6], int max);
+
 /* ── Battery labels (file on /fatfs/batteries.cfg, USB-editable) ───── */
 #define BMU_CONFIG_BATLABEL_MAX  9  /* 8 chars + NUL */
 

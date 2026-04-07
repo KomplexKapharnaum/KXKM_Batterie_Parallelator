@@ -1,0 +1,24 @@
+menu "BMU Victron BLE Scanner"
+    config BMU_VIC_SCAN_ENABLED
+        bool "Enable Victron BLE device scanner"
+        default y
+        depends on BT_ENABLED
+
+    config BMU_VIC_SCAN_DURATION_S
+        int "Scan duration (seconds)"
+        default 5
+        range 2 10
+        depends on BMU_VIC_SCAN_ENABLED
+
+    config BMU_VIC_SCAN_PERIOD_S
+        int "Scan period (seconds between scans)"
+        default 30
+        range 10 300
+        depends on BMU_VIC_SCAN_ENABLED
+
+    config BMU_VIC_SCAN_MAX_DEVICES
+        int "Maximum Victron devices to track"
+        default 8
+        range 1 16
+        depends on BMU_VIC_SCAN_ENABLED
+endmenu

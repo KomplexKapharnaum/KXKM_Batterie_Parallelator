@@ -22,6 +22,8 @@
 #include "services/gatt/ble_svc_gatt.h"
 #include "store/config/ble_store_config.h"
 
+#include "bmu_ble_victron_gatt.h"
+
 #include <atomic>
 
 static const char *TAG = "BLE";
@@ -111,6 +113,7 @@ static int ble_gap_event_handler(struct ble_gap_event *event, void *arg)
                 bmu_ble_battery_notify_start();
                 bmu_ble_system_notify_start();
                 bmu_ble_wifi_notify_start();
+                bmu_ble_victron_gatt_notify_start();
             }
 
             /* Demander connexion securisee */
@@ -135,6 +138,7 @@ static int ble_gap_event_handler(struct ble_gap_event *event, void *arg)
             bmu_ble_battery_notify_stop();
             bmu_ble_system_notify_stop();
             bmu_ble_wifi_notify_stop();
+            bmu_ble_victron_gatt_notify_stop();
         }
 
         start_advertising();
@@ -256,16 +260,25 @@ esp_err_t bmu_ble_init(bmu_protection_ctx_t *prot,
 
     /* 5. Construire et enregistrer la table GATT unifiee */
     /* NimBLE attend un tableau termine par un element {0} */
-    static struct ble_gatt_svc_def gatt_svcs[4]; /* 3 services + terminateur */
+    static struct ble_gatt_svc_def gatt_svcs[5]; /* 4 services max + terminateur */
+    int svc_idx = 0;
 
     const struct ble_gatt_svc_def *batt_svc = bmu_ble_battery_svc_defs();
     const struct ble_gatt_svc_def *sys_svc  = bmu_ble_system_svc_defs();
     const struct ble_gatt_svc_def *ctrl_svc = bmu_ble_control_svc_defs();
 
-    gatt_svcs[0] = batt_svc[0];
-    gatt_svcs[1] = sys_svc[0];
-    gatt_svcs[2] = ctrl_svc[0];
-    memset(&gatt_svcs[3], 0, sizeof(struct ble_gatt_svc_def));
+    gatt_svcs[svc_idx++] = batt_svc[0];
+    gatt_svcs[svc_idx++] = sys_svc[0];
+    gatt_svcs[svc_idx++] = ctrl_svc[0];
+
+#ifdef CONFIG_BMU_VICTRON_GATT_ENABLED
+    const struct ble_gatt_svc_def *vic_svc = bmu_ble_victron_gatt_svc_defs();
+    if (vic_svc != NULL) {
+        gatt_svcs[svc_idx++] = vic_svc[0];
+    }
+#endif
+
+    memset(&gatt_svcs[svc_idx], 0, sizeof(struct ble_gatt_svc_def));
 
     rc = ble_gatts_count_cfg(gatt_svcs);
     if (rc != 0) {

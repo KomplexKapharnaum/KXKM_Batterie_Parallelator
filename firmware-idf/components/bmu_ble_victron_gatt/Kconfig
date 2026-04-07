@@ -1,0 +1,6 @@
+menu "BMU Victron GATT SmartShunt"
+    config BMU_VICTRON_GATT_ENABLED
+        bool "Enable SmartShunt GATT emulation"
+        default y
+        depends on BT_ENABLED
+endmenu

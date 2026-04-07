@@ -440,3 +440,116 @@ const char *bmu_config_get_battery_label(int idx)
     if (idx < 0 || idx >= BMU_MAX_BATTERIES) return "?";
     return s_bat_labels[idx];
 }
+
+/* ── Victron device keys (NVS namespace "vic_keys") ──────────────── */
+
+static const char *VIC_NS = "vic_keys";
+
+static void mac_to_nvs_key(const uint8_t mac[6], char *out)
+{
+    snprintf(out, 13, "%02X%02X%02X%02X%02X%02X",
+             mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+}
+
+esp_err_t bmu_config_set_victron_device_key(const uint8_t mac[6], const char *hex_key)
+{
+    if (!mac || !hex_key || strlen(hex_key) != 32) return ESP_ERR_INVALID_ARG;
+    nvs_handle_t h;
+    esp_err_t ret = nvs_open(VIC_NS, NVS_READWRITE, &h);
+    if (ret != ESP_OK) return ret;
+    char key[13];
+    mac_to_nvs_key(mac, key);
+    ret = nvs_set_str(h, key, hex_key);
+    if (ret == ESP_OK) ret = nvs_commit(h);
+    nvs_close(h);
+    return ret;
+}
+
+esp_err_t bmu_config_get_victron_device_key(const uint8_t mac[6], char *hex_key, size_t len)
+{
+    if (!mac || !hex_key || len < 33) return ESP_ERR_INVALID_ARG;
+    nvs_handle_t h;
+    esp_err_t ret = nvs_open(VIC_NS, NVS_READONLY, &h);
+    if (ret != ESP_OK) return ret;
+    char key[13];
+    mac_to_nvs_key(mac, key);
+    size_t req = len;
+    ret = nvs_get_str(h, key, hex_key, &req);
+    nvs_close(h);
+    return ret;
+}
+
+esp_err_t bmu_config_del_victron_device_key(const uint8_t mac[6])
+{
+    if (!mac) return ESP_ERR_INVALID_ARG;
+    nvs_handle_t h;
+    esp_err_t ret = nvs_open(VIC_NS, NVS_READWRITE, &h);
+    if (ret != ESP_OK) return ret;
+    char key[13];
+    mac_to_nvs_key(mac, key);
+    nvs_erase_key(h, key);
+    char lkey[15] = "L_";
+    strncat(lkey, key, 12);
+    nvs_erase_key(h, lkey);
+    nvs_commit(h);
+    nvs_close(h);
+    return ESP_OK;
+}
+
+esp_err_t bmu_config_set_victron_device_label(const uint8_t mac[6], const char *label)
+{
+    if (!mac || !label) return ESP_ERR_INVALID_ARG;
+    nvs_handle_t h;
+    esp_err_t ret = nvs_open(VIC_NS, NVS_READWRITE, &h);
+    if (ret != ESP_OK) return ret;
+    char key[13];
+    mac_to_nvs_key(mac, key);
+    char lkey[15] = "L_";
+    strncat(lkey, key, 12);
+    ret = nvs_set_str(h, lkey, label);
+    if (ret == ESP_OK) ret = nvs_commit(h);
+    nvs_close(h);
+    return ret;
+}
+
+esp_err_t bmu_config_get_victron_device_label(const uint8_t mac[6], char *label, size_t len)
+{
+    if (!mac || !label || len < 2) return ESP_ERR_INVALID_ARG;
+    nvs_handle_t h;
+    esp_err_t ret = nvs_open(VIC_NS, NVS_READONLY, &h);
+    if (ret != ESP_OK) { label[0] = '\0'; return ret; }
+    char key[13];
+    mac_to_nvs_key(mac, key);
+    char lkey[15] = "L_";
+    strncat(lkey, key, 12);
+    size_t req = len;
+    ret = nvs_get_str(h, lkey, label, &req);
+    if (ret != ESP_OK) label[0] = '\0';
+    nvs_close(h);
+    return ret;
+}
+
+int bmu_config_list_victron_devices(uint8_t macs[][6], int max)
+{
+    nvs_handle_t h;
+    if (nvs_open(VIC_NS, NVS_READONLY, &h) != ESP_OK) return 0;
+    nvs_iterator_t it = NULL;
+    int count = 0;
+    esp_err_t ret = nvs_entry_find_in_handle(h, NVS_TYPE_STR, &it);
+    while (ret == ESP_OK && count < max) {
+        nvs_entry_info_t info;
+        nvs_entry_info(it, &info);
+        if (info.key[0] != 'L' && strlen(info.key) == 12) {
+            for (int i = 0; i < 6; i++) {
+                unsigned byte = 0;
+                sscanf(info.key + i * 2, "%02X", &byte);
+                macs[count][i] = (uint8_t)byte;
+            }
+            count++;
+        }
+        ret = nvs_entry_next(&it);
+    }
+    if (it) nvs_release_iterator(it);
+    nvs_close(h);
+    return count;
+}

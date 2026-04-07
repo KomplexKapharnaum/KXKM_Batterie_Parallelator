@@ -11,38 +11,29 @@ class DashboardViewModel: ObservableObject {
     }
 
     private let ble = BleManager.shared
-    private let mockUseCase = MonitoringUseCase()
     private var observeTasks: [Task<Void, Never>] = []
 
     init() {
         observeTasks.append(Task { [weak self] in
             for await connected in BleManager.shared.$isConnected.values {
-                self?.isBleConnected = connected
+                guard let self else { return }
+                self.isBleConnected = connected
+                if !connected {
+                    self.batteries = []
+                    self.isLoading = true
+                }
             }
         })
 
         observeTasks.append(Task { [weak self] in
             for await bleBatteries in BleManager.shared.$batteries.values {
                 guard let self else { return }
+                self.batteries = bleBatteries
                 if !bleBatteries.isEmpty {
-                    self.batteries = bleBatteries
                     self.isLoading = false
                 }
             }
         })
-
-        // Fallback: use mock data if BLE not connected after 3s
-        observeTasks.append(Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 3_000_000_000)
-            guard let self, self.batteries.isEmpty else { return }
-            let mockBatteries = await self.mockUseCase.batteries()
-            if self.ble.batteries.isEmpty {
-                self.batteries = mockBatteries
-                self.isLoading = false
-            }
-        })
-
-        ble.startScan()
     }
 
     deinit {

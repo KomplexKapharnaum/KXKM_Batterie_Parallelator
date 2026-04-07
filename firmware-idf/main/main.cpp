@@ -19,6 +19,8 @@
 #include "bmu_influx.h"
 #include "bmu_influx_store.h"
 #include "bmu_balancer.h"
+#include "bmu_ble_victron_gatt.h"
+#include "bmu_ble_victron_scan.h"
 #include "bmu_sntp.h"
 #include "bmu_display.h"
 #include "bmu_ui.h"
@@ -368,6 +370,12 @@ extern "C" void app_main(void)
     /* ── 9b. BLE Victron (si enabled) ──────────────────────────────── */
 #ifdef CONFIG_BMU_VICTRON_BLE_ENABLED
     bmu_ble_victron_init(&prot, &mgr, nb_ina);
+#endif
+
+#ifdef CONFIG_BMU_VIC_SCAN_ENABLED
+    bmu_vic_scan_init();
+    bmu_vic_scan_start();
+    ESP_LOGI(TAG, "Victron BLE scanner started");
 #endif
 
     /* ── 10. Cloud (si WiFi) ───────────────────────────────────────── */
