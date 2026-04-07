@@ -146,9 +146,9 @@ bool authorizeBatteryMutationRequest(AsyncWebServerRequest *request,
     authorized = isMutationAuthorizationHeaderAuthorized(
         authorizationHeader.c_str(), kBmuWebAdminToken);
   } else if (request->hasParam("token") || request->hasParam("token", true)) {
-    AsyncWebParameter *tokenParam = request->hasParam("token")
-                                        ? request->getParam("token")
-                                        : request->getParam("token", true);
+    const AsyncWebParameter *tokenParam = request->hasParam("token")
+                                            ? request->getParam("token")
+                                            : request->getParam("token", true);
     authorized = isMutationTokenAuthorized(tokenParam->value().c_str(),
                                            kBmuWebAdminToken);
   }

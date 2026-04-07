@@ -31,7 +31,7 @@ jobs:
       - name: Install PlatformIO
         run: pip install platformio
 
-      - name: Run Unity tests (native)
-        run: pio test -e native
+      - name: Run Unity tests (sim-host)
+        run: pio test -e sim-host
       # Build ESP32 non inclus en CI : dépendances locales (K32-lib) + libs Arduino-ESP32 3.x
       # Valider localement avec : pio run -e kxkm-s3-16MB
