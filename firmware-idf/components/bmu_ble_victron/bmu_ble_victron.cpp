@@ -33,6 +33,9 @@ static const char *TAG = "BLE_VIC";
 #define VICTRON_COMPANY_ID      0x02E1
 #define VICTRON_RECORD_SOLAR    0x01
 #define VICTRON_RECORD_BATTERY  0x02
+/* Victron product IDs (for VictronConnect device detection) */
+#define VICTRON_PID_SMARTSHUNT  0xA389  /* SmartShunt 500A/50mV */
+#define VICTRON_PID_SMARTSOLAR  0xA060  /* SmartSolar MPPT 100/30 */
 
 static bmu_protection_ctx_t *s_prot = NULL;
 static bmu_battery_manager_t *s_mgr = NULL;
@@ -119,16 +122,20 @@ static int build_battery_adv(uint8_t *buf, size_t buf_len)
     uint8_t cipher[10];
     encrypt_payload(plain, cipher, 10, s_adv_counter);
 
-    /* Manufacturer specific data:
-     * [company_lo, company_hi, record_type, counter_lo, counter_hi, encrypted...] */
-    if (buf_len < 15) return 0;
-    buf[0] = (uint8_t)(VICTRON_COMPANY_ID & 0xFF);
-    buf[1] = (uint8_t)(VICTRON_COMPANY_ID >> 8);
-    buf[2] = VICTRON_RECORD_BATTERY;
-    buf[3] = (uint8_t)(s_adv_counter & 0xFF);
-    buf[4] = (uint8_t)(s_adv_counter >> 8);
-    memcpy(buf + 5, cipher, 10);
-    return 15;
+    /* Victron Instant Readout MFR data format:
+     * [company_lo, company_hi, product_type(0x10), product_id_lo, product_id_hi,
+     *  record_type, nonce_lo, nonce_hi, encrypted[10]] = 18 bytes */
+    if (buf_len < 18) return 0;
+    buf[0] = (uint8_t)(VICTRON_COMPANY_ID & 0xFF);    /* 0xE1 */
+    buf[1] = (uint8_t)(VICTRON_COMPANY_ID >> 8);       /* 0x02 */
+    buf[2] = 0x10;                                      /* product type: Instant Readout */
+    buf[3] = (uint8_t)(VICTRON_PID_SMARTSHUNT & 0xFF); /* product ID lo */
+    buf[4] = (uint8_t)(VICTRON_PID_SMARTSHUNT >> 8);   /* product ID hi */
+    buf[5] = VICTRON_RECORD_BATTERY;                    /* record type */
+    buf[6] = (uint8_t)(s_adv_counter & 0xFF);          /* nonce lo */
+    buf[7] = (uint8_t)(s_adv_counter >> 8);             /* nonce hi */
+    memcpy(buf + 8, cipher, 10);
+    return 18;
 }
 
 /* ── Build Solar Charger advertising data ── */
@@ -158,14 +165,17 @@ static int build_solar_adv(uint8_t *buf, size_t buf_len)
     uint8_t cipher[10];
     encrypt_payload(plain, cipher, 10, s_adv_counter);
 
-    if (buf_len < 15) return 0;
+    if (buf_len < 18) return 0;
     buf[0] = (uint8_t)(VICTRON_COMPANY_ID & 0xFF);
     buf[1] = (uint8_t)(VICTRON_COMPANY_ID >> 8);
-    buf[2] = VICTRON_RECORD_SOLAR;
-    buf[3] = (uint8_t)(s_adv_counter & 0xFF);
-    buf[4] = (uint8_t)(s_adv_counter >> 8);
-    memcpy(buf + 5, cipher, 10);
-    return 15;
+    buf[2] = 0x10;                                      /* Instant Readout */
+    buf[3] = (uint8_t)(VICTRON_PID_SMARTSOLAR & 0xFF);
+    buf[4] = (uint8_t)(VICTRON_PID_SMARTSOLAR >> 8);
+    buf[5] = VICTRON_RECORD_SOLAR;
+    buf[6] = (uint8_t)(s_adv_counter & 0xFF);
+    buf[7] = (uint8_t)(s_adv_counter >> 8);
+    memcpy(buf + 8, cipher, 10);
+    return 18;
 }
 
 /* ── Advertising rotation timer callback ── */

@@ -119,7 +119,6 @@ static int scan_event_handler(struct ble_gap_event *event, void *arg)
 {
     if (event->type != BLE_GAP_EVENT_DISC) return 0;
 
-    const struct ble_hs_adv_fields *fields = NULL;
     struct ble_hs_adv_fields parsed;
     if (ble_hs_adv_parse_fields(&parsed, event->disc.data,
                                  event->disc.length_data) != 0)
@@ -130,9 +129,21 @@ static int scan_event_handler(struct ble_gap_event *event, void *arg)
     uint16_t company = parsed.mfg_data[0] | (parsed.mfg_data[1] << 8);
     if (company != VICTRON_COMPANY_ID) return 0;
 
-    uint8_t record_type = parsed.mfg_data[2];
-    uint16_t counter = parsed.mfg_data[3] | (parsed.mfg_data[4] << 8);
-    const uint8_t *cipher = parsed.mfg_data + 5;
+    /* Detect format: 0x10 at byte 2 = new Instant Readout with PID (18 bytes) */
+    uint8_t record_type;
+    uint16_t counter;
+    const uint8_t *cipher;
+    if (parsed.mfg_data[2] == 0x10 && parsed.mfg_data_len >= 18) {
+        /* New format: [company(2)] [0x10] [pid(2)] [record] [nonce(2)] [encrypted(10)] */
+        record_type = parsed.mfg_data[5];
+        counter = parsed.mfg_data[6] | (parsed.mfg_data[7] << 8);
+        cipher = parsed.mfg_data + 8;
+    } else {
+        /* Legacy format: [company(2)] [record] [nonce(2)] [encrypted(10)] */
+        record_type = parsed.mfg_data[2];
+        counter = parsed.mfg_data[3] | (parsed.mfg_data[4] << 8);
+        cipher = parsed.mfg_data + 5;
+    }
 
     uint8_t mac[6];
     memcpy(mac, event->disc.addr.val, 6);
