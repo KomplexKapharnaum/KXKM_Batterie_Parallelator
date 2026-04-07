@@ -188,7 +188,7 @@ static void adv_rotate_cb(void *arg)
     /* Slot 0: KXKM-BMU (let existing BLE advertising handle it) */
     if (s_adv_slot == 0) return;
 
-    uint8_t mfr_data[16] = {};
+    uint8_t mfr_data[20] = {};
     int mfr_len = 0;
 
     if (s_adv_slot == 1) {
@@ -197,17 +197,46 @@ static void adv_rotate_cb(void *arg)
         mfr_len = build_solar_adv(mfr_data, sizeof(mfr_data));
     }
 
-    if (mfr_len == 0) return;
+    /* Si pas de données batterie/solaire, envoyer quand même un MFR header
+     * avec des valeurs zero pour que VictronConnect détecte l'appareil */
+    if (mfr_len == 0) {
+        /* Fallback : header Victron avec données vides */
+        mfr_data[0] = (uint8_t)(VICTRON_COMPANY_ID & 0xFF);
+        mfr_data[1] = (uint8_t)(VICTRON_COMPANY_ID >> 8);
+        mfr_data[2] = 0x10;
+        mfr_data[3] = (uint8_t)(VICTRON_PID_SMARTSHUNT & 0xFF);
+        mfr_data[4] = (uint8_t)(VICTRON_PID_SMARTSHUNT >> 8);
+        mfr_data[5] = VICTRON_RECORD_BATTERY;
+        mfr_data[6] = (uint8_t)(s_adv_counter & 0xFF);
+        mfr_data[7] = (uint8_t)(s_adv_counter >> 8);
+        memset(mfr_data + 8, 0, 10);
+        mfr_len = 18;
+    }
     s_adv_counter++;
+
+    /* Build adv fields with device name + Victron MFR data */
+    static char s_adv_name[24];
+    if (s_adv_name[0] == '\0') {
+        snprintf(s_adv_name, sizeof(s_adv_name), "KXKM-BMU-%s",
+                 bmu_config_get_device_name());
+    }
 
     struct ble_hs_adv_fields fields = {};
     fields.flags = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
+    /* Adv PDU max = 31 bytes. flags(3) + mfr(2+18=20) = 23. Name budget = 8 */
+    uint8_t name_len = strlen(s_adv_name);
+    if (name_len > 6) name_len = 6; /* truncate to fit */
+    fields.name = (const uint8_t *)s_adv_name;
+    fields.name_len = name_len;
+    fields.name_is_complete = 0; /* shortened */
     fields.mfg_data = mfr_data;
     fields.mfg_data_len = (uint8_t)mfr_len;
 
     int rc = ble_gap_adv_set_fields(&fields);
     if (rc != 0) {
-        ESP_LOGD(TAG, "adv_set_fields rc=%d", rc);
+        ESP_LOGW(TAG, "adv_set_fields FAILED rc=%d slot=%d len=%d", rc, s_adv_slot, mfr_len);
+    } else {
+        ESP_LOGI(TAG, "adv slot=%d len=%d counter=%d", s_adv_slot, mfr_len, s_adv_counter);
     }
 }
 
