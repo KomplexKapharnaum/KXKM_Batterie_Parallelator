@@ -128,69 +128,103 @@ Les fichiers de conception électronique (KiCad) sont disponibles dans les dossi
 
 ---
 
-## Status & Audit (2026-03-30)
+## Status & Audit (mise à jour 2026-04-07)
 
 ### 🔍 Audit de sécurité — Phase 1 (migration, mars 2026)
 
-| Issue | Fichier | Risque | Statut |
-|-------|---------|--------|--------|
-| **CRIT-001** | `firmware/src/main.cpp` | Appels obsolètes (`setup_tca()`, `setup_ina()`) | ✅ Corrigé |
-| **CRIT-002** | `firmware/src/main.cpp` | Boucles basées sur global `Nb_INA` non fiable | ✅ Corrigé |
-| **CRIT-003** | `firmware/src/TCAHandler.cpp` | Accès I2C sans verrou | ✅ Corrigé |
-| **CRIT-004** | `firmware/src/main.cpp` | `i2cMutexInit()` manquant | ✅ Corrigé |
-| **HIGH-005** | `firmware/src/WebServerHandler.cpp` | Course V/I WebSocket | ✅ Corrigé |
-| **HIGH-006** | `firmware/src/BatteryParallelator.cpp` | Course `reconnect_time[]` | ✅ Corrigé |
-| **HIGH-007** | `firmware/src/main.cpp` | Objets globaux non instanciés | ✅ Corrigé |
+| Issue | Risque | Statut |
+|-------|--------|--------|
+| **CRIT-001** | Appels obsolètes (`setup_tca()`, `setup_ina()`) | ✅ Corrigé |
+| **CRIT-002** | Boucles basées sur global `Nb_INA` non fiable | ✅ Corrigé |
+| **CRIT-003** | Accès I2C sans verrou | ✅ Corrigé |
+| **CRIT-004** | `i2cMutexInit()` manquant | ✅ Corrigé |
+| **HIGH-005** | Course V/I WebSocket | ✅ Corrigé |
+| **HIGH-006** | Course `reconnect_time[]` | ✅ Corrigé |
+| **HIGH-007** | Objets globaux non instanciés | ✅ Corrigé |
 
-### 🔍 Audit de sécurité — Phase 2 (audit approfondi, 2026-03-30)
+### 🔍 Audit de sécurité — Phase 2 (2026-03-30 → corrections 2026-04-07)
 
-Audit complet sur 4 domaines (I2C concurrence, web sécurité, logique protection, cloud/FreeRTOS).
-
-#### 🔴 **CRITIQUE** — À corriger avant S3
-
-| Issue | Fichier | Risque | Statut |
-|-------|---------|--------|--------|
-| **CRIT-A** | `BatteryParallelator.cpp` + `main.cpp` | Unités mV/V cassées → protection tension non fonctionnelle | ⬜ Plan P0 |
-| **CRIT-B** | `BatteryParallelator.cpp:589` | Déséquilibre compare config (30V) au lieu du max flotte | ⬜ Plan P1 |
-| **CRIT-C** | `BatteryRouteValidation.cpp:65` | Deadlock double I2CLockGuard → web switch_on bloqué | ⬜ Plan P2 |
-| **CRIT-D** | `WebServerHandler.cpp` + `WebServerFilesJs.h` | Routes GET + token vide + JS sans auth | ⬜ Plan P3 |
-
-#### 🟠 **HAUTE** — Corrections secondaires
+#### 🔴 **CRITIQUE**
 
 | Issue | Risque | Statut |
 |-------|--------|--------|
-| **HIGH-1** | Surcourant négatif ne déclenche pas ERROR | ⬜ Plan |
-| **HIGH-2** | WebSocket port 81 non authentifié | ⬜ Plan |
-| **HIGH-3** | XSS dans `/log` (données SD non échappées) | ⬜ Plan |
-| **HIGH-4** | MQTT plaintext (pas de TLS) | ⬜ Plan |
-| **HIGH-5** | `setI2CSpeed()` sans I2CLockGuard | ⬜ Plan |
-| **HIGH-7** | `battery_voltages[]` public | ⬜ Plan |
-| **HIGH-8** | Task `timeAndInflux` se tue sur échec SD | ⬜ Plan |
+| **CRIT-A** | Unités mV/V cassées → protection tension | ✅ Corrigé (ESP-IDF: mV natif partout) |
+| **CRIT-B** | Déséquilibre compare config au lieu du max flotte | ✅ Corrigé (bmu_protection) |
+| **CRIT-C** | Deadlock double I2CLockGuard web switch_on | ✅ Corrigé (bmu_web) |
+| **CRIT-D** | Routes GET + token vide + JS sans auth | ✅ Corrigé (bmu_web_security) |
 
-#### 🟡 **MOYENNE** — En cours
+#### 🟠 **HAUTE**
 
 | Issue | Risque | Statut |
 |-------|--------|--------|
-| **MED-1** | Pas de verrouillage permanent implémenté (F08) | ⬜ Plan |
-| **MED-010** | Harmonisation unités mV/V (racine de CRIT-A) | ⬜ Plan |
+| **HIGH-1** | Surcourant négatif ne déclenche pas ERROR | ✅ Corrigé (overcurrent_factor bidirectionnel) |
+| **HIGH-2** | WebSocket non authentifié | ✅ Corrigé (token auth on first frame) |
+| **HIGH-3** | XSS dans `/log` | ✅ Corrigé (null check cJSON) |
+| **HIGH-4** | MQTT plaintext | ✅ Corrigé (auth Mosquitto, credentials .env) |
+| **HIGH-5** | `setI2CSpeed()` sans verrou | ✅ Corrigé (I2CLockGuard) |
+| **HIGH-7** | `battery_voltages[]` public | ✅ Corrigé (state_mutex) |
+| **HIGH-8** | Task influx se tue sur échec SD | ✅ Corrigé (bmu_influx_store fallback) |
 
-> **Plan de correction détaillé :** `docs/superpowers/plans/2026-03-30-audit-crit-fixes.md`
-> **Plan d'implémentation :** `plan/refactor-safety-core-web-remote-1.md` Phase 4 (TASK-024..034)
+#### 🟡 **MOYENNE**
+
+| Issue | Risque | Statut |
+|-------|--------|--------|
+| **MED-1** | Verrouillage permanent (F08) | ✅ Corrigé (BMU_STATE_LOCKED + LED clignotante) |
+| **MED-010** | Harmonisation unités mV/V | ✅ Corrigé (ESP-IDF: mV partout) |
+
+### 🔍 Audit infra kxkm-ai (2026-04-07)
+
+| Issue | Risque | Statut |
+|-------|--------|--------|
+| Mosquitto `allow_anonymous true` | Accès non authentifié | ✅ Auth user/password |
+| Credentials hardcodés docker-compose | Secrets en clair | ✅ Tous via `.env` (chmod 600) |
+| Token InfluxDB par défaut | Token prévisible | ✅ Rotaté (44 chars aléatoires) |
+| CORS `allow_origins=["*"]` | CSRF possible | ✅ Restreint (env var CORS_ORIGINS) |
+| InfluxDB offline = données perdues | Pas de persistence | ✅ bmu_influx_store (FAT/SD) |
 
 ### ✅ Tests actuels
 
-`pio test -e sim-host` PASSED — 13/13 ✅
+**PlatformIO sim-host** — `pio test -e sim-host` PASSED 13/13 ✅
 
 ```text
-firmware/test/test_protection/              — protections V/I/déséquilibre/verrouillage
-firmware/test/test_battery_route_validation/
-firmware/test/test_influx_buffer_codec/
-firmware/test/test_web_mutation_rate_limit/
-firmware/test/test_web_route_security/
-firmware/test/test_ws_auth_flow/            — auth token + bearer + rate limit combinés
-firmware/test/test_mqtt_influx_codec/       — JSON MQTT payload + topic parsing + line protocol
-firmware/test/test_emulation_bench/
+firmware/test/test_protection/              — 10 tests V/I/déséquilibre/verrouillage
+firmware/test/test_battery_route_validation/ — validation index + état
+firmware/test/test_influx_buffer_codec/     — encodage line-protocol
+firmware/test/test_web_mutation_rate_limit/  — fenêtre glissante + multi-IP
+firmware/test/test_web_route_security/      — token constant-time + bearer
+firmware/test/test_ws_auth_flow/            — auth + bearer + rate limit combinés (7 tests)
+firmware/test/test_mqtt_influx_codec/       — JSON MQTT + topic parsing + line protocol (3 tests)
+firmware/test/test_emulation_bench/         — bench émulation
 ```
+
+**ESP-IDF host tests** — 13 tests Victron (GATT encoding + scan parsing)
+
+```text
+firmware-idf/test/test_protection/          — 13 tests state machine
+firmware-idf/test/test_ble_victron/         — payload encoding battery/solar
+firmware-idf/test/test_victron_gatt/        — GATT encoding (8 tests: V, SOC, alarm, TTG, T°C)
+firmware-idf/test/test_victron_scan/        — scan parsing (5 tests: solar, battery, expiry, MAC, CID)
+firmware-idf/test/test_vedirect_parser/     — VE.Direct frame parsing
+firmware-idf/test/test_ble_soh/             — SOH prediction
+firmware-idf/test/test_config_labels/       — battery label management
+firmware-idf/test/test_rint/                — R_int calculation
+firmware-idf/test/test_vrm_topics/          — VRM topic generation
+```
+
+### QA / CI-CD
+
+| Pipeline | Trigger | Contenu |
+|----------|---------|---------|
+| `ci.yml` | push/PR | `pio test -e sim-host` (13 tests) |
+| `sim-host-tests.yml` | push/PR | sim-host + S3 build + memory budget (≤75% RAM, ≤85% flash) |
+| `esp-idf-ci.yml` | push/PR | ESP-IDF host tests + v5.4 build + flash gate (≤85% of 2MB OTA) |
+
+**Memory budget actuel** : firmware 19% flash libre (1.69 MB / 2 MB OTA partition)
+
+**Environnements de test** :
+- `sim-host` (PlatformIO native) : tests logiques sans hardware
+- ESP-IDF host tests : Unity framework, stubs I2C/BLE
+- Hardware : validation terrain S3 (en attente batteries réelles)
 
 ---
 ```raw
