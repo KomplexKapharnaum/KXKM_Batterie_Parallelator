@@ -74,7 +74,10 @@ static int battery_chr_access_cb(uint16_t conn_handle, uint16_t attr_handle,
                                   struct ble_gatt_access_ctxt *ctxt, void *arg)
 {
     int idx = (int)(intptr_t)arg;
-    uint8_t nb_ina = bmu_ble_get_nb_ina();
+    /* Lire nb_ina depuis le contexte protection (dynamique) plutot que
+       s_nb_ina (fige au moment de bmu_ble_init, avant le scan I2C) */
+    bmu_protection_ctx_t *prot = bmu_ble_get_prot();
+    uint8_t nb_ina = prot ? prot->nb_ina : bmu_ble_get_nb_ina();
 
     if (ctxt->op != BLE_GATT_ACCESS_OP_READ_CHR) {
         return BLE_ATT_ERR_UNLIKELY;
@@ -149,7 +152,9 @@ static int soh_result_access_cb(uint16_t conn_handle, uint16_t attr_handle,
 /* ── Timer notification 1s ───────────────────────────────────────── */
 static void notify_timer_cb(void *arg)
 {
-    uint8_t nb_ina = bmu_ble_get_nb_ina();
+    /* Utiliser nb_ina dynamique depuis le contexte protection */
+    bmu_protection_ctx_t *prot = bmu_ble_get_prot();
+    uint8_t nb_ina = prot ? prot->nb_ina : bmu_ble_get_nb_ina();
 
     for (int i = 0; i < nb_ina; i++) {
         if (s_battery_val_handles[i] == 0) continue;

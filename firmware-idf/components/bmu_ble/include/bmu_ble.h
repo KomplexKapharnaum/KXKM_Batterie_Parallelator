@@ -29,6 +29,9 @@ esp_err_t bmu_ble_init(bmu_protection_ctx_t *prot,
                         bmu_battery_manager_t *mgr,
                         uint8_t nb_ina);
 
+/** @brief Met a jour le nombre de batteries apres le scan I2C. */
+void bmu_ble_set_nb_ina(uint8_t nb_ina);
+
 /** @brief Retourne true si au moins un client BLE est connecte. */
 bool bmu_ble_is_connected(void);
 

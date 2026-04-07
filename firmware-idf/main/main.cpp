@@ -349,6 +349,7 @@ extern "C" void app_main(void)
     /* ── 9. Protection + Battery Manager ───────────────────────────── */
     ESP_ERROR_CHECK(bmu_protection_init(&prot, ina, nb_ina, tca, nb_tca));
     bmu_battery_manager_init(&mgr, ina, nb_ina);
+    bmu_ble_set_nb_ina(nb_ina); /* Update BLE after I2C scan */
     if (nb_ina > 0) {
         bmu_battery_manager_start(&mgr);
     }

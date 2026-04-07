@@ -37,6 +37,7 @@ static std::atomic<int>       s_connected_count{0};
 bmu_protection_ctx_t  *bmu_ble_get_prot(void)   { return s_prot; }
 bmu_battery_manager_t *bmu_ble_get_mgr(void)    { return s_mgr; }
 uint8_t                bmu_ble_get_nb_ina(void)  { return s_nb_ina; }
+void                   bmu_ble_set_nb_ina(uint8_t n) { s_nb_ina = n; }
 
 /* ── Forward declarations ────────────────────────────────────────── */
 static void start_advertising(void);
