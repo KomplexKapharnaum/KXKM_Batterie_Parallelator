@@ -37,7 +37,9 @@ struct SolarData {
     let panelVoltageMv: Int
     let panelPowerW: Int
     let chargeState: Int32
+    let errorCode: UInt8
     let yieldTodayWh: Int64
+    let isValid: Bool
 }
 
 struct AuditEvent: Identifiable {

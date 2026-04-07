@@ -77,16 +77,20 @@ VE.Direct on GPIO21 RX-only (TEXT protocol is TX→RX).
 - `reconnect_time[]` access is mutex-protected
 
 ### ESP-IDF Architecture (firmware-idf/)
-22 components, ESP32-S3-BOX-3 target, LVGL display.
+25 components, ESP32-S3-BOX-3 target, LVGL display.
 - **Boot** (14 stages): NVS → SPIFFS → Display → WiFi → BLE → FAT → SNTP → I2C scan → topology → protection → cloud → web → VE.Direct → OTA
-- **bmu_protection** — state machine (CONNECTED/DISCONNECTED/RECONNECTING/ERROR/LOCKED), 5 reconnect limit
+- **bmu_protection** — state machine (CONNECTED/DISCONNECTED/RECONNECTING/ERROR/LOCKED), 5 reconnect limit, LED blink on ERROR
+- **bmu_balancer** — soft-balancing duty-cycling (3 ON / 2 OFF) with R_int opportuniste during OFF windows
 - **bmu_rint** — internal resistance measurement (pulse method), periodic task (Kconfig: stack/priority)
 - **bmu_vedirect** — Victron VE.Direct UART parser (solar charger), periodic task (Kconfig: stack/priority)
-- **bmu_display** — LVGL tabview (Batteries/SOH/System/Alerts/Config), swipe detail navigation
+- **bmu_display** — LVGL tabview (Batteries/SOH/System/Alerts/Config), pack info line (Vmin/Vmoy/Vmax/T°C), SOH R_int column, swipe detail navigation
 - **bmu_web** + **bmu_web_security** — HTTP + WebSocket, constant-time token auth, LRU rate limiter
 - **bmu_influx** + **bmu_influx_store** — InfluxDB line-protocol with offline persistence (FAT/SD fallback, 2-file rotation 512KB)
-- **bmu_mqtt** — ESP-MQTT with auth (user/password)
-- **bmu_ble** — NimBLE 3 GATT services (battery/system/control)
+- **bmu_mqtt** — ESP-MQTT with auth (user/password via Kconfig + NVS)
+- **bmu_ble** — NimBLE 4 GATT services (battery/system/control + Victron SmartShunt), dynamic nb_ina after I2C scan
+- **bmu_ble_victron** — Victron Instant Readout advertising (AES-CTR, PID SmartShunt 0xA389)
+- **bmu_ble_victron_gatt** — GATT SmartShunt emulation (9 chars: V, I, SOC, Ah, TTG, T, alarm, model, serial)
+- **bmu_ble_victron_scan** — BLE central scanner for Victron devices (passive, AES decrypt, 8 device cache)
 - **bmu_storage** — NVS, FAT (/fatfs), SPIFFS (/spiffs), SD card (/sdcard) with SPI on PMOD2
 
 ### Offline Data Persistence

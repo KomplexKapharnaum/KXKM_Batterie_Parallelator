@@ -477,7 +477,7 @@ Application compagnon iOS + Android pour monitorer et contrôler le BMU depuis u
 | Cloud (MQTT + REST) | temps réel / historique | lecture seule | À distance via kxkm-ai |
 
 **Fonctionnalités :**
-- Dashboard grille batteries (tension, courant, état)
+- Dashboard grille batteries (tension, courant, état) via BLE temps réel
 - Détail batterie avec graphe historique 24h
 - Switch ON/OFF, reset compteurs (rôle technicien/admin)
 - Configuration seuils de protection (pas 0.025V/A) et WiFi du BMU
@@ -485,12 +485,22 @@ Application compagnon iOS + Android pour monitorer et contrôler le BMU depuis u
 - Audit trail non effaçable avec sync cloud
 - Données solaire VE.Direct
 - SOH dashboard + R_int + notifications push (anomalies)
+- Mode offline : cache SQLDelight + indicateur visuel
+- Connexion BLE auto-discovery KXKM-BMU + poll adaptatif (nb_ina)
 - Client MQTT natif iOS (Network framework, zéro dépendance)
-- SKIE bridge (Kotlin Flow → Swift AsyncSequence)
 
-**Code :** `kxkm-bmu-app/` (shared + androidApp + iosApp)
+**Code :** `iosApp/` (Xcode natif, CoreBluetooth) + `kxkm-bmu-app/` (KMP shared Kotlin)
 
 **Spec :** `docs/superpowers/specs/2026-04-01-smartphone-app-design.md`
+
+### Victron BLE
+
+Le BMU émule un SmartShunt Victron via :
+- **Instant Readout** : advertisements BLE chiffrés AES-CTR (PID 0xA389)
+- **GATT SmartShunt** : 9 caractéristiques lecture seule (V, I, SOC, Ah, TTG, T°C, alarmes)
+- **Scanner BLE** : détecte les appareils Victron à portée (MPPT, SmartShunt, etc.)
+
+**Spec :** `docs/superpowers/specs/2026-04-07-victron-ble-connect-design.md`
 
 ---
 

@@ -15,8 +15,30 @@ struct DashboardView: View {
         NavigationStack {
             ScrollView {
                 if vm.isLoading {
-                    ProgressView("Connexion au BMU...")
-                        .padding(.top, 60)
+                    VStack(spacing: 12) {
+                        ProgressView("Connexion au BMU...")
+                            .padding(.top, 40)
+
+                        // BLE diagnostic log
+                        let log = BleManager.shared.bleDebugLog
+                        if !log.isEmpty {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("BLE Debug")
+                                    .font(.caption2)
+                                    .foregroundColor(.orange)
+                                ForEach(Array(log.suffix(15).enumerated()), id: \.offset) { _, line in
+                                    Text(line)
+                                        .font(.system(.caption2, design: .monospaced))
+                                        .foregroundColor(.gray)
+                                }
+                            }
+                            .padding(8)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color(white: 0.08))
+                            .cornerRadius(8)
+                            .padding(.horizontal)
+                        }
+                    }
                 } else if vm.batteries.isEmpty {
                     VStack(spacing: 12) {
                         Image(systemName: "bolt.slash")
