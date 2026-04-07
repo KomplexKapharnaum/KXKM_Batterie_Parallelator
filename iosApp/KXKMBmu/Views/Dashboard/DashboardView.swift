@@ -1,5 +1,4 @@
 import SwiftUI
-// import Shared — using Stubs
 
 struct DashboardView: View {
     @EnvironmentObject var vm: DashboardViewModel
@@ -66,8 +65,8 @@ struct DashboardView: View {
                 await vm.refresh()
             }
             .navigationTitle("Batteries")
-            .navigationDestination(for: Int32.self) { index in
-                BatteryDetailView(batteryIndex: Int(index))
+            .navigationDestination(for: Int.self) { index in
+                BatteryDetailView(batteryIndex: index)
             }
         }
     }

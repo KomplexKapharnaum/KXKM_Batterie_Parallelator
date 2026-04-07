@@ -44,13 +44,13 @@ struct SolarView: View {
                 .font(.headline)
                 .foregroundColor(.white)
             Spacer()
-            Text(chargeStateName(s.chargeState))
+            Text(s.chargeStateName)
                 .font(.subheadline)
                 .fontWeight(.bold)
-                .foregroundColor(chargeStateColor(s.chargeState))
+                .foregroundColor(s.chargeStateColor)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 4)
-                .background(chargeStateColor(s.chargeState).opacity(0.2))
+                .background(s.chargeStateColor.opacity(0.2))
                 .cornerRadius(8)
         }
         .padding()
@@ -149,25 +149,4 @@ struct SolarView: View {
         .cornerRadius(10)
     }
 
-    private func chargeStateName(_ cs: Int32) -> String {
-        switch cs {
-        case 0: return "OFF"
-        case 3: return "BULK"
-        case 4: return "ABSORPTION"
-        case 5: return "FLOAT"
-        case 7: return "EQUALIZE"
-        default: return "?"
-        }
-    }
-
-    private func chargeStateColor(_ cs: Int32) -> Color {
-        switch cs {
-        case 0: return .gray
-        case 3: return .orange
-        case 4: return .yellow
-        case 5: return .green
-        case 7: return .blue
-        default: return .gray
-        }
-    }
 }

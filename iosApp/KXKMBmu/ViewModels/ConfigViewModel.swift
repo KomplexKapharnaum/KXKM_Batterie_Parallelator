@@ -1,5 +1,4 @@
 import SwiftUI
-// import Shared — using Stubs
 
 class ConfigViewModel: ObservableObject {
     // Protection

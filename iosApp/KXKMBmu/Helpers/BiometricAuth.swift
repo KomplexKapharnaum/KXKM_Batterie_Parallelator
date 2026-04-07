@@ -31,7 +31,7 @@ enum BiometricAuth {
     }
 
     static func storePin(_ pin: String) {
-        let data = pin.data(using: .utf8)!
+        guard let data = pin.data(using: .utf8) else { return }
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: "com.kxkm.bmu.pin",

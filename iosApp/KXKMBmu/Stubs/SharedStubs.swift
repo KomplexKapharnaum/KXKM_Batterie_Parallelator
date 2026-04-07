@@ -108,80 +108,75 @@ class MonitoringUseCase {
         )
     }
 
-    func observeBatteries(callback: @escaping ([BatteryState]) -> Void) {
-        callback((0..<4).map { makeMockBattery($0) })
-        Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
-            guard let self else { return }
-            callback((0..<4).map { self.makeMockBattery($0) })
-        }
+    func batteries() async -> [BatteryState] {
+        (0..<4).map { makeMockBattery($0) }
     }
 
-    func observeBattery(index: Int32, callback: @escaping (BatteryState?) -> Void) {
-        observeBatteries { all in
-            callback(all.first { $0.index == Int(index) })
-        }
+    func battery(index: Int) async -> BatteryState? {
+        await batteries().first { $0.index == index }
     }
 
-    func observeSystem(callback: @escaping (SystemInfo?) -> Void) {
-        callback(SystemInfo(
+    func system() async -> SystemInfo {
+        SystemInfo(
             firmwareVersion: "0.5.0", heapFree: 16800000,
             uptimeSeconds: 3600, wifiIp: nil,
             nbIna: 0, nbTca: 0, topologyValid: false
-        ))
+        )
     }
 
-    func observeSolar(callback: @escaping (SolarData?) -> Void) {
-        callback(nil)
+    func solar() async -> SolarData? {
+        nil
     }
 
-    func getHistory(batteryIndex: Int32, hours: Int32, callback: @escaping ([BatteryHistoryPoint]) -> Void) {
+    func getHistory(batteryIndex: Int, hours: Int) async -> [BatteryHistoryPoint] {
         let now = Int64(Date().timeIntervalSince1970 * 1000)
-        let points = (0..<100).map { i in
+        return (0..<100).map { i in
             BatteryHistoryPoint(
                 timestamp: now - Int64(i) * 360_000,
                 voltageMv: 25500 + Int.random(in: -500...500),
                 currentMa: 1200 + Int.random(in: -300...300)
             )
         }.reversed()
-        callback(Array(points))
     }
 }
 
 class ControlUseCase {
-    func switchBattery(index: Int32, on: Bool, callback: @escaping (CommandResult) -> Void) {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            callback(.ok())
-        }
+    func switchBattery(index: Int, on: Bool) async -> CommandResult {
+        try? await Task.sleep(nanoseconds: 500_000_000)
+        return .ok()
     }
-    func resetSwitchCount(index: Int32, callback: @escaping (CommandResult) -> Void) {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            callback(.ok())
-        }
+
+    func resetSwitchCount(index: Int) async -> CommandResult {
+        try? await Task.sleep(nanoseconds: 300_000_000)
+        return .ok()
     }
 }
 
 class ConfigUseCase {
     func getCurrentConfig() -> ProtectionConfig { ProtectionConfig() }
-    func setProtectionConfig(minMv: Int32, maxMv: Int32, maxMa: Int32, diffMv: Int32,
-                             callback: @escaping (CommandResult) -> Void) {
-        callback(.ok())
+
+    func setProtectionConfig(minMv: Int32, maxMv: Int32, maxMa: Int32, diffMv: Int32) async -> CommandResult {
+        .ok()
     }
-    func setWifiConfig(ssid: String, password: String, callback: @escaping (CommandResult) -> Void) {
-        callback(.error("BLE non connecté (mock)"))
+
+    func setWifiConfig(ssid: String, password: String) async -> CommandResult {
+        .error("BLE non connecté (mock)")
     }
+
     func getPendingSyncCount() -> Int64 { 0 }
 }
 
 class AuditUseCase {
-    func getEvents(action: String?, batteryIndex: Int32?, callback: @escaping ([AuditEvent]) -> Void) {
-        callback([
+    func getEvents(action: String?, batteryIndex: Int?) async -> [AuditEvent] {
+        [
             AuditEvent(timestamp: Int64(Date().timeIntervalSince1970 * 1000) - 60000,
                       userId: "admin", action: "switch_on", target: 0, detail: nil),
             AuditEvent(timestamp: Int64(Date().timeIntervalSince1970 * 1000) - 120000,
                       userId: "admin", action: "config_change", target: nil,
                       detail: "V_min: 24000→25000"),
-        ])
+        ]
     }
+
     func getPendingSyncCount() -> Int64 { 2 }
 }
 

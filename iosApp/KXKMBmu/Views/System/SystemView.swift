@@ -1,5 +1,4 @@
 import SwiftUI
-// import Shared — using Stubs
 
 struct SystemView: View {
     @EnvironmentObject var vm: SystemViewModel
@@ -43,20 +42,12 @@ struct SystemView: View {
                         iconRow("bolt.fill", "Puissance", "\(solar.panelPowerW) W")
                         iconRow("battery.100", "Tension batterie", String(format: "%.1f V", Double(solar.batteryVoltageMv) / 1000.0))
                         iconRow("arrow.right", "Courant", String(format: "%.2f A", Double(solar.batteryCurrentMa) / 1000.0))
-                        iconRow("gauge.medium", "État charge", chargeStateName(solar.chargeState))
+                        iconRow("gauge.medium", "État charge", solar.chargeStateName)
                         iconRow("chart.bar", "Production jour", "\(solar.yieldTodayWh) Wh")
                     }
                 }
             }
             .navigationTitle("Système")
-        }
-    }
-
-    private func row(_ label: String, _ value: String) -> some View {
-        HStack {
-            Text(label)
-            Spacer()
-            Text(value).foregroundColor(.secondary).monospacedDigit()
         }
     }
 
@@ -82,14 +73,5 @@ struct SystemView: View {
         return String(format: "%.0f KB", Double(bytes) / 1000.0)
     }
 
-    private func chargeStateName(_ cs: Int32) -> String {
-        switch cs {
-        case 0: return "Off"
-        case 2: return "Fault"
-        case 3: return "Bulk"
-        case 4: return "Absorption"
-        case 5: return "Float"
-        default: return "État \(cs)"
-        }
-    }
+
 }

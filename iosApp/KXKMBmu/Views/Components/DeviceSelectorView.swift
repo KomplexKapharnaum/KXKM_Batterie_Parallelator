@@ -98,6 +98,7 @@ struct DeviceSelectorView: View {
                     .buttonStyle(.bordered)
                 }
 
+                #if DEBUG
                 Button {
                     // Force connected state for demo mode
                     ble.isConnected = true
@@ -107,6 +108,7 @@ struct DeviceSelectorView: View {
                 }
                 .buttonStyle(.bordered)
                 .tint(.orange)
+                #endif
             }
             .padding(.bottom)
         }

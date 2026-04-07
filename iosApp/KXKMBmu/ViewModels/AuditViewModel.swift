@@ -1,5 +1,4 @@
 import SwiftUI
-// import Shared — using Stubs
 
 class AuditViewModel: ObservableObject {
     @Published var events: [AuditEvent] = []
@@ -15,15 +14,13 @@ class AuditViewModel: ObservableObject {
     }
 
     func reload() {
-        auditUseCase.getEvents(
-            action: filterAction,
-            batteryIndex: filterBattery.map { Int32($0) }
-        ) { [weak self] result in
-            DispatchQueue.main.async {
-                self?.events = result
-            }
+        Task { @MainActor in
+            events = await auditUseCase.getEvents(
+                action: filterAction,
+                batteryIndex: filterBattery
+            )
+            pendingSyncCount = Int(auditUseCase.getPendingSyncCount())
         }
-        pendingSyncCount = Int(auditUseCase.getPendingSyncCount())
     }
 
     func clearFilters() {

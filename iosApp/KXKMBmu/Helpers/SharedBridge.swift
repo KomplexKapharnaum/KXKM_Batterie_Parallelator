@@ -1,4 +1,3 @@
-// import Shared — using Stubs
 import SwiftUI
 
 // MARK: - BatteryStatus convenience
@@ -11,7 +10,6 @@ extension BatteryStatus {
         case .reconnecting: return "Reconnexion"
         case .error: return "Erreur"
         case .locked: return "Verrouillé"
-        default: return "Inconnu"
         }
     }
 
@@ -22,7 +20,6 @@ extension BatteryStatus {
         case .reconnecting: return .yellow
         case .error: return .orange
         case .locked: return .red
-        default: return .gray
         }
     }
 
@@ -33,7 +30,6 @@ extension BatteryStatus {
         case .reconnecting: return "arrow.clockwise"
         case .error: return "exclamationmark.triangle"
         case .locked: return "lock.fill"
-        default: return "questionmark"
         }
     }
 }
@@ -46,7 +42,6 @@ extension UserRole {
         case .admin: return "Admin"
         case .technician: return "Technicien"
         case .viewer: return "Lecteur"
-        default: return "Inconnu"
         }
     }
 
@@ -69,7 +64,6 @@ extension TransportChannel {
         case .mqttCloud: return "Cloud MQTT"
         case .restCloud: return "Cloud REST"
         case .offline: return "Hors ligne"
-        default: return "—"
         }
     }
 
@@ -79,7 +73,36 @@ extension TransportChannel {
         case .wifi: return "wifi"
         case .mqttCloud, .restCloud: return "cloud"
         case .offline: return "icloud.slash"
-        default: return "questionmark"
+        }
+    }
+}
+
+// MARK: - Solar charge state (VE.Direct MPPT)
+
+extension SolarData {
+    /// VE.Direct CS (Charge State) field display name
+    var chargeStateName: String {
+        switch chargeState {
+        case 0: return "OFF"
+        case 2: return "FAULT"
+        case 3: return "BULK"
+        case 4: return "ABSORPTION"
+        case 5: return "FLOAT"
+        case 7: return "EQUALIZE"
+        default: return "État \(chargeState)"
+        }
+    }
+
+    /// Color matching the VE.Direct charge state
+    var chargeStateColor: Color {
+        switch chargeState {
+        case 0: return .gray
+        case 2: return .red
+        case 3: return .orange
+        case 4: return .yellow
+        case 5: return .green
+        case 7: return .blue
+        default: return .gray
         }
     }
 }

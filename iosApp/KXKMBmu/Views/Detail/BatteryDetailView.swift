@@ -1,5 +1,4 @@
 import SwiftUI
-// import Shared — using Stubs
 
 struct BatteryDetailView: View {
     @StateObject private var vm: BatteryDetailViewModel

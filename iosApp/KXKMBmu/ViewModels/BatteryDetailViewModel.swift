@@ -27,7 +27,6 @@ class BatteryDetailViewModel: ObservableObject {
             }
         })
 
-        loadMockHistory()
     }
 
     deinit {
@@ -40,16 +39,5 @@ class BatteryDetailViewModel: ObservableObject {
 
     func resetSwitchCount() {
         ble.resetSwitchCount(index: batteryIndex)
-    }
-
-    private func loadMockHistory() {
-        let now = Int64(Date().timeIntervalSince1970 * 1000)
-        history = (0..<100).reversed().map { i in
-            BatteryHistoryPoint(
-                timestamp: now - Int64(i) * 360_000,
-                voltageMv: 25500 + Int.random(in: -500...500),
-                currentMa: 1200 + Int.random(in: -300...300)
-            )
-        }
     }
 }

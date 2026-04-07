@@ -1,5 +1,4 @@
 import SwiftUI
-// import Shared — using Stubs
 
 struct TransportConfigView: View {
     @EnvironmentObject var vm: ConfigViewModel

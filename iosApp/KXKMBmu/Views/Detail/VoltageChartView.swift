@@ -1,6 +1,4 @@
 import SwiftUI
-// import Charts — simplified for stub build
-// import Shared — using Stubs
 
 struct VoltageChartView: View {
     let history: [BatteryHistoryPoint]

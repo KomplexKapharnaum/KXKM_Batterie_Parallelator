@@ -26,6 +26,8 @@
 		65B987CFF77D50BAF468DA94 /* SyncConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE22B0AF292CA5AF61FF5904 /* SyncConfigView.swift */; };
 		6DF48E3B6AE580057C7F930E /* ProtectionConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3B0C9A29C2FB43C95303349 /* ProtectionConfigView.swift */; };
 		875AE5419BC47B9EE9881F1F /* BiometricAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD60D2AECB93EEEB576B0E55 /* BiometricAuth.swift */; };
+		8C78A8172F853901003BB624 /* SolarCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C78A8162F853901003BB624 /* SolarCardView.swift */; };
+		8C78A81A2F853925003BB624 /* SolarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C78A8192F853925003BB624 /* SolarView.swift */; };
 		987036656FACD4C5E8C7E862 /* ConfigViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 705D1CE3DAAFB6DA948AD547 /* ConfigViewModel.swift */; };
 		A044BED3DE63BDBA887CA753 /* UserManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 599C082FAC1E1E65F6EB2A72 /* UserManagementView.swift */; };
 		A09612E54B3E699CED12E21F /* BatteryStateIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24799B1AC8B9B2F08B70C6DD /* BatteryStateIcon.swift */; };
@@ -64,6 +66,8 @@
 		700B9D6B53715C3C3816871C /* DashboardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardViewModel.swift; sourceTree = "<group>"; };
 		705D1CE3DAAFB6DA948AD547 /* ConfigViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigViewModel.swift; sourceTree = "<group>"; };
 		7AC4206F6FB0F6D4D71FB7E1 /* VoltageChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoltageChartView.swift; sourceTree = "<group>"; };
+		8C78A8162F853901003BB624 /* SolarCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SolarCardView.swift; sourceTree = "<group>"; };
+		8C78A8192F853925003BB624 /* SolarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SolarView.swift; sourceTree = "<group>"; };
 		8EE67BE788F8256657FFF2EE /* SharedBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedBridge.swift; sourceTree = "<group>"; };
 		8F8D1EF2A383025B06735AEA /* WifiConfigView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WifiConfigView.swift; sourceTree = "<group>"; };
 		A3B0C9A29C2FB43C95303349 /* ProtectionConfigView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtectionConfigView.swift; sourceTree = "<group>"; };
@@ -141,6 +145,14 @@
 			path = App;
 			sourceTree = "<group>";
 		};
+		8C78A8182F853904003BB624 /* Solar 2 */ = {
+			isa = PBXGroup;
+			children = (
+				8C78A8192F853925003BB624 /* SolarView.swift */,
+			);
+			path = "Solar 2";
+			sourceTree = "<group>";
+		};
 		8D217C544207D45A96A278EA /* KXKMBmu */ = {
 			isa = PBXGroup;
 			children = (
@@ -159,6 +171,7 @@
 			children = (
 				E48424398EFB6CEBE108E575 /* BatteryCellView.swift */,
 				379A503998B00741DB667641 /* DashboardView.swift */,
+				8C78A8162F853901003BB624 /* SolarCardView.swift */,
 			);
 			path = Dashboard;
 			sourceTree = "<group>";
@@ -226,6 +239,7 @@
 				8EB7E8B3B2098DC3E80133BA /* Dashboard */,
 				E214873C14A8D75B52351C5B /* Detail */,
 				7236E3C8D6B97D6FCA6150F6 /* System */,
+				8C78A8182F853904003BB624 /* Solar 2 */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -314,6 +328,7 @@
 				AFF2B2F63093A65435F329B5 /* AuditView.swift in Sources */,
 				6492D2233C6D7A4910B93AF8 /* AuditViewModel.swift in Sources */,
 				0BD37194240F3BB825307DE8 /* AuthViewModel.swift in Sources */,
+				8C78A8172F853901003BB624 /* SolarCardView.swift in Sources */,
 				A2E1D948A4387B91A970AF6A /* BatteryCellView.swift in Sources */,
 				33DA3880C9A554A9EF30BFBF /* BatteryDetailView.swift in Sources */,
 				459A5367660722950BB68784 /* BatteryDetailViewModel.swift in Sources */,
@@ -331,6 +346,7 @@
 				4895B071BD6553FFB4BA1A01 /* OnboardingView.swift in Sources */,
 				2C3413C1C8D39F1E75A2F8FA /* PinEntryView.swift in Sources */,
 				6DF48E3B6AE580057C7F930E /* ProtectionConfigView.swift in Sources */,
+				8C78A81A2F853925003BB624 /* SolarView.swift in Sources */,
 				FD563F16593A09B1E4277A0A /* SharedBridge.swift in Sources */,
 				3067F6041FCF8ADEC46CFAFC /* SharedStubs.swift in Sources */,
 				C751A1EAEB69FEE56C8E9A2B /* StatusBarView.swift in Sources */,

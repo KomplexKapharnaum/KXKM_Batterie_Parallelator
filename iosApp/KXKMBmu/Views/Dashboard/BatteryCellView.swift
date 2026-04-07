@@ -1,5 +1,4 @@
 import SwiftUI
-// import Shared — using Stubs
 
 struct BatteryCellView: View {
     let battery: BatteryState
