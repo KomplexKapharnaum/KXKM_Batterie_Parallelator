@@ -4,6 +4,9 @@
 import Foundation
 import CoreBluetooth
 import SwiftUI
+import os.log
+
+private let bleLog = Logger(subsystem: "com.kxkm.bmu", category: "BLE")
 
 // MARK: - KXKM BMU UUIDs
 
@@ -38,6 +41,7 @@ private enum BLEConstants {
     static let scanTimeoutSeconds: TimeInterval = 15
     static let rssiPollIntervalSeconds: TimeInterval = 5
     static let reconnectDelaySeconds: TimeInterval = 2
+    static let pollIntervalSeconds: TimeInterval = 2
 }
 
 // MARK: - Discovered device
@@ -67,14 +71,27 @@ class BleManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
     @Published var solarData: SolarData?
     @Published var lastCommandResult: CommandResult?
     @Published var rssi: Int = 0
+    @Published var bleDebugLog: [String] = []
 
     private lazy var central = CBCentralManager(delegate: self, queue: nil)
     private var peripheral: CBPeripheral?
     private var controlChars: [CBUUID: CBCharacteristic] = [:]
+    /// Battery characteristics keyed by index — for periodic re-read
+    private var batteryChars: [Int: CBCharacteristic] = [:]
+    /// System characteristics for periodic re-read
+    private var systemChars: [CBCharacteristic] = []
+    /// Timer for polling reads (workaround firmware notify_custom(0xFFFF) bug)
+    private var pollTimer: Timer?
 
     override init() {
         super.init()
         _ = central // trigger lazy init
+    }
+
+    private func logBle(_ msg: String) {
+        bleLog.info("\(msg)")
+        bleDebugLog.append(msg)
+        if bleDebugLog.count > 40 { bleDebugLog.removeFirst() }
     }
 
     // MARK: - Public API
@@ -100,10 +117,12 @@ class BleManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
         peripheral = device.peripheral
         peripheral?.delegate = self
         connectedDeviceName = device.deviceName
+        logBle("Connecting to \(device.name)...")
         central.connect(device.peripheral, options: nil)
     }
 
     func disconnect() {
+        stopPollTimer()
         if let p = peripheral {
             central.cancelPeripheralConnection(p)
         }
@@ -156,10 +175,35 @@ class BleManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
         peripheral?.writeValue(buf, for: char, type: .withResponse)
     }
 
+    // MARK: - Poll timer (workaround for firmware notify bug)
+
+    private func startPollTimer() {
+        stopPollTimer()
+        pollTimer = Timer.scheduledTimer(withTimeInterval: BLEConstants.pollIntervalSeconds, repeats: true) { [weak self] _ in
+            self?.pollAllCharacteristics()
+        }
+    }
+
+    private func stopPollTimer() {
+        pollTimer?.invalidate()
+        pollTimer = nil
+    }
+
+    private func pollAllCharacteristics() {
+        guard let p = peripheral, isConnected else { return }
+        for (_, char) in batteryChars {
+            p.readValue(for: char)
+        }
+        for char in systemChars {
+            p.readValue(for: char)
+        }
+    }
+
     // MARK: - CBCentralManagerDelegate
     // All delegate methods run on main queue (CBCentralManager initialized with queue: nil)
 
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
+        logBle("BT state: \(central.state.rawValue) (\(central.state == .poweredOn ? "ON" : "not ready"))")
         if central.state == .poweredOn {
             startScan()
         }
@@ -190,16 +234,30 @@ class BleManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
     }
 
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
+        logBle("Connected to \(peripheral.name ?? "?")")
         isConnected = true
-        peripheral.discoverServices([kBatterySvcUUID, kSystemSvcUUID, kControlSvcUUID])
+        batteryChars = [:]
+        systemChars = []
+        logBle("Discovering ALL services...")
+        // Discover ALL services (nil) — avoids CoreBluetooth UUID cache issues with 128-bit customs
+        peripheral.discoverServices(nil)
         peripheral.readRSSI()
     }
 
+    func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
+        logBle("CONNECT FAILED: \(error?.localizedDescription ?? "unknown")")
+        isConnected = false
+    }
+
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
+        logBle("Disconnected: \(error?.localizedDescription ?? "clean")")
         isConnected = false
         connectedDeviceName = nil
         batteries = []
         controlChars = [:]
+        batteryChars = [:]
+        systemChars = []
+        stopPollTimer()
         DispatchQueue.main.asyncAfter(deadline: .now() + BLEConstants.reconnectDelaySeconds) { [weak self] in
             self?.startScan()
         }
@@ -208,127 +266,228 @@ class BleManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
     // MARK: - CBPeripheralDelegate
 
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
-        guard let services = peripheral.services else { return }
+        if let error {
+            logBle("Service discovery ERROR: \(error.localizedDescription)")
+            return
+        }
+        guard let services = peripheral.services, !services.isEmpty else {
+            logBle("NO SERVICES found!")
+            return
+        }
+        logBle("Found \(services.count) services")
         for svc in services {
+            let uuid = svc.uuid.uuidString
+            let short = uuid.count > 12 ? String(uuid.prefix(12)) + "..." : uuid
+            logBle("  svc: \(short)")
             peripheral.discoverCharacteristics(nil, for: svc)
         }
     }
 
     func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
-        guard let chars = service.characteristics else { return }
+        if let error {
+            logBle("Char error: \(error.localizedDescription)")
+            return
+        }
+        guard let chars = service.characteristics, !chars.isEmpty else {
+            logBle("No chars for svc \(service.uuid.uuidString.prefix(12))")
+            return
+        }
+
+        let svcUUID = service.uuid
+        let isBatSvc = svcUUID == kBatterySvcUUID
+        let isSysSvc = svcUUID == kSystemSvcUUID
+        let isCtlSvc = svcUUID == kControlSvcUUID
+
+        let svcName = isBatSvc ? "Battery" : isSysSvc ? "System" : isCtlSvc ? "Control" : "Unknown"
+        logBle("\(svcName) svc: \(chars.count) chars")
+
         for char in chars {
-            if char.properties.contains(.notify) {
+            let props = char.properties
+            let charUUID = char.uuid.uuidString
+            let short = charUUID.count > 12 ? String(charUUID.prefix(12)) + "..." : charUUID
+            logBle("  \(short) R=\(props.contains(.read)) N=\(props.contains(.notify)) W=\(props.contains(.write))")
+
+            // Store battery characteristics for polling
+            if isBatSvc {
+                for i in 0..<16 {
+                    if char.uuid == batteryCharUUID(i) {
+                        batteryChars[i] = char
+                        break
+                    }
+                }
+            }
+
+            // Store system characteristics for polling
+            if isSysSvc && props.contains(.read) {
+                systemChars.append(char)
+            }
+
+            if props.contains(.notify) {
                 peripheral.setNotifyValue(true, for: char)
             }
-            if char.properties.contains(.read) {
+            // Read system + control chars immediately, but defer battery reads
+            // to poll timer (after topology trim to avoid Invalid Handle errors)
+            if !isBatSvc && props.contains(.read) {
                 peripheral.readValue(for: char)
             }
-            if service.uuid == kControlSvcUUID {
+            if isCtlSvc {
                 controlChars[char.uuid] = char
             }
+        }
+
+        // Start poll timer once we have battery characteristics
+        if isBatSvc && !batteryChars.isEmpty {
+            logBle("Starting poll timer (\(Int(BLEConstants.pollIntervalSeconds))s) for \(batteryChars.count) batteries")
+            startPollTimer()
         }
     }
 
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
-        guard let data = characteristic.value, error == nil else { return }
-        let uuid = characteristic.uuid
-
-        // Battery characteristics (0x0010–0x001F)
-        for i in 0..<16 {
-            if uuid == batteryCharUUID(i) {
-                if let state = parseBattery(index: i, data: data) {
-                    if let idx = batteries.firstIndex(where: { $0.index == i }) {
-                        batteries[idx] = state
-                    } else {
-                        batteries.append(state)
-                        batteries.sort { $0.index < $1.index }
-                    }
-                }
-                return
-            }
+        if let error {
+            logBle("READ ERR \(characteristic.uuid.uuidString.prefix(12)): \(error.localizedDescription)")
+            return
+        }
+        guard let data = characteristic.value, !data.isEmpty else {
+            logBle("Empty data: \(characteristic.uuid.uuidString.prefix(12))")
+            return
         }
 
-        // System characteristics
-        switch uuid {
-        case kFwVersionUUID:
-            let fw = String(data: data, encoding: .utf8) ?? "?"
-            systemInfo = SystemInfo(
-                firmwareVersion: fw,
-                heapFree: systemInfo?.heapFree ?? 0,
-                uptimeSeconds: systemInfo?.uptimeSeconds ?? 0,
-                wifiIp: systemInfo?.wifiIp,
-                nbIna: systemInfo?.nbIna ?? 0,
-                nbTca: systemInfo?.nbTca ?? 0,
-                topologyValid: systemInfo?.topologyValid ?? false
-            )
-        case kHeapFreeUUID:
-            if data.count >= 4 {
-                let heap = Int64(data.readUInt32LE(at: 0))
+        let uuid = characteristic.uuid
+        // Use parent service to disambiguate — battery chars 0x0020-0x002F
+        // collide with system chars 0x0020-0x0025
+        let parentSvcUUID = characteristic.service?.uuid
+
+        // Battery characteristics from Battery service only
+        if parentSvcUUID == kBatterySvcUUID {
+            for i in 0..<16 {
+                if uuid == batteryCharUUID(i) {
+                    if let state = parseBattery(index: i, data: data) {
+                        logBle("Bat[\(i)]: \(state.voltageMv)mV \(state.currentMa)mA \(state.state.rawValue)")
+                        if let idx = batteries.firstIndex(where: { $0.index == i }) {
+                            batteries[idx] = state
+                        } else {
+                            batteries.append(state)
+                            batteries.sort { $0.index < $1.index }
+                        }
+                    } else {
+                        logBle("Bat[\(i)] parse FAIL (\(data.count)B)")
+                    }
+                    return
+                }
+            }
+            // Battery char > 15 or R_int/SOH — ignore for now
+            return
+        }
+
+        // System characteristics from System service only
+        if parentSvcUUID == kSystemSvcUUID {
+            switch uuid {
+            case kFwVersionUUID:
+                let fw = String(data: data, encoding: .utf8) ?? "?"
+                logBle("FW: \(fw)")
                 systemInfo = SystemInfo(
-                    firmwareVersion: systemInfo?.firmwareVersion ?? "?",
-                    heapFree: heap,
+                    firmwareVersion: fw,
+                    heapFree: systemInfo?.heapFree ?? 0,
                     uptimeSeconds: systemInfo?.uptimeSeconds ?? 0,
                     wifiIp: systemInfo?.wifiIp,
                     nbIna: systemInfo?.nbIna ?? 0,
                     nbTca: systemInfo?.nbTca ?? 0,
                     topologyValid: systemInfo?.topologyValid ?? false
                 )
-            }
-        case kUptimeUUID:
-            if data.count >= 4 {
-                let up = Int64(data.readUInt32LE(at: 0))
-                systemInfo = SystemInfo(
-                    firmwareVersion: systemInfo?.firmwareVersion ?? "?",
-                    heapFree: systemInfo?.heapFree ?? 0,
-                    uptimeSeconds: up,
-                    wifiIp: systemInfo?.wifiIp,
-                    nbIna: systemInfo?.nbIna ?? 0,
-                    nbTca: systemInfo?.nbTca ?? 0,
-                    topologyValid: systemInfo?.topologyValid ?? false
-                )
-            }
-        case kWifiIpUUID:
-            let ip = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .controlCharacters)
-            systemInfo = SystemInfo(
-                firmwareVersion: systemInfo?.firmwareVersion ?? "?",
-                heapFree: systemInfo?.heapFree ?? 0,
-                uptimeSeconds: systemInfo?.uptimeSeconds ?? 0,
-                wifiIp: ip,
-                nbIna: systemInfo?.nbIna ?? 0,
-                nbTca: systemInfo?.nbTca ?? 0,
-                topologyValid: systemInfo?.topologyValid ?? false
-            )
-        case kTopologyUUID:
-            if data.count >= 3 {
+            case kHeapFreeUUID:
+                if data.count >= 4 {
+                    let heap = Int64(data.readUInt32LE(at: 0))
+                    systemInfo = SystemInfo(
+                        firmwareVersion: systemInfo?.firmwareVersion ?? "?",
+                        heapFree: heap,
+                        uptimeSeconds: systemInfo?.uptimeSeconds ?? 0,
+                        wifiIp: systemInfo?.wifiIp,
+                        nbIna: systemInfo?.nbIna ?? 0,
+                        nbTca: systemInfo?.nbTca ?? 0,
+                        topologyValid: systemInfo?.topologyValid ?? false
+                    )
+                }
+            case kUptimeUUID:
+                if data.count >= 4 {
+                    let up = Int64(data.readUInt32LE(at: 0))
+                    systemInfo = SystemInfo(
+                        firmwareVersion: systemInfo?.firmwareVersion ?? "?",
+                        heapFree: systemInfo?.heapFree ?? 0,
+                        uptimeSeconds: up,
+                        wifiIp: systemInfo?.wifiIp,
+                        nbIna: systemInfo?.nbIna ?? 0,
+                        nbTca: systemInfo?.nbTca ?? 0,
+                        topologyValid: systemInfo?.topologyValid ?? false
+                    )
+                }
+            case kWifiIpUUID:
+                let ip = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .controlCharacters)
                 systemInfo = SystemInfo(
                     firmwareVersion: systemInfo?.firmwareVersion ?? "?",
                     heapFree: systemInfo?.heapFree ?? 0,
                     uptimeSeconds: systemInfo?.uptimeSeconds ?? 0,
-                    wifiIp: systemInfo?.wifiIp,
-                    nbIna: Int(data[0]),
-                    nbTca: Int(data[1]),
-                    topologyValid: data[2] != 0
+                    wifiIp: ip,
+                    nbIna: systemInfo?.nbIna ?? 0,
+                    nbTca: systemInfo?.nbTca ?? 0,
+                    topologyValid: systemInfo?.topologyValid ?? false
                 )
+            case kTopologyUUID:
+                if data.count >= 3 {
+                    let nbIna = Int(data[0])
+                    logBle("Topo: INA=\(nbIna) TCA=\(data[1]) valid=\(data[2])")
+                    systemInfo = SystemInfo(
+                        firmwareVersion: systemInfo?.firmwareVersion ?? "?",
+                        heapFree: systemInfo?.heapFree ?? 0,
+                        uptimeSeconds: systemInfo?.uptimeSeconds ?? 0,
+                        wifiIp: systemInfo?.wifiIp,
+                        nbIna: nbIna,
+                        nbTca: Int(data[1]),
+                        topologyValid: data[2] != 0
+                    )
+                    // Trim battery poll list to real INA count
+                    let validKeys = batteryChars.keys.filter { $0 < nbIna }
+                    let invalidKeys = batteryChars.keys.filter { $0 >= nbIna }
+                    if !invalidKeys.isEmpty {
+                        for k in invalidKeys { batteryChars.removeValue(forKey: k) }
+                        logBle("Poll trimmed to \(validKeys.count) batteries")
+                    }
+                }
+            case kSolarUUID:
+                // Firmware ble_solar_char_t: 15 bytes packed
+                // [0:2] battery_voltage_mv, [2:2] battery_current_ma,
+                // [4:2] panel_voltage_mv, [6:2] panel_power_w,
+                // [8:1] charge_state, [9:1] error_code,
+                // [10:4] yield_today_wh, [14:1] valid
+                if data.count >= 15 {
+                    let valid = data[14] != 0
+                    solarData = SolarData(
+                        batteryVoltageMv: Int(data.readInt16LE(at: 0)),
+                        batteryCurrentMa: Int(data.readInt16LE(at: 2)),
+                        panelVoltageMv: Int(data.readUInt16LE(at: 4)),
+                        panelPowerW: Int(data.readUInt16LE(at: 6)),
+                        chargeState: Int32(data[8]),
+                        errorCode: data[9],
+                        yieldTodayWh: Int64(data.readUInt32LE(at: 10)),
+                        isValid: valid
+                    )
+                }
+            default:
+                break
             }
-        case kSolarUUID:
-            if data.count >= 12 {
-                solarData = SolarData(
-                    batteryVoltageMv: Int(data.readInt16LE(at: 0)),
-                    batteryCurrentMa: Int(data.readInt16LE(at: 2)),
-                    panelVoltageMv: Int(data.readUInt16LE(at: 4)),
-                    panelPowerW: Int(data.readUInt16LE(at: 6)),
-                    chargeState: Int32(data[8]),
-                    yieldTodayWh: Int64(data.readUInt32LE(at: 9))
-                )
-            }
-        case kStatusUUID:
-            if data.count >= 3 {
+            return
+        }
+
+        // Control service — status response
+        if parentSvcUUID == kControlSvcUUID {
+            if uuid == kStatusUUID && data.count >= 3 {
                 let result = data[2]
                 lastCommandResult = result == 0 ? .ok() : .error("code=\(result)")
             }
-        default:
-            break
+            return
         }
+
+        // Unknown service characteristic
+        logBle("Unknown char \(uuid.uuidString.prefix(12)) from svc \(parentSvcUUID?.uuidString.prefix(12) ?? "nil")")
     }
 
     func peripheral(_ peripheral: CBPeripheral, didReadRSSI RSSI: NSNumber, error: Error?) {
@@ -341,7 +500,13 @@ class BleManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
     // MARK: - GATT parsing
 
     private func parseBattery(index: Int, data: Data) -> BatteryState? {
-        guard data.count >= 15 else { return nil }
+        // Firmware ble_battery_char_t: 18 bytes packed
+        // [0:4] voltage_mv, [4:4] current_ma, [8:1] state,
+        // [9:4] ah_discharge_mah, [13:4] ah_charge_mah, [17:1] nb_switch
+        guard data.count >= 15 else {
+            logBle("Bat[\(index)] too short: \(data.count)B")
+            return nil
+        }
         let voltage = data.readInt32LE(at: 0)
         let current = data.readInt32LE(at: 4)
         let stateRaw = Int(data[8])
