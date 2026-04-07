@@ -136,6 +136,45 @@ static void back_btn_cb(lv_event_t *e)
     bmu_ui_detail_destroy();
 }
 
+/* ── Swipe gauche/droite — differe via lv_async_call ──────────── */
+
+static int s_swipe_next = -1;
+
+static void swipe_async_cb(void *data)
+{
+    (void)data;
+    if (s_ctx_ref == NULL || s_nav_ref == NULL || s_swipe_next < 0) return;
+    int next = s_swipe_next;
+    s_swipe_next = -1;
+
+    lv_obj_t *parent = (s_panel != NULL) ? lv_obj_get_parent(s_panel) : NULL;
+    bmu_ui_detail_destroy();
+    if (parent != NULL) {
+        s_nav_ref->detail_visible = true;
+        s_nav_ref->detail_battery = next;
+        bmu_ui_detail_create(parent, s_ctx_ref, next);
+    }
+}
+
+static void swipe_cb(lv_event_t *e)
+{
+    (void)e;
+    if (s_ctx_ref == NULL || s_nav_ref == NULL) return;
+    lv_dir_t dir = lv_indev_get_gesture_dir(lv_indev_active());
+    int nb = s_ctx_ref->nb_ina;
+    if (nb <= 1) return;
+
+    if (dir == LV_DIR_LEFT) {
+        s_swipe_next = (s_battery_idx + 1) % nb;
+    } else if (dir == LV_DIR_RIGHT) {
+        s_swipe_next = (s_battery_idx - 1 + nb) % nb;
+    } else {
+        return;
+    }
+    ESP_LOGI(TAG, "Swipe BAT %d -> BAT %d (async)", s_battery_idx + 1, s_swipe_next + 1);
+    lv_async_call(swipe_async_cb, NULL);
+}
+
 static void switch_on_btn_cb(lv_event_t *e)  { (void)e; show_switch_confirm(true);  }
 static void switch_off_btn_cb(lv_event_t *e) { (void)e; show_switch_confirm(false); }
 
@@ -171,6 +210,8 @@ void bmu_ui_detail_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx, int idx)
     lv_obj_set_style_pad_all(s_panel, 4, 0);
     lv_obj_set_style_radius(s_panel, 0, 0);
     lv_obj_move_foreground(s_panel);
+    lv_obj_add_event_cb(s_panel, swipe_cb, LV_EVENT_GESTURE, NULL);
+    lv_obj_set_scroll_dir(s_panel, LV_DIR_NONE); /* empeche scroll, capture gesture */
 
     /* ── Ligne du haut : Back + titre ─────────────────────────────── */
     lv_obj_t *btn_back = lv_button_create(s_panel);

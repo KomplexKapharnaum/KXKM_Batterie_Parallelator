@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     influx_org: str = "kxkm"
     influx_bucket: str = "bmu"
 
+    # CORS — origines autorisées (séparées par virgule, "*" = tout autoriser)
+    cors_origins: str = "http://localhost:3000,http://localhost:5173"
+
     # SQLite
     sqlite_path: str = "/data/bmu_audit.db"
 

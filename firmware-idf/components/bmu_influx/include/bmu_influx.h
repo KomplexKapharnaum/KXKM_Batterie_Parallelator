@@ -14,6 +14,10 @@ esp_err_t bmu_influx_write(const char *measurement, const char *tags, const char
 esp_err_t bmu_influx_write_battery(int battery_id, float voltage_mv, float current_a,
                                     float ah_discharge, float ah_charge, const char *state);
 
+// Write a raw pre-formatted line protocol string into the memory buffer.
+// Used by replay to re-inject stored lines.
+esp_err_t bmu_influx_write_raw(const char *line, size_t len);
+
 // Flush buffered writes to InfluxDB
 esp_err_t bmu_influx_flush(void);
 

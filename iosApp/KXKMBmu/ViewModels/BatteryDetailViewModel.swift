@@ -1,6 +1,6 @@
 import SwiftUI
-import Combine
 
+@MainActor
 class BatteryDetailViewModel: ObservableObject {
     @Published var battery: BatteryState?
     @Published var history: [BatteryHistoryPoint] = []
@@ -8,26 +8,30 @@ class BatteryDetailViewModel: ObservableObject {
 
     let batteryIndex: Int
     private let ble = BleManager.shared
-    private var cancellables = Set<AnyCancellable>()
+    private var observeTasks: [Task<Void, Never>] = []
 
     init(batteryIndex: Int) {
         self.batteryIndex = batteryIndex
 
-        ble.$batteries
-            .receive(on: RunLoop.main)
-            .map { $0.first { $0.index == batteryIndex } }
-            .sink { [weak self] state in self?.battery = state }
-            .store(in: &cancellables)
-
-        ble.$lastCommandResult
-            .receive(on: RunLoop.main)
-            .compactMap { $0 }
-            .sink { [weak self] r in
-                self?.commandResult = r.isSuccess ? "OK" : (r.errorMessage ?? "Erreur")
+        observeTasks.append(Task { [weak self] in
+            guard let self else { return }
+            for await bleBatteries in BleManager.shared.$batteries.values {
+                self.battery = bleBatteries.first { $0.index == batteryIndex }
             }
-            .store(in: &cancellables)
+        })
+
+        observeTasks.append(Task { [weak self] in
+            for await result in BleManager.shared.$lastCommandResult.values {
+                guard let self, let r = result else { continue }
+                self.commandResult = r.isSuccess ? "OK" : (r.errorMessage ?? "Erreur")
+            }
+        })
 
         loadMockHistory()
+    }
+
+    deinit {
+        observeTasks.forEach { $0.cancel() }
     }
 
     func switchBattery(on: Bool) {

@@ -5,6 +5,7 @@
 
 #include "bmu_ui.h"
 #include "bmu_soh.h"
+#include "bmu_rint.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "lvgl.h"
@@ -17,6 +18,7 @@ static lv_obj_t *s_soh_mean_label   = NULL;
 static lv_obj_t *s_soh_mean_bar     = NULL;
 static lv_obj_t *s_soh_bars[32]     = {};
 static lv_obj_t *s_soh_pct_labels[32] = {};
+static lv_obj_t *s_soh_rint_labels[32] = {};
 static lv_obj_t *s_soh_warn_labels[32] = {};
 static lv_obj_t *s_timestamp_label  = NULL;
 static lv_obj_t *s_soh_list = NULL;
@@ -154,7 +156,7 @@ static void ensure_soh_rows(int nb)
         lv_obj_set_style_text_color(blbl, UI_COLOR_TEXT_SEC, 0);
 
         s_soh_bars[i] = lv_bar_create(row);
-        lv_obj_set_size(s_soh_bars[i], 160, 10);
+        lv_obj_set_size(s_soh_bars[i], 110, 10);
         lv_bar_set_range(s_soh_bars[i], 0, 100);
         lv_bar_set_value(s_soh_bars[i], 0, LV_ANIM_OFF);
         lv_obj_set_style_bg_color(s_soh_bars[i], lv_color_hex(0x222222), LV_PART_MAIN);
@@ -162,8 +164,13 @@ static void ensure_soh_rows(int nb)
 
         s_soh_pct_labels[i] = lv_label_create(row);
         lv_label_set_text(s_soh_pct_labels[i], "---%");
-        lv_obj_set_width(s_soh_pct_labels[i], 38);
+        lv_obj_set_width(s_soh_pct_labels[i], 34);
         lv_obj_set_style_text_color(s_soh_pct_labels[i], UI_COLOR_TEXT, 0);
+
+        s_soh_rint_labels[i] = lv_label_create(row);
+        lv_label_set_text(s_soh_rint_labels[i], "---");
+        lv_obj_set_width(s_soh_rint_labels[i], 52);
+        lv_obj_set_style_text_color(s_soh_rint_labels[i], UI_COLOR_TEXT_SEC, 0);
 
         s_soh_warn_labels[i] = lv_label_create(row);
         lv_label_set_text(s_soh_warn_labels[i], "REMPLACER");
@@ -216,6 +223,29 @@ void bmu_ui_soh_update(bmu_ui_ctx_t *ctx)
             lv_label_set_text(s_soh_pct_labels[i], buf);
             lv_obj_set_style_text_color(s_soh_pct_labels[i], soh_color(pct_f), 0);
         }
+
+        /* R_int */
+#if defined(CONFIG_BMU_RINT_ENABLED)
+        if (s_soh_rint_labels[i]) {
+            bmu_rint_result_t rint = bmu_rint_get_cached((uint8_t)i);
+            if (rint.valid) {
+                char rbuf[16];
+                snprintf(rbuf, sizeof(rbuf), "%.1fm\xCE\xA9", rint.r_ohmic_mohm);
+                lv_label_set_text(s_soh_rint_labels[i], rbuf);
+                lv_color_t rcol;
+                if (rint.r_ohmic_mohm > CONFIG_BMU_RINT_DISPLAY_CRIT_MOHM)
+                    rcol = UI_COLOR_ERR;
+                else if (rint.r_ohmic_mohm > CONFIG_BMU_RINT_DISPLAY_WARN_MOHM)
+                    rcol = UI_COLOR_WARN;
+                else
+                    rcol = UI_COLOR_OK;
+                lv_obj_set_style_text_color(s_soh_rint_labels[i], rcol, 0);
+            } else {
+                lv_label_set_text(s_soh_rint_labels[i], "---");
+                lv_obj_set_style_text_color(s_soh_rint_labels[i], UI_COLOR_TEXT_DIM, 0);
+            }
+        }
+#endif
 
         /* Avertissement REMPLACER */
         if (s_soh_warn_labels[i]) {

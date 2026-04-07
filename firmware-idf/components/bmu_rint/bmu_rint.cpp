@@ -457,7 +457,8 @@ esp_err_t bmu_rint_start_periodic(void)
     }
 
     BaseType_t ok = xTaskCreate(rint_periodic_task, "rint_periodic",
-                                4096, NULL, 2, &s_task_handle);
+                                CONFIG_BMU_RINT_TASK_STACK, NULL,
+                                CONFIG_BMU_RINT_TASK_PRIORITY, &s_task_handle);
     if (ok != pdPASS) {
         ESP_LOGE(TAG, "Échec création tâche périodique");
         return ESP_ERR_NO_MEM;

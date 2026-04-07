@@ -12,5 +12,5 @@ idf_component_register(
     PRIV_REQUIRES bmu_protection bmu_config bmu_wifi bmu_mqtt
                   bmu_storage bmu_sntp bmu_vedirect bmu_climate
                   bmu_soh bmu_ble bmu_ina237 esp_app_format
-                  bmu_rint
+                  bmu_rint bmu_balancer
 )

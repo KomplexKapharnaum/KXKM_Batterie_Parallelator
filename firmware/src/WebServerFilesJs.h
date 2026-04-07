@@ -38,10 +38,15 @@ document.addEventListener("DOMContentLoaded", function() {
 
 function switchBattery(index, state) {
 	console.log(`Switching battery ${index} to ${state ? 'on' : 'off'}`);
-	// Envoyer une requête pour changer l'état de la batterie
+	// Envoyer une requête POST pour éviter les mutations via URL query
 	const xhr = new XMLHttpRequest();
-	xhr.open("GET", `/switch_${state ? 'on' : 'off'}?battery=${index}`, true);
-	xhr.send();
+	xhr.open("POST", `/switch_${state ? 'on' : 'off'}`, true);
+	xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+	const adminToken = window.localStorage.getItem("bmu_admin_token");
+	if (adminToken) {
+		xhr.setRequestHeader("X-BMU-Token", adminToken);
+	}
+	xhr.send(`battery=${encodeURIComponent(index)}`);
 }
 )rawliteral";
 

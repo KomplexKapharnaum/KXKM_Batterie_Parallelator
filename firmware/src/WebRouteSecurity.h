@@ -4,5 +4,7 @@
 bool isMutationRouteEnabled(const char *configuredToken);
 bool isMutationTokenAuthorized(const char *providedToken,
                                const char *configuredToken);
+bool isMutationAuthorizationHeaderAuthorized(const char *authorizationHeader,
+                                             const char *configuredToken);
 
 #endif // WEB_ROUTE_SECURITY_H

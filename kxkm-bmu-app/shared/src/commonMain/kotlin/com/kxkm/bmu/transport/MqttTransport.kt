@@ -26,15 +26,17 @@ class MqttTransport(
     override fun observeSolar(): Flow<SolarData?> = _solar
 
     override suspend fun connect() {
-        // Platform-specific MQTT implementation
-        // Android: Paho MQTT client
-        // iOS: Custom wrapper or CocoaMQTT via expect/actual
-        // Subscribes to bmu/battery/# and parses JSON payloads
-        _isConnected.value = false
+        // Connection managed by platform-specific client
+        // that calls onMqttMessage() and setConnected()
     }
 
     override suspend fun disconnect() {
         _isConnected.value = false
+    }
+
+    /** Called by platform-specific client when connection state changes */
+    fun setConnected(connected: Boolean) {
+        _isConnected.value = connected
     }
 
     // Read-only transport — all commands throw

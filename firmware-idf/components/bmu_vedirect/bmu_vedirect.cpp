@@ -40,8 +40,8 @@ const char *bmu_vedirect_cs_name(uint8_t) { return "Disabled"; }
 static constexpr size_t   RX_BUF_SIZE        = 1024;
 static constexpr size_t   MAX_LABEL_LEN      = 16;
 static constexpr size_t   MAX_VALUE_LEN      = 32;
-static constexpr uint32_t TASK_STACK_SIZE     = 4096;
-static constexpr int      TASK_PRIORITY       = 5;
+static constexpr uint32_t TASK_STACK_SIZE     = CONFIG_BMU_VEDIRECT_TASK_STACK;
+static constexpr int      TASK_PRIORITY       = CONFIG_BMU_VEDIRECT_TASK_PRIORITY;
 static constexpr int64_t  CONNECTION_TIMEOUT_MS = 5000;
 
 // ---------------------------------------------------------------------------

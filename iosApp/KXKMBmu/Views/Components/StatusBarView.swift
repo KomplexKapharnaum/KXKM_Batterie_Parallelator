@@ -1,5 +1,4 @@
 import SwiftUI
-import Combine
 
 struct StatusBarView: View {
     @StateObject private var transport = TransportStatusViewModel()
@@ -51,6 +50,7 @@ struct StatusBarView: View {
     }
 }
 
+@MainActor
 class TransportStatusViewModel: ObservableObject {
     @Published var channel: TransportChannel = .offline
     @Published var isConnected = false
@@ -58,23 +58,25 @@ class TransportStatusViewModel: ObservableObject {
     @Published var rssi: Int? = nil
 
     private let ble = BleManager.shared
-    private var cancellables = Set<AnyCancellable>()
+    private var observeTasks: [Task<Void, Never>] = []
 
     init() {
-        ble.$isConnected
-            .receive(on: RunLoop.main)
-            .sink { [weak self] connected in
+        observeTasks.append(Task { [weak self] in
+            for await connected in BleManager.shared.$isConnected.values {
                 self?.isConnected = connected
                 self?.channel = connected ? .ble : .offline
                 self?.deviceName = connected ? "KXKM-BMU" : nil
             }
-            .store(in: &cancellables)
+        })
 
-        ble.$rssi
-            .receive(on: RunLoop.main)
-            .sink { [weak self] r in
+        observeTasks.append(Task { [weak self] in
+            for await r in BleManager.shared.$rssi.values {
                 self?.rssi = r != 0 ? r : nil
             }
-            .store(in: &cancellables)
+        })
+    }
+
+    deinit {
+        observeTasks.forEach { $0.cancel() }
     }
 }

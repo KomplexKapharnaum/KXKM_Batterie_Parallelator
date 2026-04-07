@@ -130,3 +130,4 @@ iosApp/KXKMBmu 2.xcodeproj/
 scripts/llm/__pycache__/
 services/soh-llm/__pycache__/
 tests/llm/__pycache__/
+.*

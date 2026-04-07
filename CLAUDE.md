@@ -22,17 +22,26 @@ pio device monitor -e kxkm-s3-16MB --baud 115200
 # Run all host-based unit tests (no hardware needed)
 pio test -e sim-host
 
+# Run a single test suite
+pio test -e sim-host -f test_protection
+pio test -e sim-host -f test_web_route_security
+
 # Verbose test output
 pio test -e sim-host -vv
 
 # Memory budget check (required before large changes)
 scripts/check_memory_budget.sh --env kxkm-s3-16MB --ram-max 75 --flash-max 85
 
+# ESP-IDF track (firmware-idf/, when editing that tree)
+cd firmware-idf && idf.py build
+
 # Legacy build (deprecated)
 pio run -e kxkm-v3-16MB
 ```
 
-**PlatformIO gotcha:** `[arduino_base]` in platformio.ini holds `framework=arduino`. Do NOT put `framework=arduino` in the global `[env]` — it breaks the `native`/`sim-host` test environments.
+**PlatformIO gotchas:**
+- `[arduino_base]` in platformio.ini holds `framework=arduino`. Do NOT put `framework=arduino` in the global `[env]` — it breaks the `native`/`sim-host` test environments.
+- `[env:sim-host]` has `build_src_filter` listing which `.cpp` files are compiled for host tests. When adding a new testable module, you must add its `.cpp` to this filter or it won't link.
 
 ## Architecture
 
@@ -47,6 +56,9 @@ pio run -e kxkm-v3-16MB
 - **TCAHandler** — manages up to 8 TCA9535 GPIO expanders (I2C 0x20–0x27). Pin mapping per TCA: pins 0–3 = battery MOSFET switches, pins 8–15 = LED pairs (red/green).
 - **I2CMutex.h** — global FreeRTOS semaphore + RAII `I2CLockGuard`. ALL I2C access must go through this. `i2cBusRecovery()` on 5+ consecutive failures.
 - **WebServerHandler** — AsyncWebServer on port 80 + WebSocket on 81. Mutation routes (`/api/battery/:id/switch_on|off`) require auth token + rate limiting (10 reqs/10s per IP).
+- **WebRouteSecurity** — Auth token validation and security headers for web routes.
+- **WebMutationRateLimit** — Per-IP rate limiter (10 reqs/10s) for mutation endpoints.
+- **BatteryRouteValidation** — Input validation for battery control routes (index bounds, state checks).
 
 ### Topology Constraint
 Hard validation: `Nb_TCA * 4 == Nb_INA`. Mismatch → fail-safe (all batteries OFF). Typical: 4 TCA + 16 INA.
@@ -64,21 +76,44 @@ VE.Direct on GPIO21 RX-only (TEXT protocol is TX→RX).
 - `stateMutex` in BatteryParallelator and BatteryManager for shared state access across FreeRTOS tasks
 - `reconnect_time[]` access is mutex-protected
 
+### ESP-IDF Architecture (firmware-idf/)
+22 components, ESP32-S3-BOX-3 target, LVGL display.
+- **Boot** (14 stages): NVS → SPIFFS → Display → WiFi → BLE → FAT → SNTP → I2C scan → topology → protection → cloud → web → VE.Direct → OTA
+- **bmu_protection** — state machine (CONNECTED/DISCONNECTED/RECONNECTING/ERROR/LOCKED), 5 reconnect limit
+- **bmu_rint** — internal resistance measurement (pulse method), periodic task (Kconfig: stack/priority)
+- **bmu_vedirect** — Victron VE.Direct UART parser (solar charger), periodic task (Kconfig: stack/priority)
+- **bmu_display** — LVGL tabview (Batteries/SOH/System/Alerts/Config), swipe detail navigation
+- **bmu_web** + **bmu_web_security** — HTTP + WebSocket, constant-time token auth, LRU rate limiter
+- **bmu_influx** + **bmu_influx_store** — InfluxDB line-protocol with offline persistence (FAT/SD fallback, 2-file rotation 512KB)
+- **bmu_mqtt** — ESP-MQTT with auth (user/password)
+- **bmu_ble** — NimBLE 3 GATT services (battery/system/control)
+- **bmu_storage** — NVS, FAT (/fatfs), SPIFFS (/spiffs), SD card (/sdcard) with SPI on PMOD2
+
+### Offline Data Persistence
+When WiFi/InfluxDB is unreachable, telemetry is persisted to FAT internal flash:
+- Primary: `/fatfs/influx/current.lp` (line-protocol)
+- Rotation: `current.lp` → `rotated.lp` at 512 KB (max 1 MB total)
+- Fallback: `/sdcard/influx/` if SD card present and FAT unavailable
+- Replay: automatic on WiFi reconnection (cloud_telemetry_task, every 10s)
+
 ## Structure
 - `specs/` — Kill_LIFE gates: intake (S0), spec (S1), arch (S2), plan (S3)
 - `firmware/src/` — firmware Arduino/PlatformIO (main.cpp + headers)
-- `firmware/test/` — Unity native tests (sim-host): test_protection, test_battery_route_validation, test_influx_buffer_codec, test_web_mutation_rate_limit, test_web_route_security, test_emulation_bench
+- `firmware/test/` — Unity native tests (sim-host): test_protection, test_battery_route_validation, test_influx_buffer_codec, test_web_mutation_rate_limit, test_web_route_security, test_ws_auth_flow, test_mqtt_influx_codec, test_emulation_bench
+- `firmware-idf/` — ESP-IDF 5.4 firmware (22 components, LVGL display, BLE, MQTT)
 - `firmware/lib/INA237/` — local INA237 driver fork
 - `firmware/data/` — web UI assets (served via embedded headers: WebServerFilesHtml.h, etc.)
 - `hardware/PCB/` — BMU v1 (manufactured, legacy)
 - `hardware/pcb-bmu-v2/` — BMU v2 (KiCad 8.0, ERC 0 violations, BOM 107 components)
+- `kxkm-bmu-app/` — KMP smartphone app (shared Kotlin + SwiftUI iOS + Compose Android)
+- `kxkm-api/` — Docker stack on kxkm-ai (Mosquitto + InfluxDB + Telegraf + FastAPI + Grafana)
 
 ## Hardware (KiCad)
 
 KiCad-cli via Docker (repo is outside Kill_LIFE root, use direct Docker):
 ```bash
 docker run --rm --user $(id -u):$(id -g) -e HOME=/tmp \
-  -v "/home/clems/KXKM_Batterie_Parallelator:/project" \
+  -v "$(pwd):/project" \
   -w /project kicad/kicad:10.0 kicad-cli sch erc \
   --format json --output "/project/hardware/pcb-bmu-v2/erc_report.json" \
   "/project/hardware/pcb-bmu-v2/BMU v2.kicad_sch"

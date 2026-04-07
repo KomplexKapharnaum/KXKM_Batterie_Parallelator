@@ -6,6 +6,7 @@
  */
 
 #include "bmu_influx.h"
+#include "bmu_influx_store.h"
 
 #include <cstdio>
 #include <cstring>
@@ -105,14 +106,20 @@ esp_err_t bmu_influx_flush(void)
 
     esp_err_t err = esp_http_client_perform(client);
     if (err != ESP_OK) {
-        ESP_LOGW(TAG, "Échec POST InfluxDB: %s (non bloquant)", esp_err_to_name(err));
+        ESP_LOGW(TAG, "Échec POST InfluxDB: %s — persistence offline", esp_err_to_name(err));
+        bmu_influx_store_append(s_buffer, s_buffer_len);
+        s_buffer_len = 0;
+        s_buffer_lines = 0;
         esp_http_client_cleanup(client);
         return err;
     }
 
     int status = esp_http_client_get_status_code(client);
     if (status < 200 || status >= 300) {
-        ESP_LOGW(TAG, "InfluxDB a répondu HTTP %d (non bloquant)", status);
+        ESP_LOGW(TAG, "InfluxDB HTTP %d — persistence offline", status);
+        bmu_influx_store_append(s_buffer, s_buffer_len);
+        s_buffer_len = 0;
+        s_buffer_lines = 0;
         esp_http_client_cleanup(client);
         return ESP_FAIL;
     }
@@ -160,8 +167,15 @@ esp_err_t bmu_influx_write(const char *measurement, const char *tags, const char
         // Flush automatique avant d'ajouter
         esp_err_t err = bmu_influx_flush();
         if (err != ESP_OK) {
-            ESP_LOGW(TAG, "Flush automatique échoué, ligne perdue");
-            return err;
+            // Persister le buffer courant + la nouvelle ligne sur disque
+            if (s_buffer_len > 0) {
+                bmu_influx_store_append(s_buffer, s_buffer_len);
+                s_buffer_len = 0;
+                s_buffer_lines = 0;
+            }
+            bmu_influx_store_append(line, (size_t)len);
+            ESP_LOGW(TAG, "Flush échoué — ligne persistée sur stockage offline");
+            return ESP_OK; // Donnée sauvée, pas perdue
         }
     }
 
@@ -199,4 +213,33 @@ esp_err_t bmu_influx_write_battery(int battery_id, float voltage_mv, float curre
     // Utiliser 0 comme timestamp — InfluxDB assignera le timestamp serveur
     // L'appelant peut utiliser bmu_sntp_get_timestamp_ns() pour un timestamp précis
     return bmu_influx_write("battery", tags, fields, 0);
+}
+
+// ---------------------------------------------------------------------------
+// Write Raw — injecte une ligne line-protocol pré-formatée dans le buffer
+// ---------------------------------------------------------------------------
+esp_err_t bmu_influx_write_raw(const char *line, size_t len)
+{
+    if (!s_initialized || line == nullptr || len == 0) {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    // S'assurer qu'il y a de la place
+    size_t need = len + 1; // +1 pour le \n
+    if (s_buffer_len + need >= BUFFER_MAX_BYTES) {
+        esp_err_t err = bmu_influx_flush();
+        if (err != ESP_OK) return err;
+    }
+
+    memcpy(s_buffer + s_buffer_len, line, len);
+    s_buffer_len += len;
+    if (line[len - 1] != '\n') {
+        s_buffer[s_buffer_len++] = '\n';
+    }
+    s_buffer_lines++;
+
+    if (s_buffer_lines >= CONFIG_BMU_INFLUX_BUFFER_SIZE) {
+        return bmu_influx_flush();
+    }
+    return ESP_OK;
 }

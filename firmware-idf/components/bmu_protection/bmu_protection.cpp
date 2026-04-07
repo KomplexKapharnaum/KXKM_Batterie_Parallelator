@@ -222,6 +222,11 @@ esp_err_t bmu_protection_check_battery(bmu_protection_ctx_t *ctx, int idx)
             int ch = idx % 4;
             if (tca_idx < ctx->nb_tca) {
                 bmu_tca9535_switch_battery(&ctx->tca_devices[tca_idx], ch, false);
+                /* Clignotement LED rouge (~1 Hz, toggle à chaque passage 500ms) */
+                static bool s_blink_phase[BMU_MAX_BATTERIES] = {};
+                s_blink_phase[idx] = !s_blink_phase[idx];
+                bmu_tca9535_set_led(&ctx->tca_devices[tca_idx], ch,
+                                    s_blink_phase[idx], false);
             }
         }
         break;

@@ -37,3 +37,21 @@ bool isMutationTokenAuthorized(const char *providedToken,
 
   return constantTimeEquals(providedToken, configuredToken);
 }
+
+bool isMutationAuthorizationHeaderAuthorized(const char *authorizationHeader,
+                                             const char *configuredToken) {
+  if (authorizationHeader == nullptr || authorizationHeader[0] == '\0') {
+    return false;
+  }
+
+  constexpr const char kBearerPrefix[] = "Bearer ";
+  constexpr size_t kBearerPrefixLength = sizeof(kBearerPrefix) - 1;
+
+  if (std::strncmp(authorizationHeader, kBearerPrefix, kBearerPrefixLength) !=
+      0) {
+    return false;
+  }
+
+  const char *bearerToken = authorizationHeader + kBearerPrefixLength;
+  return isMutationTokenAuthorized(bearerToken, configuredToken);
+}

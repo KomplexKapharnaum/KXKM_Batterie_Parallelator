@@ -690,10 +690,14 @@ static esp_err_t handler_api_labels_get(httpd_req_t *req)
         cJSON_AddItemToArray(arr, cJSON_CreateString(bmu_config_get_battery_label(i)));
     }
     const char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (json == NULL) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "JSON alloc failed");
+        return ESP_FAIL;
+    }
     httpd_resp_set_type(req, "application/json");
     httpd_resp_sendstr(req, json);
     free((void *)json);
-    cJSON_Delete(root);
     return ESP_OK;
 }
 

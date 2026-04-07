@@ -49,6 +49,22 @@ static void test_rejects_similar_but_modified_tokens() {
   assert(!isMutationTokenAuthorized("secret-token\r", "secret-token"));
 }
 
+static void test_authorization_header_bearer_accepts_matching_token() {
+  assert(isMutationAuthorizationHeaderAuthorized("Bearer secret-token",
+                                                 "secret-token"));
+}
+
+static void test_authorization_header_bearer_rejects_invalid_forms() {
+  assert(!isMutationAuthorizationHeaderAuthorized(nullptr, "secret-token"));
+  assert(!isMutationAuthorizationHeaderAuthorized("", "secret-token"));
+  assert(!isMutationAuthorizationHeaderAuthorized("Basic abc",
+                                                  "secret-token"));
+  assert(!isMutationAuthorizationHeaderAuthorized("Bearer", "secret-token"));
+  assert(!isMutationAuthorizationHeaderAuthorized("Bearer ", "secret-token"));
+  assert(!isMutationAuthorizationHeaderAuthorized("Bearer wrong-token",
+                                                  "secret-token"));
+}
+
 int main() {
   test_disabled_when_no_configured_token();
   test_rejects_missing_or_wrong_token();
@@ -57,5 +73,7 @@ int main() {
   test_constant_time_behavior_empty_token_rejection();
   test_constant_time_behavior_token_length_mismatch();
   test_rejects_similar_but_modified_tokens();
+  test_authorization_header_bearer_accepts_matching_token();
+  test_authorization_header_bearer_rejects_invalid_forms();
   return 0;
 }

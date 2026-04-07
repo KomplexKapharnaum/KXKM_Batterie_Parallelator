@@ -179,14 +179,16 @@ Audit complet sur 4 domaines (I2C concurrence, web sécurité, logique protectio
 
 ### ✅ Tests actuels
 
-`pio test -e sim-host` PASSED — 10/10 ✅ (tests sur stub logique, pas sur code réel — voir audit MED-2)
+`pio test -e sim-host` PASSED — 13/13 ✅
 
 ```text
-firmware/test/test_protection/ — protections V/I/déséquilibre/verrouillage
+firmware/test/test_protection/              — protections V/I/déséquilibre/verrouillage
 firmware/test/test_battery_route_validation/
 firmware/test/test_influx_buffer_codec/
 firmware/test/test_web_mutation_rate_limit/
 firmware/test/test_web_route_security/
+firmware/test/test_ws_auth_flow/            — auth token + bearer + rate limit combinés
+firmware/test/test_mqtt_influx_codec/       — JSON MQTT payload + topic parsing + line protocol
 firmware/test/test_emulation_bench/
 ```
 
@@ -478,10 +480,13 @@ Application compagnon iOS + Android pour monitorer et contrôler le BMU depuis u
 - Dashboard grille batteries (tension, courant, état)
 - Détail batterie avec graphe historique 24h
 - Switch ON/OFF, reset compteurs (rôle technicien/admin)
-- Configuration seuils de protection et WiFi du BMU
+- Configuration seuils de protection (pas 0.025V/A) et WiFi du BMU
 - 3 rôles : Admin, Technicien, Lecteur (PIN + biométrie)
 - Audit trail non effaçable avec sync cloud
 - Données solaire VE.Direct
+- SOH dashboard + R_int + notifications push (anomalies)
+- Client MQTT natif iOS (Network framework, zéro dépendance)
+- SKIE bridge (Kotlin Flow → Swift AsyncSequence)
 
 **Code :** `kxkm-bmu-app/` (shared + androidApp + iosApp)
 
@@ -499,15 +504,26 @@ cd kxkm-api && docker compose up -d
 
 | Service | Port | Rôle |
 | ------- | ---- | ---- |
-| Mosquitto (MQTT) | 1883, 9001 (WS) | Broker — le firmware publie `bmu/battery/N` |
+| Mosquitto (MQTT) | 1883, 9001 (WS) | Broker authentifié (user/password) |
 | InfluxDB 2.7 | 8086 | Time-series batteries (org=kxkm, bucket=bmu) |
 | Telegraf | — | Bridge MQTT → InfluxDB automatique |
-| BMU API (FastAPI) | 8400 | REST pour l'app (sync, historique, audit) |
-| Grafana 11 | 3001 | Dashboards monitoring |
+| BMU API (FastAPI) | 8400 | REST pour l'app (sync, historique, audit, CORS restreint) |
+| Grafana 11 | 3001 | Dashboards monitoring (BMU live, fleet historical, solar) |
 
-**Configuration :** copier `.env.example` → `.env` et remplir l'API key.
+**Configuration :** copier `.env.example` → `.env` et remplir tous les secrets.
 
-**Credentials par défaut :** kxkm / kxkm-bmu-2026 (InfluxDB + Grafana)
+**Secrets (tous dans `.env`, chmod 600) :**
+- `BMU_API_KEY` — clé API FastAPI (32+ chars aléatoires)
+- `INFLUX_TOKEN` — token InfluxDB rotaté
+- `MQTT_USERNAME` / `MQTT_PASSWORD` — auth Mosquitto (anonymous désactivé)
+- `GF_ADMIN_PASSWORD` — password Grafana admin
+- `CORS_ORIGINS` — origines autorisées pour l'API
+
+**Sécurité :**
+- Mosquitto : `allow_anonymous false` + password file
+- docker-compose : tous les secrets via `${...}` depuis `.env`
+- Telegraf : auth MQTT via env vars
+- API : CORS restreint, méthodes GET/POST uniquement
 
 **Code :** `kxkm-api/`
 

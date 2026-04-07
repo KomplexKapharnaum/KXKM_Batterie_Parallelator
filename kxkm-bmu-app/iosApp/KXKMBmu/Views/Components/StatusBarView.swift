@@ -45,10 +45,17 @@ class TransportStatusViewModel: ObservableObject {
     @Published var deviceName: String? = nil
     @Published var rssi: Int? = nil
 
+    private var observeTask: Task<Void, Never>?
+
     init() {
-        // Subscribe to shared TransportManager state
-        let manager = SharedFactory.companion.createTransportManager()
-        // KMP Flow → Combine bridge (via SKIE or manual collector)
-        // This will be wired when Plan 2 defines the exact Flow API
+        let manager = AppFactory.shared.factory.transportManager
+        observeTask = Task { @MainActor [weak self] in
+            for await ch in manager.activeChannel {
+                self?.channel = ch
+                self?.isConnected = (ch != .offline)
+            }
+        }
     }
+
+    deinit { observeTask?.cancel() }
 }

@@ -54,8 +54,14 @@ AsyncWebServer server(80); // Remplacer WebServer par AsyncWebServer
 #define BMU_WEB_ADMIN_TOKEN ""
 #endif
 
+#ifndef BMU_WEB_ALLOW_LEGACY_GET_MUTATION
+#define BMU_WEB_ALLOW_LEGACY_GET_MUTATION 0
+#endif
+
 namespace {
 const char *kBmuWebAdminToken = BMU_WEB_ADMIN_TOKEN;
+constexpr const char *kBmuMutationTokenHeader = "X-BMU-Token";
+constexpr const char *kAuthorizationHeader = "Authorization";
 constexpr uint8_t kMutationRateLimitMaxRequests = 10;
 constexpr uint32_t kMutationRateLimitWindowMs = 10000;
 
@@ -102,6 +108,21 @@ bool authorizeBatteryMutationRequest(AsyncWebServerRequest *request,
                                      const String &batteryParam) {
   const String source = requestSource(request);
 
+  if (request->method() != HTTP_POST) {
+#if BMU_WEB_ALLOW_LEGACY_GET_MUTATION
+    if (request->method() != HTTP_GET) {
+      logMutationAudit(route, batteryParam, source, "method_not_allowed");
+      request->send(405, "text/plain", "Method Not Allowed");
+      return false;
+    }
+    logMutationAudit(route, batteryParam, source, "legacy_get_accepted");
+#else
+    logMutationAudit(route, batteryParam, source, "method_not_allowed");
+    request->send(405, "text/plain", "Method Not Allowed");
+    return false;
+#endif
+  }
+
   if (isMutationRateLimited(request)) {
     logMutationAudit(route, batteryParam, source, "rate_limited");
     request->send(429, "text/plain", "Too many mutation requests");
@@ -115,9 +136,24 @@ bool authorizeBatteryMutationRequest(AsyncWebServerRequest *request,
     return false;
   }
 
-  if (!request->hasArg("token") ||
-      !isMutationTokenAuthorized(request->arg("token").c_str(),
-                                 kBmuWebAdminToken)) {
+  bool authorized = false;
+  if (request->hasHeader(kBmuMutationTokenHeader)) {
+    const String tokenHeader = request->header(kBmuMutationTokenHeader);
+    authorized =
+        isMutationTokenAuthorized(tokenHeader.c_str(), kBmuWebAdminToken);
+  } else if (request->hasHeader(kAuthorizationHeader)) {
+    const String authorizationHeader = request->header(kAuthorizationHeader);
+    authorized = isMutationAuthorizationHeaderAuthorized(
+        authorizationHeader.c_str(), kBmuWebAdminToken);
+  } else if (request->hasParam("token") || request->hasParam("token", true)) {
+    AsyncWebParameter *tokenParam = request->hasParam("token")
+                                        ? request->getParam("token")
+                                        : request->getParam("token", true);
+    authorized = isMutationTokenAuthorized(tokenParam->value().c_str(),
+                                           kBmuWebAdminToken);
+  }
+
+  if (!authorized) {
     logMutationAudit(route, batteryParam, source, "unauthorized");
     request->send(403, "text/plain", "Unauthorized battery mutation request");
     return false;
@@ -143,8 +179,12 @@ void WebServerHandler::begin() {
     if (WiFi.status() == WL_CONNECTED) { // Vérifier si le WiFi est connecté
       delay (1000);
       server.on("/", HTTP_GET, std::bind(&WebServerHandler::handleRoot, this, std::placeholders::_1));
+      server.on("/switch_on", HTTP_POST, std::bind(&WebServerHandler::handleSwitchOn, this, std::placeholders::_1));
+      server.on("/switch_off", HTTP_POST, std::bind(&WebServerHandler::handleSwitchOff, this, std::placeholders::_1));
+    #if BMU_WEB_ALLOW_LEGACY_GET_MUTATION
       server.on("/switch_on", HTTP_GET, std::bind(&WebServerHandler::handleSwitchOn, this, std::placeholders::_1));
       server.on("/switch_off", HTTP_GET, std::bind(&WebServerHandler::handleSwitchOff, this, std::placeholders::_1));
+    #endif
       server.on("/log", HTTP_GET, std::bind(&WebServerHandler::handleLog, this, std::placeholders::_1));
       server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request){
         request->send_P(200, "text/css", style_css);
@@ -222,14 +262,17 @@ void WebServerHandler::handleLog(AsyncWebServerRequest *request) {
  * @brief Gérer la requête pour allumer une batterie.
  */
 void WebServerHandler::handleSwitchOn(AsyncWebServerRequest *request) {
-  const String batteryParam = request->hasArg("battery")
-                                  ? request->arg("battery")
-                                  : String("missing");
+  String batteryParam = "missing";
+  if (request->hasParam("battery")) {
+    batteryParam = request->getParam("battery")->value();
+  } else if (request->hasParam("battery", true)) {
+    batteryParam = request->getParam("battery", true)->value();
+  }
   if (!authorizeBatteryMutationRequest(request, "/switch_on", batteryParam)) {
     return;
   }
 
-  if (!request->hasArg("battery")) {
+  if (batteryParam == "missing") {
     logMutationAudit("/switch_on", "missing", requestSource(request),
                      "missing_battery_param");
     request->send(400, "text/plain", "Battery parameter missing");
@@ -238,9 +281,8 @@ void WebServerHandler::handleSwitchOn(AsyncWebServerRequest *request) {
 
   const int nbBatteries = inaHandler.getNbINA();
   int battery = -1;
-  if (!parseBatteryIndex(request->arg("battery").c_str(), nbBatteries,
-                         battery)) {
-    logMutationAudit("/switch_on", request->arg("battery"),
+  if (!parseBatteryIndex(batteryParam.c_str(), nbBatteries, battery)) {
+    logMutationAudit("/switch_on", batteryParam,
                      requestSource(request), "invalid_battery_param");
     request->send(400, "text/plain", "Invalid battery parameter");
     return;
@@ -273,14 +315,17 @@ void WebServerHandler::handleSwitchOn(AsyncWebServerRequest *request) {
  * @brief Gérer la requête pour éteindre une batterie.
  */
 void WebServerHandler::handleSwitchOff(AsyncWebServerRequest *request) {
-  const String batteryParam = request->hasArg("battery")
-                                  ? request->arg("battery")
-                                  : String("missing");
+  String batteryParam = "missing";
+  if (request->hasParam("battery")) {
+    batteryParam = request->getParam("battery")->value();
+  } else if (request->hasParam("battery", true)) {
+    batteryParam = request->getParam("battery", true)->value();
+  }
   if (!authorizeBatteryMutationRequest(request, "/switch_off", batteryParam)) {
     return;
   }
 
-  if (!request->hasArg("battery")) {
+  if (batteryParam == "missing") {
     logMutationAudit("/switch_off", "missing", requestSource(request),
                      "missing_battery_param");
     request->send(400, "text/plain", "Battery parameter missing");
@@ -289,9 +334,8 @@ void WebServerHandler::handleSwitchOff(AsyncWebServerRequest *request) {
 
   const int nbBatteries = inaHandler.getNbINA();
   int battery = -1;
-  if (!parseBatteryIndex(request->arg("battery").c_str(), nbBatteries,
-                         battery)) {
-    logMutationAudit("/switch_off", request->arg("battery"),
+  if (!parseBatteryIndex(batteryParam.c_str(), nbBatteries, battery)) {
+    logMutationAudit("/switch_off", batteryParam,
                      requestSource(request), "invalid_battery_param");
     request->send(400, "text/plain", "Invalid battery parameter");
     return;

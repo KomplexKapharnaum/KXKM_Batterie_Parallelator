@@ -1,0 +1,34 @@
+menu "BMU Soft Balancer"
+
+    config BMU_BALANCER_ENABLED
+        bool "Enable soft-balancing"
+        default y
+
+    config BMU_BALANCE_HIGH_MV
+        int "Seuil haut au-dessus de V_moy pour reduire duty (mV)"
+        default 200
+        range 50 1000
+        depends on BMU_BALANCER_ENABLED
+
+    config BMU_BALANCE_DUTY_ON
+        int "Nombre de cycles ON avant un cycle OFF"
+        default 3
+        range 1 10
+        depends on BMU_BALANCER_ENABLED
+
+    config BMU_BALANCE_DUTY_OFF
+        int "Nombre de cycles OFF (500ms chacun)"
+        default 2
+        range 1 6
+        depends on BMU_BALANCER_ENABLED
+        help
+            2 cycles = 1000ms OFF, compatible avec mesure R_int
+            (V2 a +100ms, V3 a +1000ms)
+
+    config BMU_BALANCE_MIN_CONNECTED
+        int "Minimum batteries connectees pour equilibrer"
+        default 3
+        range 2 32
+        depends on BMU_BALANCER_ENABLED
+
+endmenu

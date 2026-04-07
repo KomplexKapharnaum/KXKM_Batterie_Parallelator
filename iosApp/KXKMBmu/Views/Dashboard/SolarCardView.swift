@@ -3,28 +3,6 @@ import SwiftUI
 struct SolarCardView: View {
     let solar: SolarData
 
-    private var chargeStateName: String {
-        switch solar.chargeState {
-        case 0: return "OFF"
-        case 3: return "BULK"
-        case 4: return "ABSORPTION"
-        case 5: return "FLOAT"
-        case 7: return "EQUALIZE"
-        default: return "?"
-        }
-    }
-
-    private var chargeStateColor: Color {
-        switch solar.chargeState {
-        case 0: return .gray
-        case 3: return .orange
-        case 4: return .yellow
-        case 5: return .green
-        case 7: return .blue
-        default: return .gray
-        }
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
@@ -34,13 +12,13 @@ struct SolarCardView: View {
                     .font(.headline)
                     .foregroundColor(.white)
                 Spacer()
-                Text(chargeStateName)
+                Text(solar.chargeStateName)
                     .font(.caption)
                     .fontWeight(.bold)
-                    .foregroundColor(chargeStateColor)
+                    .foregroundColor(solar.chargeStateColor)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 2)
-                    .background(chargeStateColor.opacity(0.2))
+                    .background(solar.chargeStateColor.opacity(0.2))
                     .cornerRadius(4)
             }
 
@@ -84,7 +62,7 @@ struct SolarCardView: View {
         .cornerRadius(12)
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(chargeStateColor.opacity(0.3), lineWidth: 1)
+                .stroke(solar.chargeStateColor.opacity(0.3), lineWidth: 1)
         )
     }
 }

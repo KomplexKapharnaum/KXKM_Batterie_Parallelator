@@ -52,6 +52,15 @@ class SharedFactory(driverFactory: DriverFactory) {
     fun createConfigUseCase() = ConfigUseCase(transportManager, auditUseCase) { currentUserId }
     fun createSyncManager() = SyncManager(db, restClient)
 
+    /** Bridge for platform-specific MQTT clients (iOS NWConnection, Android Paho) */
+    fun onCloudMqttMessage(topic: String, payload: String) {
+        mqtt?.onMqttMessage(topic, payload)
+    }
+
+    fun setMqttConnected(connected: Boolean) {
+        mqtt?.setConnected(connected)
+    }
+
     fun close() {
         transportManager.close()
     }

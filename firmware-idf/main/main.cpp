@@ -17,6 +17,8 @@
 #include "bmu_storage.h"
 #include "bmu_mqtt.h"
 #include "bmu_influx.h"
+#include "bmu_influx_store.h"
+#include "bmu_balancer.h"
 #include "bmu_sntp.h"
 #include "bmu_display.h"
 #include "bmu_ui.h"
@@ -72,6 +74,14 @@ static void cloud_telemetry_task(void *pv)
     for (;;) {
         vTaskDelay(period);
         if (!bmu_wifi_is_connected()) continue;
+
+        /* Rejouer les données offline si présentes */
+        if (bmu_influx_store_has_pending()) {
+            int replayed = bmu_influx_store_replay();
+            if (replayed > 0) {
+                ESP_LOGI("CLOUD", "Replay offline: %d lignes renvoyées", replayed);
+            }
+        }
 
         for (int i = 0; i < ctx->nb_ina; i++) {
             float v_mv = bmu_protection_get_voltage(ctx->prot, i);
@@ -361,6 +371,8 @@ extern "C" void app_main(void)
 #endif
 
     /* ── 10. Cloud (si WiFi) ───────────────────────────────────────── */
+    bmu_influx_store_init(); /* Toujours init — persiste quand WiFi tombe */
+    bmu_balancer_init(&prot);
     if (bmu_wifi_is_connected()) {
         bmu_mqtt_init();
         bmu_influx_init();
@@ -407,7 +419,14 @@ extern "C" void app_main(void)
             } else {
                 topology_fail_safe_applied = false;
                 for (int i = 0; i < nb_ina; i++) {
+                    /* Skip la protection si le balancer a mis cette batterie en OFF volontaire */
+                    if (bmu_balancer_is_off((uint8_t)i)) continue;
                     bmu_protection_check_battery(&prot, i);
+                }
+                /* Soft-balancing : duty-cycling des batteries trop chargees */
+                int balancing = bmu_balancer_tick();
+                if (balancing > 0) {
+                    ESP_LOGD("MAIN", "%d batterie(s) en equilibrage", balancing);
                 }
             }
         }

@@ -6,6 +6,7 @@
 #include "bmu_climate.h"
 #include "bmu_ble.h"
 #include "bmu_config.h"
+#include "bmu_balancer.h"
 #include "esp_log.h"
 #include <cstdio>
 
@@ -20,7 +21,13 @@ static lv_obj_t *s_vmoy_label    = NULL;
 static lv_obj_t *s_itot_label    = NULL;
 static lv_obj_t *s_ahin_label    = NULL;
 static lv_obj_t *s_ahout_label   = NULL;
-static lv_obj_t *s_climate_label = NULL;
+/* CLIMAT supprimé de la stats bar — affiché sur la ligne PACK */
+
+/* Pack info line */
+static lv_obj_t *s_pack_vmin_label  = NULL;
+static lv_obj_t *s_pack_vmax_label  = NULL;
+static lv_obj_t *s_pack_vmoy_label  = NULL;
+static lv_obj_t *s_pack_temp_label  = NULL;
 
 /* Battery list */
 static lv_obj_t *s_bat_rows[32]    = {};
@@ -110,128 +117,80 @@ void bmu_ui_main_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx)
     lv_obj_set_style_border_width(s_mqtt_dot, 0, 0);
     lv_obj_align(s_mqtt_dot, LV_ALIGN_TOP_RIGHT, -8, 4);
 
-    /* ── Top bar ligne 2 : 5 tuiles stats en flex row ───────────────── */
+    /* ── Top bar ligne 2 : 4 tuiles stats en flex row ───────────────── */
 
     lv_obj_t *stats_row = lv_obj_create(parent);
-    lv_obj_set_size(stats_row, 312, 28);
-    lv_obj_align(stats_row, LV_ALIGN_TOP_LEFT, 0, 16);
+    lv_obj_set_size(stats_row, 320, 18);
+    lv_obj_align(stats_row, LV_ALIGN_TOP_LEFT, 0, 18);
     lv_obj_set_flex_flow(stats_row, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(stats_row, LV_FLEX_ALIGN_SPACE_EVENLY, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_bg_opa(stats_row, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(stats_row, 0, 0);
     lv_obj_set_style_pad_all(stats_row, 0, 0);
+    lv_obj_clear_flag(stats_row, LV_OBJ_FLAG_SCROLLABLE);
 
-    /* Tuile V MOY */
-    lv_obj_t *vmoy_tile = lv_obj_create(stats_row);
-    lv_obj_set_style_bg_color(vmoy_tile, UI_COLOR_CARD, 0);
-    lv_obj_set_style_border_width(vmoy_tile, 0, 0);
-    lv_obj_set_style_pad_all(vmoy_tile, 2, 0);
-    lv_obj_set_style_radius(vmoy_tile, 2, 0);
-    lv_obj_set_size(vmoy_tile, 56, 24);
+    /* 4 labels compacts : "V 27.15" "I 3.2A" "+12.3" "-8.1" */
+    auto make_stat = [](lv_obj_t *row, const char *key, lv_obj_t **val_label) {
+        lv_obj_t *klbl = lv_label_create(row);
+        lv_label_set_text(klbl, key);
+        lv_obj_set_style_text_color(klbl, UI_COLOR_TEXT_DIM, 0);
+        lv_obj_set_style_text_font(klbl, &lv_font_montserrat_14, 0);
 
-    lv_obj_t *vmoy_key = lv_label_create(vmoy_tile);
-    lv_label_set_text(vmoy_key, "V MOY");
-    lv_obj_set_style_text_color(vmoy_key, UI_COLOR_TEXT_DIM, 0);
-    lv_obj_set_style_text_font(vmoy_key, &lv_font_montserrat_14, 0);
-    lv_obj_align(vmoy_key, LV_ALIGN_TOP_LEFT, 0, 0);
+        *val_label = lv_label_create(row);
+        lv_label_set_text(*val_label, "---");
+        lv_obj_set_style_text_color(*val_label, UI_COLOR_TEXT, 0);
+        lv_obj_set_style_text_font(*val_label, &lv_font_montserrat_14, 0);
+    };
 
-    s_vmoy_label = lv_label_create(vmoy_tile);
-    lv_label_set_text(s_vmoy_label, "0.00V");
-    lv_obj_set_style_text_color(s_vmoy_label, UI_COLOR_TEXT, 0);
-    lv_obj_set_style_text_font(s_vmoy_label, &lv_font_montserrat_14, 0);
-    lv_obj_align(s_vmoy_label, LV_ALIGN_BOTTOM_LEFT, 0, 0);
+    make_stat(stats_row, "V",  &s_vmoy_label);
+    make_stat(stats_row, "I",  &s_itot_label);
+    make_stat(stats_row, "+",  &s_ahin_label);
+    make_stat(stats_row, "-",  &s_ahout_label);
 
-    /* Tuile I TOTAL */
-    lv_obj_t *itot_tile = lv_obj_create(stats_row);
-    lv_obj_set_style_bg_color(itot_tile, UI_COLOR_CARD, 0);
-    lv_obj_set_style_border_width(itot_tile, 0, 0);
-    lv_obj_set_style_pad_all(itot_tile, 2, 0);
-    lv_obj_set_style_radius(itot_tile, 2, 0);
-    lv_obj_set_size(itot_tile, 56, 24);
+    /* ── Ligne PACK : Vmin / Vmoy / Vmax + T°C/H% ────────────────────── */
 
-    lv_obj_t *itot_key = lv_label_create(itot_tile);
-    lv_label_set_text(itot_key, "I TOT");
-    lv_obj_set_style_text_color(itot_key, UI_COLOR_TEXT_DIM, 0);
-    lv_obj_set_style_text_font(itot_key, &lv_font_montserrat_14, 0);
-    lv_obj_align(itot_key, LV_ALIGN_TOP_LEFT, 0, 0);
+    lv_obj_t *pack_row = lv_obj_create(parent);
+    lv_obj_set_size(pack_row, 320, 18);
+    lv_obj_align(pack_row, LV_ALIGN_TOP_LEFT, 0, 38);
+    lv_obj_set_flex_flow(pack_row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(pack_row, LV_FLEX_ALIGN_SPACE_EVENLY, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_bg_color(pack_row, UI_COLOR_CARD, 0);
+    lv_obj_set_style_border_width(pack_row, 0, 0);
+    lv_obj_set_style_pad_all(pack_row, 0, 0);
+    lv_obj_set_style_radius(pack_row, 0, 0);
+    lv_obj_clear_flag(pack_row, LV_OBJ_FLAG_SCROLLABLE);
 
-    s_itot_label = lv_label_create(itot_tile);
-    lv_label_set_text(s_itot_label, "--.-A");
-    lv_obj_set_style_text_color(s_itot_label, UI_COLOR_TEXT, 0);
-    lv_obj_set_style_text_font(s_itot_label, &lv_font_montserrat_14, 0);
-    lv_obj_align(s_itot_label, LV_ALIGN_BOTTOM_LEFT, 0, 0);
+    s_pack_vmin_label = lv_label_create(pack_row);
+    lv_label_set_text(s_pack_vmin_label, "--.-");
+    lv_obj_set_style_text_color(s_pack_vmin_label, UI_COLOR_TEXT_SEC, 0);
+    lv_obj_set_style_text_font(s_pack_vmin_label, &lv_font_montserrat_14, 0);
 
-    /* Tuile Ah IN */
-    lv_obj_t *ahin_tile = lv_obj_create(stats_row);
-    lv_obj_set_style_bg_color(ahin_tile, UI_COLOR_CARD, 0);
-    lv_obj_set_style_border_width(ahin_tile, 0, 0);
-    lv_obj_set_style_pad_all(ahin_tile, 2, 0);
-    lv_obj_set_style_radius(ahin_tile, 2, 0);
-    lv_obj_set_size(ahin_tile, 56, 24);
+    s_pack_vmoy_label = lv_label_create(pack_row);
+    lv_label_set_text(s_pack_vmoy_label, "--.-V");
+    lv_obj_set_style_text_color(s_pack_vmoy_label, UI_COLOR_TEXT, 0);
+    lv_obj_set_style_text_font(s_pack_vmoy_label, &lv_font_montserrat_14, 0);
 
-    lv_obj_t *ahin_key = lv_label_create(ahin_tile);
-    lv_label_set_text(ahin_key, "Ah IN");
-    lv_obj_set_style_text_color(ahin_key, UI_COLOR_TEXT_DIM, 0);
-    lv_obj_set_style_text_font(ahin_key, &lv_font_montserrat_14, 0);
-    lv_obj_align(ahin_key, LV_ALIGN_TOP_LEFT, 0, 0);
+    s_pack_vmax_label = lv_label_create(pack_row);
+    lv_label_set_text(s_pack_vmax_label, "--.-");
+    lv_obj_set_style_text_color(s_pack_vmax_label, UI_COLOR_TEXT_SEC, 0);
+    lv_obj_set_style_text_font(s_pack_vmax_label, &lv_font_montserrat_14, 0);
 
-    s_ahin_label = lv_label_create(ahin_tile);
-    lv_label_set_text(s_ahin_label, "---");
-    lv_obj_set_style_text_color(s_ahin_label, UI_COLOR_TEXT, 0);
-    lv_obj_set_style_text_font(s_ahin_label, &lv_font_montserrat_14, 0);
-    lv_obj_align(s_ahin_label, LV_ALIGN_BOTTOM_LEFT, 0, 0);
+    s_pack_temp_label = lv_label_create(pack_row);
+    lv_label_set_text(s_pack_temp_label, "---");
+    lv_obj_set_style_text_color(s_pack_temp_label, UI_COLOR_INFO, 0);
+    lv_obj_set_style_text_font(s_pack_temp_label, &lv_font_montserrat_14, 0);
 
-    /* Tuile Ah OUT */
-    lv_obj_t *ahout_tile = lv_obj_create(stats_row);
-    lv_obj_set_style_bg_color(ahout_tile, UI_COLOR_CARD, 0);
-    lv_obj_set_style_border_width(ahout_tile, 0, 0);
-    lv_obj_set_style_pad_all(ahout_tile, 2, 0);
-    lv_obj_set_style_radius(ahout_tile, 2, 0);
-    lv_obj_set_size(ahout_tile, 56, 24);
-
-    lv_obj_t *ahout_key = lv_label_create(ahout_tile);
-    lv_label_set_text(ahout_key, "Ah OUT");
-    lv_obj_set_style_text_color(ahout_key, UI_COLOR_TEXT_DIM, 0);
-    lv_obj_set_style_text_font(ahout_key, &lv_font_montserrat_14, 0);
-    lv_obj_align(ahout_key, LV_ALIGN_TOP_LEFT, 0, 0);
-
-    s_ahout_label = lv_label_create(ahout_tile);
-    lv_label_set_text(s_ahout_label, "---");
-    lv_obj_set_style_text_color(s_ahout_label, UI_COLOR_TEXT, 0);
-    lv_obj_set_style_text_font(s_ahout_label, &lv_font_montserrat_14, 0);
-    lv_obj_align(s_ahout_label, LV_ALIGN_BOTTOM_LEFT, 0, 0);
-
-    /* Tuile CLIMAT */
-    lv_obj_t *clim_tile = lv_obj_create(stats_row);
-    lv_obj_set_style_bg_color(clim_tile, UI_COLOR_CARD, 0);
-    lv_obj_set_style_border_width(clim_tile, 0, 0);
-    lv_obj_set_style_pad_all(clim_tile, 2, 0);
-    lv_obj_set_style_radius(clim_tile, 2, 0);
-    lv_obj_set_size(clim_tile, 60, 24);
-
-    lv_obj_t *clim_key = lv_label_create(clim_tile);
-    lv_label_set_text(clim_key, "CLIMAT");
-    lv_obj_set_style_text_color(clim_key, UI_COLOR_TEXT_DIM, 0);
-    lv_obj_set_style_text_font(clim_key, &lv_font_montserrat_14, 0);
-    lv_obj_align(clim_key, LV_ALIGN_TOP_LEFT, 0, 0);
-
-    s_climate_label = lv_label_create(clim_tile);
-    lv_label_set_text(s_climate_label, "---");
-    lv_obj_set_style_text_color(s_climate_label, UI_COLOR_TEXT, 0);
-    lv_obj_set_style_text_font(s_climate_label, &lv_font_montserrat_14, 0);
-    lv_obj_align(s_climate_label, LV_ALIGN_BOTTOM_LEFT, 0, 0);
-
-    /* ── Liste batteries scrollable ─────────────────────────────────── */
+    /* ── Liste batteries scrollable (décalée d'une ligne) ───────────── */
 
     s_bat_list = lv_obj_create(parent);
-    lv_obj_set_size(s_bat_list, 312, 160);
-    lv_obj_align(s_bat_list, LV_ALIGN_TOP_MID, 0, 48);
+    lv_obj_set_size(s_bat_list, 320, 148);
+    lv_obj_align(s_bat_list, LV_ALIGN_TOP_LEFT, 0, 58);
     lv_obj_set_flex_flow(s_bat_list, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_bg_opa(s_bat_list, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(s_bat_list, 0, 0);
     lv_obj_set_style_pad_row(s_bat_list, 2, 0);
-    lv_obj_set_style_pad_all(s_bat_list, 2, 0);
-    lv_obj_add_flag(s_bat_list, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_pad_all(s_bat_list, 0, 0);
+    lv_obj_set_scroll_dir(s_bat_list, LV_DIR_VER); /* vertical seulement */
 
     /* Battery rows created lazily in update() when nb_ina is known */
     s_bat_created = 0;
@@ -246,7 +205,7 @@ static void ensure_battery_rows(int nb)
 
     for (int i = s_bat_created; i < nb; i++) {
         lv_obj_t *row = lv_obj_create(s_bat_list);
-        lv_obj_set_size(row, 300, 18);
+        lv_obj_set_size(row, 316, 18);
         lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
         lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
         lv_obj_set_style_bg_color(row, UI_COLOR_BG, 0);
@@ -316,6 +275,7 @@ void bmu_ui_main_update(bmu_ui_ctx_t *ctx)
     ensure_battery_rows(nb);
 
     float sum_v = 0, sum_i = 0, sum_ah_c = 0, sum_ah_d = 0;
+    float v_min = 999999.0f, v_max = 0.0f;
     int n_active = 0;
 
     for (int i = 0; i < nb; i++) {
@@ -355,6 +315,10 @@ void bmu_ui_main_update(bmu_ui_ctx_t *ctx)
         } else {
             col = UI_COLOR_WARN;
         }
+        /* Indicateur balancing : orange si duty-cycled OFF */
+        if (bmu_balancer_is_off((uint8_t)i)) {
+            col = UI_COLOR_WARN;
+        }
         lv_obj_set_style_bg_color(s_bat_bars[i], col, LV_PART_INDICATOR);
         lv_obj_set_style_bg_color(s_bat_borders[i], col, 0);
 
@@ -370,6 +334,8 @@ void bmu_ui_main_update(bmu_ui_ctx_t *ctx)
         sum_i += i_a;
         if (state == BMU_STATE_CONNECTED && v > 1.0f) {
             sum_v += v;
+            if (v < v_min) v_min = v;
+            if (v > v_max) v_max = v;
             n_active++;
         }
         sum_ah_c += bmu_battery_manager_get_ah_charge(ctx->mgr, i);
@@ -396,14 +362,33 @@ void bmu_ui_main_update(bmu_ui_ctx_t *ctx)
     snprintf(buf, sizeof(buf), "%.1f", sum_ah_d);
     lv_label_set_text(s_ahout_label, buf);
 
-    /* Climat */
+    /* ── Ligne PACK : Vmin / Vmoy / Vmax + T°C H% ─────────────────── */
+    if (n_active > 0) {
+        snprintf(buf, sizeof(buf), "%.2f", v_min);
+        lv_label_set_text(s_pack_vmin_label, buf);
+        snprintf(buf, sizeof(buf), "%.2fV", avg_v);
+        lv_label_set_text(s_pack_vmoy_label, buf);
+        snprintf(buf, sizeof(buf), "%.2f", v_max);
+        lv_label_set_text(s_pack_vmax_label, buf);
+
+        /* Couleur déséquilibre */
+        float delta = (v_max - v_min) * 1000.0f; /* mV */
+        lv_color_t dcol = (delta > 1000.0f) ? UI_COLOR_ERR : (delta > 500.0f) ? UI_COLOR_WARN : UI_COLOR_OK;
+        lv_obj_set_style_text_color(s_pack_vmin_label, dcol, 0);
+        lv_obj_set_style_text_color(s_pack_vmax_label, dcol, 0);
+    } else {
+        lv_label_set_text(s_pack_vmin_label, "--.-");
+        lv_label_set_text(s_pack_vmoy_label, "--.-V");
+        lv_label_set_text(s_pack_vmax_label, "--.-");
+    }
+
     if (bmu_climate_is_available()) {
-        snprintf(buf, sizeof(buf), "%.0fC %.0f%%",
+        snprintf(buf, sizeof(buf), "%.1fC %.0f%%",
                  bmu_climate_get_temperature(), bmu_climate_get_humidity());
     } else {
         snprintf(buf, sizeof(buf), "---");
     }
-    lv_label_set_text(s_climate_label, buf);
+    lv_label_set_text(s_pack_temp_label, buf);
 
     /* Dots connexion */
     lv_obj_set_style_bg_color(s_ble_dot,  bmu_ble_is_connected()  ? UI_COLOR_INFO : UI_COLOR_TEXT_DIM, 0);
