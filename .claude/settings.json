@@ -5,7 +5,23 @@
       "Bash(git log:*)",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:circuitdigest.com)",
-      "WebFetch(domain:www.ti.com)"
+      "WebFetch(domain:www.ti.com)",
+      "Bash(system_profiler SPUSBDataType)",
+      "Bash(xcrun xcodebuild:*)",
+      "Bash(instruments -s devices)",
+      "Bash(ios-deploy --detect)",
+      "Bash(cfgutil list:*)",
+      "Bash(bash -c 'source ~/esp/esp-idf/export.sh && idf.py build')",
+      "Bash(./gradlew :shared:linkDebugFrameworkIosArm64)",
+      "Bash(/usr/libexec/java_home)",
+      "Read(//opt/homebrew/Cellar/openjdk@17/17.0.18/libexec/openjdk.jdk/Contents/Home/bin/**)",
+      "Bash(/opt/homebrew/opt/openjdk@17/bin/java -version)",
+      "Bash(export JAVA_HOME=/opt/homebrew/opt/openjdk@17)",
+      "Bash(./gradlew :shared:linkDebugFrameworkIosArm64 --stacktrace)",
+      "Bash(./gradlew :shared:generateCommonMainBmuDatabaseInterface)",
+      "Bash(./gradlew :shared:compileKotlinIosArm64)",
+      "Bash(xcodebuild -list)",
+      "Bash(xcodebuild build:*)"
     ]
   }
 }
