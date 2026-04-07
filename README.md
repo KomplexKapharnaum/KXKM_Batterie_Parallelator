@@ -13,8 +13,8 @@
   <a href="https://github.com/KomplexKapharnaum/KXKM_Batterie_Parallelator/actions/workflows/ci.yml">
     <img src="https://github.com/KomplexKapharnaum/KXKM_Batterie_Parallelator/actions/workflows/ci.yml/badge.svg" alt="CI" />
   </a>
-  <a href="https://github.com/KomplexKapharnaum/KXKM_Batterie_Parallelator/actions/workflows/esp-idf-ci.yml">
-    <img src="https://github.com/KomplexKapharnaum/KXKM_Batterie_Parallelator/actions/workflows/esp-idf-ci.yml/badge.svg" alt="ESP-IDF CI" />
+  <a href="https://github.com/KomplexKapharnaum/KXKM_Batterie_Parallelator/actions/workflows/sim-host-tests.yml">
+    <img src="https://github.com/KomplexKapharnaum/KXKM_Batterie_Parallelator/actions/workflows/sim-host-tests.yml/badge.svg" alt="QA" />
   </a>
   <img src="https://img.shields.io/badge/ESP--IDF-v5.4-blue" alt="ESP-IDF" />
   <img src="https://img.shields.io/badge/license-GPLv3-green" alt="License" />
