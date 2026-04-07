@@ -11,6 +11,12 @@ struct StatusBarView: View {
             Text(transport.channel.displayName)
                 .font(.caption.bold())
 
+            if !transport.isConnected {
+                Text("(cache)")
+                    .font(.caption2)
+                    .foregroundColor(.orange)
+            }
+
             Spacer()
 
             if let deviceName = transport.deviceName {
@@ -29,7 +35,7 @@ struct StatusBarView: View {
         }
         .padding(.horizontal)
         .padding(.vertical, 6)
-        .background(Color(.systemGray6))
+        .background(transport.isConnected ? Color(.systemGray6) : Color.orange.opacity(0.1))
     }
 
     private func rssiIcon(_ rssi: Int) -> String {

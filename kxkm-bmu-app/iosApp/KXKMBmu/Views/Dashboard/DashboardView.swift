@@ -8,9 +8,23 @@ struct DashboardView: View {
         GridItem(.adaptive(minimum: 140, maximum: 200))
     ]
 
+    @StateObject private var transport = TransportStatusViewModel()
+
     var body: some View {
         NavigationStack {
             ScrollView {
+                if !transport.isConnected && !vm.batteries.isEmpty {
+                    HStack {
+                        Image(systemName: "wifi.slash")
+                        Text("Offline — dernières valeurs connues")
+                    }
+                    .font(.caption)
+                    .foregroundColor(.orange)
+                    .padding(.vertical, 4)
+                    .frame(maxWidth: .infinity)
+                    .background(Color.orange.opacity(0.1))
+                }
+
                 if vm.isLoading {
                     ProgressView("Connexion au BMU...")
                         .padding(.top, 60)

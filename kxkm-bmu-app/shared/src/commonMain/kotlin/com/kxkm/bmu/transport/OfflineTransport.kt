@@ -2,17 +2,24 @@ package com.kxkm.bmu.transport
 
 import com.kxkm.bmu.model.*
 import com.kxkm.bmu.db.DatabaseHelper
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 
-/** Offline transport — reads from local SQLDelight cache, no commands */
+/** Offline transport — reads from local SQLDelight cache, no commands.
+ *  Re-emits cached data every 10s so the UI stays reactive. */
 class OfflineTransport(private val db: DatabaseHelper) : Transport {
     override val channel = TransportChannel.OFFLINE
     override val isConnected: StateFlow<Boolean> = MutableStateFlow(false)
     override val capabilities = setOf(TransportCapability.OBSERVE)
 
-    override fun observeBatteries(): Flow<List<BatteryState>> = flowOf(db.getLastKnownBatteries())
-    override fun observeSystem(): Flow<SystemInfo?> = flowOf(null)
-    override fun observeSolar(): Flow<SolarData?> = flowOf(null)
+    override fun observeBatteries(): Flow<List<BatteryState>> = flow {
+        while (true) {
+            emit(db.getLastKnownBatteries())
+            delay(10_000)
+        }
+    }
+    override fun observeSystem(): Flow<SystemInfo?> = flowOf(null) /* not cached yet */
+    override fun observeSolar(): Flow<SolarData?> = flowOf(null)  /* not cached yet */
 
     override suspend fun connect() {}
     override suspend fun disconnect() {}
