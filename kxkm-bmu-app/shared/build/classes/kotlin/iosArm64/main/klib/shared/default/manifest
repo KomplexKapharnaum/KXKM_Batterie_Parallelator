@@ -1,0 +1,9 @@
+abi_version=1.201.0
+builtins_platform=NATIVE
+compiler_version=2.1.0
+depends=stdlib app.cash.sqldelight\:runtime org.jetbrains.kotlinx\:atomicfu-cinterop-interop org.jetbrains.kotlinx\:atomicfu org.jetbrains.kotlinx\:kotlinx-coroutines-core app.cash.sqldelight\:sqldelight-async-extensions app.cash.sqldelight\:sqldelight-coroutines-extensions co.touchlab\:stately-strict org.jetbrains.kotlin.native.platform.Foundation co.touchlab\:stately-concurrency co.touchlab\:sqliter-driver-cinterop-sqlite3 co.touchlab\:sqliter-driver app.cash.sqldelight\:native-driver org.jetbrains.kotlinx\:kotlinx-collections-immutable com.juul.tuulbox\:collections kable\:exceptions org.jetbrains.kotlin.native.platform.CommonCrypto com.benasher44\:uuid kable\:core io.ktor\:ktor-utils-cinterop-threadUtils io.ktor\:ktor-io io.ktor\:ktor-utils io.ktor\:ktor-http io.ktor\:ktor-websockets io.ktor\:ktor-serialization org.jetbrains.kotlinx\:kotlinx-serialization-core io.ktor\:ktor-serialization-kotlinx org.jetbrains.kotlinx\:kotlinx-serialization-json io.ktor\:ktor-serialization-kotlinx-json io.ktor\:ktor-events io.ktor\:ktor-websocket-serialization io.ktor\:ktor-client-core io.ktor\:ktor-client-content-negotiation io.ktor\:ktor-client-websockets io.ktor\:ktor-client-darwin org.jetbrains.kotlinx\:kotlinx-datetime org.jetbrains.kotlin.native.platform.UIKit
+ir_signature_versions=1,2
+metadata_version=1.4.1
+native_targets=ios_arm64
+short_name=shared
+unique_name=kxkm-bmu-app\:shared

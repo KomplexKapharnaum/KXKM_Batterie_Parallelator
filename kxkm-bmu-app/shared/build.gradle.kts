@@ -3,7 +3,7 @@ plugins {
     kotlin("plugin.serialization")
     id("com.android.library")
     id("app.cash.sqldelight")
-    id("co.touchlab.skie") version "0.10.1"
+    // id("co.touchlab.skie") version "0.10.1" // TODO: re-enable when compatible with Gradle 9.x
 }
 
 kotlin {

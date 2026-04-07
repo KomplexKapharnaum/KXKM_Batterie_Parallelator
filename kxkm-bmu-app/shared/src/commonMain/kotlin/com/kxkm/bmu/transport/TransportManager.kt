@@ -64,8 +64,8 @@ class TransportManager(
 
         // Auto: try in priority order
         if (ble.isConnected.value) return ble
-        if (wifi?.isConnected?.value == true) return wifi
-        if (mqtt?.isConnected?.value == true) return mqtt ?: offline
+        val w = wifi; if (w != null && w.isConnected.value) return w
+        val m = mqtt; if (m != null && m.isConnected.value) return m
         return offline
     }
 

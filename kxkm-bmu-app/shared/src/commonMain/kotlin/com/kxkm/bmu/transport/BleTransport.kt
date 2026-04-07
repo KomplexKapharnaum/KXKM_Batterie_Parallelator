@@ -27,7 +27,10 @@ class BleTransport : Transport {
     companion object {
         private const val BMU_DEVICE_NAME = "KXKM-BMU"
         // UUID base: 4b584b4d-xxxx-4b4d-424d-55424c450000
-        private fun svcUuid(id: Int) = "4b584b4d-%04x-4b4d-424d-55424c450000".format(id)
+        private fun svcUuid(id: Int): String {
+            val hex = id.toString(16).padStart(4, '0')
+            return "4b584b4d-$hex-4b4d-424d-55424c450000"
+        }
         private fun chrUuid(id: Int) = svcUuid(id)
 
         val BATTERY_SVC = svcUuid(0x0001)
@@ -42,9 +45,9 @@ class BleTransport : Transport {
 
     override suspend fun connect() {
         // Scan for KXKM-BMU device
-        val advertisement = Scanner {
-            filters { match { name = BMU_DEVICE_NAME } }
-        }.advertisements.first()
+        val advertisement = Scanner()
+            .advertisements
+            .first { it.name == BMU_DEVICE_NAME }
 
         peripheral = scope.peripheral(advertisement) {
             onServicesDiscovered {

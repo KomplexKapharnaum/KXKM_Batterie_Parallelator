@@ -65,11 +65,17 @@ class DatabaseHelper(driverFactory: DriverFactory) {
 
     fun getAuditFiltered(action: String?, batteryIndex: Int?, limit: Int = 200): List<AuditEvent> {
         val actionFilter = action?.let { "%$it%" }
-        return queries.getAuditFiltered(
-            actionFilter, actionFilter,
-            batteryIndex?.toLong(), batteryIndex?.toLong(),
-            limit.toLong()
-        ).executeAsList().map { it.toAuditEvent() }
+        val targetFilter = batteryIndex?.toLong()
+        return when {
+            actionFilter != null && targetFilter != null ->
+                queries.getAuditByActionAndTarget(actionFilter, targetFilter, limit.toLong())
+            actionFilter != null ->
+                queries.getAuditByAction(actionFilter, limit.toLong())
+            targetFilter != null ->
+                queries.getAuditByTarget(targetFilter, limit.toLong())
+            else ->
+                queries.getAuditEvents(limit.toLong())
+        }.executeAsList().map { it.toAuditEvent() }
     }
 
     fun getUnsyncedAudit(limit: Int = 100): List<PendingAuditSyncItem> {
@@ -89,7 +95,9 @@ class DatabaseHelper(driverFactory: DriverFactory) {
 
     fun markAuditSynced(ids: List<Long>) {
         if (ids.isEmpty()) return
-        queries.markAuditSynced(ids)
+        for (id in ids) {
+            queries.markAuditSynced(id)
+        }
     }
 
     fun countUnsyncedAudit(): Long = queries.countUnsyncedAudit().executeAsOne()

@@ -19,6 +19,6 @@ actual object PinHasher {
     }
 
     actual fun generateSalt(): String {
-        return Random.nextBytes(16).joinToString("") { "%02x".format(it) }
+        return Random.nextBytes(16).joinToString("") { it.toUByte().toString(16).padStart(2, '0') }
     }
 }
