@@ -29,7 +29,9 @@
 #include "bmu_ota.h"
 #include "bmu_vrm.h"
 #include "bmu_i2c_bitbang.h"
-// #include "bmu_soh.h"  // Disabled — TFLite build issues
+#if CONFIG_BMU_SOH_ENABLED
+#include "bmu_soh.h"
+#endif
 #include "bmu_rint.h"
 #ifdef CONFIG_BMU_I2C_HOTPLUG_ENABLED
 #include "bmu_i2c_hotplug.h"
@@ -78,6 +80,11 @@ static void cloud_telemetry_task(void *pv)
 
     for (;;) {
         vTaskDelay(period);
+
+#if CONFIG_BMU_SOH_ENABLED
+        bmu_soh_update_all(ctx->mgr, ctx->prot, *ctx->nb_ina);
+#endif
+
         if (!bmu_wifi_is_connected()) continue;
 
         /* Rejouer les données offline si présentes */
@@ -260,15 +267,9 @@ extern "C" void app_main(void)
     static bool topology_ok = false;
 
     if (i2c_ok) {
-        /* 5 cycles de reset I2C pour nettoyer le bus au demarrage.
-         * Apres un crash ou reset hardware, un esclave peut rester bloque
-         * mid-transaction (SDA low). Le bit-bang recovery debloque le bus. */
-        ESP_LOGI(TAG, "I2C bus cleanup — 5 recovery cycles");
-        for (int cycle = 0; cycle < 5; cycle++) {
-            bmu_i2c_bus_recover();
-            vTaskDelay(pdMS_TO_TICKS(10));
-        }
-
+        /* Le scan diagnostic sert de "warm-up" du bus I2C — sans lui,
+         * les esclaves derriere l'ISO1540 ne repondent pas.
+         * IMPORTANT: ne pas supprimer ce scan. */
         int dev_count = bmu_i2c_scan(i2c_bus);
         ESP_LOGI(TAG, "I2C scan: %d devices", dev_count);
         bmu_ui_debug_set_device_count(dev_count);
@@ -287,6 +288,8 @@ extern "C" void app_main(void)
         if (!topology_ok && (nb_ina > 0 || nb_tca > 0)) {
             ESP_LOGW(TAG, "TOPOLOGY: %d TCA * 4 != %d INA", nb_tca, nb_ina);
         }
+        bmu_ui_debug_set_device_count(nb_ina + nb_tca);
+        bmu_ui_debug_log("I2C scan OK");
     }
 
     /* ── 8a. Capteur climat AHT30 (apres scan BMU pour eviter la concurrence boot) ── */
@@ -366,7 +369,11 @@ extern "C" void app_main(void)
         bmu_battery_manager_start(&mgr);
     }
 
-    /* SOH predictor disabled — TFLite build issues */
+#if CONFIG_BMU_SOH_ENABLED
+    if (bmu_soh_init() == ESP_OK && nb_ina > 0) {
+        ESP_LOGI(TAG, "SOH predictor ready — %d batteries", nb_ina);
+    }
+#endif
 
 #if CONFIG_BMU_RINT_ENABLED
     bmu_rint_set_ctx(&prot);

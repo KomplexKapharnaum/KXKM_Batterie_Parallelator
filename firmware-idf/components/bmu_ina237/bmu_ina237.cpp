@@ -426,19 +426,15 @@ esp_err_t bmu_ina237_scan_init(i2c_master_bus_handle_t bus,
     for (uint8_t addr = INA237_ADDR_MIN; addr <= INA237_ADDR_MAX; addr++) {
         if (*count >= INA237_MAX_DEVICES) break;
 
-        /* Tenter un probe I2C avant init complete */
-        if (bmu_i2c_probe(bus, addr, pdMS_TO_TICKS(50)) != ESP_OK) {
-            continue;
-        }
-
+        /* Init directe sans probe prealable.
+         * i2c_master_probe() en ESP-IDF v5.4 cree un device handle
+         * interne qui entre en conflit avec add_device() dans init(). */
         esp_err_t ret = bmu_ina237_init(bus, addr, r_shunt_uohm, max_current_a,
                                         &devices[*count]);
         if (ret == ESP_OK) {
             (*count)++;
-        } else {
-            ESP_LOGW(TAG, "[0x%02X] Probe OK mais init echouee: %s",
-                     addr, esp_err_to_name(ret));
         }
+        /* Pas de log pour les adresses absentes — c'est normal */
     }
 
     ESP_LOGI(TAG, "Scan termine: %u INA237 initialise(s)", (unsigned)*count);

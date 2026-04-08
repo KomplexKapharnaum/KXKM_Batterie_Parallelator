@@ -155,6 +155,14 @@ esp_err_t bmu_protection_check_battery(bmu_protection_ctx_t *ctx, int idx)
 
     /* Overcurrent ERROR: |I| > factor * max_current */
     const float overcurrent_a = (BMU_OVERCURRENT_FACTOR / 1000.0f) * (BMU_MAX_CURRENT_MA / 1000.0f);
+
+    /* DEBUG: tracer les decisions de la state machine */
+    float fleet_max = find_fleet_max_mv(ctx);
+    ESP_LOGI(TAG, "BAT[%d] V=%.0f I=%.3f sw=%d prev=%d fleet=%.0f oc=%.1f dt=%lld",
+             idx + 1, v_mv, i_a, local_nb_switch, (int)local_prev_state,
+             fleet_max, overcurrent_a,
+             (long long)(now_ms() - local_reconnect_time));
+
     if (v_mv < 0 || fabs(i_a) > overcurrent_a) {
         state = BMU_STATE_ERROR;
     }

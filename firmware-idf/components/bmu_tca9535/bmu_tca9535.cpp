@@ -164,11 +164,9 @@ esp_err_t bmu_tca9535_scan_init(i2c_master_bus_handle_t bus,
     for (uint8_t i = 0; i < TCA9535_MAX_DEVICES && *found < max_devices; i++) {
         uint8_t addr = TCA9535_BASE_ADDR + i;
 
-        if (bmu_i2c_probe(bus, addr, pdMS_TO_TICKS(20)) != ESP_OK) {
-            continue;
-        }
-
-        /* Tenter de lire le registre Input Port 0 pour detecter la presence */
+        /* Pas de probe prealable — i2c_master_probe() en ESP-IDF v5.4
+         * cree un device handle interne qui bloque add_device().
+         * On tente directement add_device + read pour detecter. */
         i2c_master_dev_handle_t dev;
         esp_err_t ret = bmu_i2c_add_device(bus, addr, &dev);
         if (ret != ESP_OK) {

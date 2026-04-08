@@ -60,14 +60,11 @@ int bmu_i2c_scan(i2c_master_bus_handle_t bus)
     int count = 0;
     ESP_LOGI(TAG, "Scanning BMU I2C bus (0x20-0x4F)...");
 
-    /* Scan seulement les plages utiles : TCA 0x20-0x27, INA 0x40-0x4F */
+    /* Scan complet : add_device + read registres + rm_device.
+     * Sert aussi de warm-up pour les esclaves derriere l'ISO1540. */
     const uint8_t ranges[][2] = { {0x20, 0x27}, {0x40, 0x4F} };
     for (int r = 0; r < 2; r++) {
         for (uint8_t addr = ranges[r][0]; addr <= ranges[r][1]; addr++) {
-            if (bmu_i2c_probe(bus, addr, pdMS_TO_TICKS(20)) != ESP_OK) {
-                continue;
-            }
-
             i2c_master_dev_handle_t dev = NULL;
             i2c_device_config_t cfg = {};
             cfg.dev_addr_length = I2C_ADDR_BIT_LEN_7;
@@ -75,39 +72,26 @@ int bmu_i2c_scan(i2c_master_bus_handle_t bus)
             cfg.scl_speed_hz = BMU_I2C_FREQ_HZ;
 
             if (i2c_master_bus_add_device(bus, &cfg, &dev) != ESP_OK) {
-                ESP_LOGI(TAG, "  Found 0x%02X (probe OK, add failed)", addr);
-                count++;
                 continue;
             }
 
-            if (addr <= 0x27) {
-                uint8_t reg = 0x00;
-                uint8_t port0 = 0;
-                if (i2c_master_transmit_receive(dev, &reg, 1, &port0, 1, pdMS_TO_TICKS(50)) == ESP_OK) {
-                    ESP_LOGI(TAG, "  Found 0x%02X — TCA9535 (Port0=0x%02X)", addr, port0);
+            /* Try a read to verify presence */
+            uint8_t reg = (addr <= 0x27) ? 0x00 : 0x3E;
+            uint8_t rx[2] = {0};
+            esp_err_t ret = i2c_master_transmit_receive(dev, &reg, 1, rx,
+                                (addr <= 0x27) ? 1 : 2, pdMS_TO_TICKS(50));
+
+            if (ret == ESP_OK) {
+                if (addr <= 0x27) {
+                    ESP_LOGI(TAG, "  Found 0x%02X — TCA9535 (Port0=0x%02X)", addr, rx[0]);
                 } else {
-                    ESP_LOGI(TAG, "  Found 0x%02X — TCA9535", addr);
-                }
-            } else {
-                uint8_t reg = 0x3E;
-                uint8_t rx[2] = {0};
-                if (i2c_master_transmit_receive(dev, &reg, 1, rx, 2, pdMS_TO_TICKS(50)) == ESP_OK) {
                     uint16_t mfr = ((uint16_t)rx[0] << 8) | rx[1];
-                    reg = 0x3F;
-                    if (mfr == 0x5449 &&
-                        i2c_master_transmit_receive(dev, &reg, 1, rx, 2, pdMS_TO_TICKS(50)) == ESP_OK) {
-                        uint16_t did = ((uint16_t)rx[0] << 8) | rx[1];
-                        ESP_LOGI(TAG, "  Found 0x%02X — TI INA237 (MFR=0x%04X DEV=0x%04X)", addr, mfr, did);
-                    } else {
-                        ESP_LOGI(TAG, "  Found 0x%02X — I2C device", addr);
-                    }
-                } else {
-                    ESP_LOGI(TAG, "  Found 0x%02X — I2C device", addr);
+                    ESP_LOGI(TAG, "  Found 0x%02X — INA237 (MFR=0x%04X)", addr, mfr);
                 }
+                count++;
             }
 
             i2c_master_bus_rm_device(dev);
-            count++;
         }
     }
 
