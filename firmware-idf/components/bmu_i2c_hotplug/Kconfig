@@ -1,0 +1,26 @@
+menu "BMU I2C Hotplug"
+
+    config BMU_I2C_HOTPLUG_ENABLED
+        bool "Enable I2C hotplug (periodic re-scan)"
+        default y
+        help
+            Periodically re-scans the I2C bus to detect added/removed
+            INA237 and TCA9535 devices at runtime.
+
+    config BMU_I2C_HOTPLUG_INTERVAL_S
+        int "Re-scan interval (seconds)"
+        default 10
+        range 5 60
+        depends on BMU_I2C_HOTPLUG_ENABLED
+
+    config BMU_I2C_HOTPLUG_STACK_SIZE
+        int "Task stack size (bytes)"
+        default 3072
+        depends on BMU_I2C_HOTPLUG_ENABLED
+
+    config BMU_I2C_HOTPLUG_TASK_PRIORITY
+        int "Task priority"
+        default 3
+        depends on BMU_I2C_HOTPLUG_ENABLED
+
+endmenu

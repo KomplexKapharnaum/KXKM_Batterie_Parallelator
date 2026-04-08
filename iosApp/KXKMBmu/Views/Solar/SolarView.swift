@@ -35,7 +35,6 @@ struct SolarView: View {
 
     @ViewBuilder
     private func solarContent(_ s: SolarData) -> some View {
-        // Entête MPPT avec badge état de charge
         HStack {
             Image(systemName: "sun.max.fill")
                 .foregroundColor(.yellow)
@@ -57,7 +56,6 @@ struct SolarView: View {
         .background(Color(white: 0.1))
         .cornerRadius(12)
 
-        // Puissance PV — grande jauge centrale
         VStack(spacing: 8) {
             Text("Puissance PV")
                 .font(.caption)
@@ -75,7 +73,6 @@ struct SolarView: View {
         .background(Color(white: 0.08))
         .cornerRadius(16)
 
-        // Grille tensions + courant + rendement
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
             solarStat(
                 title: "PV Tension",
@@ -103,7 +100,6 @@ struct SolarView: View {
             )
         }
 
-        // Placeholder graphique historique
         VStack(alignment: .leading, spacing: 8) {
             Text("Historique production")
                 .font(.caption)
@@ -148,5 +144,4 @@ struct SolarView: View {
         .background(Color(white: 0.1))
         .cornerRadius(10)
     }
-
 }
