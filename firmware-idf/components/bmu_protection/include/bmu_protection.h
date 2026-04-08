@@ -7,12 +7,23 @@
 #include "esp_err.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
+#include "freertos/queue.h"
+#include "freertos/task.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 // bmu_battery_state_t now defined in bmu_types.h
+
+// Queue configuration for snapshot distribution
+typedef struct {
+    QueueHandle_t q_balancer;
+    QueueHandle_t q_display;
+    QueueHandle_t q_cloud;
+    QueueHandle_t q_ble;
+    QueueHandle_t q_cmd;
+} bmu_protection_queues_t;
 
 typedef struct {
     bmu_ina237_t         *ina_devices;
@@ -26,6 +37,12 @@ typedef struct {
     int64_t               reconnect_time_ms[BMU_MAX_BATTERIES];
     bmu_battery_state_t   battery_state[BMU_MAX_BATTERIES];
     uint8_t               imbalance_count[BMU_MAX_BATTERIES]; /**< Consecutive imbalance cycles */
+
+    // RTOS task + queue infrastructure
+    bmu_protection_queues_t queues;
+    uint16_t                cycle_count;
+    uint32_t                task_period_ms;
+    TaskHandle_t            task_handle;
 } bmu_protection_ctx_t;
 
 #define BMU_IMBALANCE_CONFIRM_CYCLES 3  /**< Cycles d'imbalance avant disconnect */
@@ -72,6 +89,20 @@ esp_err_t bmu_protection_web_switch(bmu_protection_ctx_t *ctx, int battery_idx, 
 esp_err_t bmu_protection_update_topology(bmu_protection_ctx_t *ctx,
                                           uint8_t new_nb_ina,
                                           uint8_t new_nb_tca);
+
+// ── RTOS queue / task API (Phase 2) ──
+
+esp_err_t bmu_protection_set_queues(bmu_protection_ctx_t *ctx,
+                                     const bmu_protection_queues_t *queues);
+
+void bmu_protection_publish_snapshot(bmu_protection_ctx_t *ctx);
+
+void bmu_protection_process_commands(bmu_protection_ctx_t *ctx);
+
+esp_err_t bmu_protection_start_task(bmu_protection_ctx_t *ctx,
+                                     uint32_t period_ms,
+                                     UBaseType_t priority,
+                                     uint32_t stack_size);
 
 #ifdef __cplusplus
 }
