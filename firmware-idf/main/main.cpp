@@ -3,7 +3,7 @@
  * @brief KXKM BMU — ESP-IDF v5.4 (BOX-3)
  *
  * Init order: NVS → BSP/Display → WiFi → I2C (non-bloquant) → Protection → Cloud → Web
- * I2C scan periodique dans la boucle pour hotplug/unplug.
+ * I2C hotplug: tache FreeRTOS bmu_i2c_hotplug re-scanne le bus periodiquement.
  * L'absence de sensors I2C ne bloque JAMAIS le boot.
  */
 #include "bmu_i2c.h"
@@ -31,6 +31,9 @@
 #include "bmu_i2c_bitbang.h"
 // #include "bmu_soh.h"  // Disabled — TFLite build issues
 #include "bmu_rint.h"
+#ifdef CONFIG_BMU_I2C_HOTPLUG_ENABLED
+#include "bmu_i2c_hotplug.h"
+#endif
 #ifdef CONFIG_BMU_BLE_ENABLED
 #include "bmu_ble.h"
 #endif
@@ -63,7 +66,7 @@ static bool bitbang_bus_conflicts_with_vedirect(void)
 typedef struct {
     bmu_protection_ctx_t  *prot;
     bmu_battery_manager_t *mgr;
-    uint8_t                nb_ina;
+    uint8_t               *nb_ina;   /* pointer — follows hotplug changes */
 } cloud_task_ctx_t;
 
 static void cloud_telemetry_task(void *pv)
@@ -85,7 +88,7 @@ static void cloud_telemetry_task(void *pv)
             }
         }
 
-        for (int i = 0; i < ctx->nb_ina; i++) {
+        for (int i = 0; i < *ctx->nb_ina; i++) {
             float v_mv = bmu_protection_get_voltage(ctx->prot, i);
             float ah_d = bmu_battery_manager_get_ah_discharge(ctx->mgr, i);
             float ah_c = bmu_battery_manager_get_ah_charge(ctx->mgr, i);
@@ -251,10 +254,10 @@ extern "C" void app_main(void)
 
     /* ── 8. Scan I2C + init sensors (si bus ok) ──────────────────── */
     static bmu_ina237_t ina[BMU_MAX_BATTERIES] = {};
-    uint8_t nb_ina = 0;
+    static uint8_t nb_ina = 0;
     static bmu_tca9535_handle_t tca[BMU_MAX_TCA] = {};
-    uint8_t nb_tca = 0;
-    bool topology_ok = false;
+    static uint8_t nb_tca = 0;
+    static bool topology_ok = false;
 
     if (i2c_ok) {
         int dev_count = bmu_i2c_scan(i2c_bus);
@@ -368,6 +371,27 @@ extern "C" void app_main(void)
     disp_ctx.nb_ina = total_ina;
     bmu_display_request_update();
 
+    /* ── 9c. I2C Hotplug (si bus ok) ──────────────────────────────────── */
+#ifdef CONFIG_BMU_I2C_HOTPLUG_ENABLED
+    if (i2c_ok) {
+        bmu_hotplug_cfg_t hp_cfg = {
+            .bus = i2c_bus,
+            .ina_devices = ina,
+            .tca_devices = tca,
+            .nb_ina = &nb_ina,
+            .nb_tca = &nb_tca,
+            .topology_ok = &topology_ok,
+            .prot = &prot,
+            .mgr = &mgr,
+        };
+        if (bmu_hotplug_init(&hp_cfg) == ESP_OK) {
+            bmu_hotplug_start();
+            ESP_LOGI(TAG, "I2C hotplug active — scan every %ds",
+                     CONFIG_BMU_I2C_HOTPLUG_INTERVAL_S);
+        }
+    }
+#endif
+
     /* ── 9b. BLE Victron (si enabled) ──────────────────────────────── */
 #ifdef CONFIG_BMU_VICTRON_BLE_ENABLED
     bmu_ble_victron_init(&prot, &mgr, nb_ina);
@@ -390,7 +414,7 @@ extern "C" void app_main(void)
         static cloud_task_ctx_t cloud_ctx = {};
         cloud_ctx.prot = &prot;
         cloud_ctx.mgr = &mgr;
-        cloud_ctx.nb_ina = nb_ina;
+        cloud_ctx.nb_ina = &nb_ina;
         xTaskCreate(cloud_telemetry_task, "cloud", 4096, &cloud_ctx, 2, NULL);
 
         /* VRM — publish to Victron cloud */
@@ -436,6 +460,11 @@ extern "C" void app_main(void)
                 int balancing = bmu_balancer_tick();
                 if (balancing > 0) {
                     ESP_LOGD("MAIN", "%d batterie(s) en equilibrage", balancing);
+                }
+                /* Update display context if hotplug changed nb_ina */
+                if (disp_ctx.nb_ina != nb_ina) {
+                    disp_ctx.nb_ina = nb_ina;
+                    bmu_display_request_update();
                 }
             }
         }

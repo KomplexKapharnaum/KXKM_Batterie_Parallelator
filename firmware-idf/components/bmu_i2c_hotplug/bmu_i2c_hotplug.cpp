@@ -1,6 +1,9 @@
 #include "bmu_i2c_hotplug.h"
 #include "bmu_i2c.h"
 #include "bmu_config.h"
+#ifdef CONFIG_BMU_BLE_ENABLED
+#include "bmu_ble.h"
+#endif
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -257,7 +260,6 @@ static void propagate_topology(uint8_t new_nb_ina, uint8_t new_nb_tca)
     bmu_battery_manager_update_nb_ina(s_cfg.mgr, new_nb_ina);
 
 #ifdef CONFIG_BMU_BLE_ENABLED
-    extern void bmu_ble_set_nb_ina(uint8_t nb_ina);
     bmu_ble_set_nb_ina(new_nb_ina);
 #endif
 }
