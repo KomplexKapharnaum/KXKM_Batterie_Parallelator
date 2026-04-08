@@ -470,6 +470,30 @@ extern "C" void app_main(void)
     ESP_LOGI(TAG, "Init complete — heap: %lu — loop %dms",
              (unsigned long)esp_get_free_heap_size(), BMU_LOOP_PERIOD_MS);
 
+    /* ── Warm-up: laisser les INA237 se stabiliser avant la protection ── */
+    if (topology_ok && nb_ina > 0) {
+        ESP_LOGI(TAG, "Warm-up: stabilisation INA237 (%d batteries)...", nb_ina);
+
+        /* Lire quelques cycles pour remplir le cache de tension */
+        for (int warmup = 0; warmup < 5; warmup++) {
+            for (int i = 0; i < nb_ina; i++) {
+                float v = 0, a = 0;
+                bmu_ina237_read_voltage_current(&prot.ina_devices[i], &v, &a);
+                if (xSemaphoreTake(prot.state_mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+                    prot.battery_voltages[i] = v;
+                    xSemaphoreGive(prot.state_mutex);
+                }
+            }
+            vTaskDelay(pdMS_TO_TICKS(200));
+        }
+
+        /* Log des tensions apres warm-up */
+        for (int i = 0; i < nb_ina; i++) {
+            ESP_LOGI(TAG, "  BAT[%d] V=%.0f mV", i + 1, prot.battery_voltages[i]);
+        }
+        ESP_LOGI(TAG, "Warm-up OK — demarrage protection");
+    }
+
     /* ── Main loop ─────────────────────────────────────────────────── */
     bool topology_fail_safe_applied = false;
     while (true) {

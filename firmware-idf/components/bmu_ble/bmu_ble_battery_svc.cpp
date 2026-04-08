@@ -52,8 +52,10 @@ static void build_battery_payload(int idx, ble_battery_char_t *out)
     float v_mv = bmu_protection_get_voltage(prot, idx);
     out->voltage_mv = (int32_t)v_mv;
 
-    float i_a = 0.0f;
-    bmu_ina237_read_current(&mgr->ina_devices[idx], &i_a);
+    /* Utiliser le courant cache du battery_manager au lieu d'un I2C read direct.
+     * L'ancien bmu_ina237_read_current() causait de la contention I2C
+     * avec la boucle protection et le Ah task — bus crash apres ~75s. */
+    float i_a = bmu_battery_manager_get_last_current_a(mgr, idx);
     out->current_ma = (int32_t)(i_a * 1000.0f);
 
     out->state = (uint8_t)bmu_protection_get_state(prot, idx);

@@ -33,6 +33,7 @@ static esp_err_t tca9535_write_reg8(i2c_master_dev_handle_t dev,
     if (bmu_i2c_lock() != ESP_OK) return ESP_ERR_TIMEOUT;
     uint8_t buf[2] = { reg, data };
     esp_err_t ret = i2c_master_transmit(dev, buf, sizeof(buf), pdMS_TO_TICKS(50));
+    if (ret == ESP_OK) bmu_i2c_record_success(); else bmu_i2c_record_failure();
     bmu_i2c_unlock();
     return ret;
 }
@@ -48,6 +49,7 @@ static esp_err_t tca9535_write_reg16(i2c_master_dev_handle_t dev,
     if (bmu_i2c_lock() != ESP_OK) return ESP_ERR_TIMEOUT;
     uint8_t buf[3] = { reg, data_p0, data_p1 };
     esp_err_t ret = i2c_master_transmit(dev, buf, sizeof(buf), pdMS_TO_TICKS(50));
+    if (ret == ESP_OK) bmu_i2c_record_success(); else bmu_i2c_record_failure();
     bmu_i2c_unlock();
     return ret;
 }
@@ -61,6 +63,7 @@ static esp_err_t tca9535_read_reg8(i2c_master_dev_handle_t dev,
 {
     if (bmu_i2c_lock() != ESP_OK) return ESP_ERR_TIMEOUT;
     esp_err_t ret = i2c_master_transmit_receive(dev, &reg, 1, data, 1, pdMS_TO_TICKS(50));
+    if (ret == ESP_OK) bmu_i2c_record_success(); else bmu_i2c_record_failure();
     bmu_i2c_unlock();
     return ret;
 }
