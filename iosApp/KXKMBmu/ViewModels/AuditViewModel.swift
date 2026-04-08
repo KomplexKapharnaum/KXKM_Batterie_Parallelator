@@ -1,5 +1,6 @@
 import SwiftUI
 
+@MainActor
 class AuditViewModel: ObservableObject {
     @Published var events: [AuditEvent] = []
     @Published var filterAction: String? = nil
@@ -14,7 +15,7 @@ class AuditViewModel: ObservableObject {
     }
 
     func reload() {
-        Task { @MainActor in
+        Task {
             events = await auditUseCase.getEvents(
                 action: filterAction,
                 batteryIndex: filterBattery

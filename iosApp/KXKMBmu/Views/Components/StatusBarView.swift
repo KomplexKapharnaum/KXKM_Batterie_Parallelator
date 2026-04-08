@@ -63,15 +63,27 @@ class TransportStatusViewModel: ObservableObject {
     init() {
         observeTasks.append(Task { [weak self] in
             for await connected in BleManager.shared.$isConnected.values {
-                self?.isConnected = connected
-                self?.channel = connected ? .ble : .offline
-                self?.deviceName = connected ? "KXKM-BMU" : nil
+                guard let self else { return }
+                self.isConnected = connected
+                self.channel = connected ? .ble : .offline
+                if !connected {
+                    self.deviceName = nil
+                    self.rssi = nil
+                }
+            }
+        })
+
+        observeTasks.append(Task { [weak self] in
+            for await name in BleManager.shared.$connectedDeviceName.values {
+                guard let self else { return }
+                self.deviceName = name
             }
         })
 
         observeTasks.append(Task { [weak self] in
             for await r in BleManager.shared.$rssi.values {
-                self?.rssi = r != 0 ? r : nil
+                guard let self else { return }
+                self.rssi = r != 0 ? r : nil
             }
         })
     }

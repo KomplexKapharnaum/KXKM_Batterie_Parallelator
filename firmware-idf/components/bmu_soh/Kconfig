@@ -1,0 +1,22 @@
+menu "BMU SOH Prediction"
+
+    config BMU_SOH_ENABLED
+        bool "Enable TFLite Micro SOH prediction"
+        default y
+        help
+            Runs FPNN INT8 model on-device for battery State of Health estimation.
+            Requires ~16 KB arena in SRAM. Disable to save memory if SOH is not needed.
+
+    config BMU_SOH_UPDATE_INTERVAL_S
+        int "SOH update interval (seconds)"
+        default 10
+        range 5 300
+        depends on BMU_SOH_ENABLED
+
+    config BMU_SOH_ARENA_KB
+        int "TFLite arena size (KB)"
+        default 16
+        range 8 32
+        depends on BMU_SOH_ENABLED
+
+endmenu

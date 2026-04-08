@@ -1,9 +1,30 @@
 import SwiftUI
+import LocalAuthentication
 
 struct PinEntryView: View {
     @EnvironmentObject var authVM: AuthViewModel
     @State private var pin = ""
     @State private var showBiometric = true
+
+    private var biometryLabel: String {
+        let context = LAContext()
+        _ = context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: nil)
+        switch context.biometryType {
+        case .touchID: return "Touch ID"
+        case .faceID: return "Face ID"
+        default: return "Biométrie"
+        }
+    }
+
+    private var biometryIcon: String {
+        let context = LAContext()
+        _ = context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: nil)
+        switch context.biometryType {
+        case .touchID: return "touchid"
+        case .faceID: return "faceid"
+        default: return "faceid"
+        }
+    }
 
     var body: some View {
         VStack(spacing: 32) {
@@ -40,7 +61,7 @@ struct PinEntryView: View {
                 ForEach(1...9, id: \.self) { num in
                     PinButton(label: "\(num)") { pin.append("\(num)") }
                 }
-                PinButton(label: "Face ID", icon: "faceid") {
+                PinButton(label: biometryLabel, icon: biometryIcon) {
                     authenticateWithBiometrics()
                 }
                 PinButton(label: "0") { pin.append("0") }

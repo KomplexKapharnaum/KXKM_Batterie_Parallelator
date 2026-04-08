@@ -170,13 +170,18 @@ class ConfigUseCase {
 
 class AuditUseCase {
     func getEvents(action: String?, batteryIndex: Int?) async -> [AuditEvent] {
-        [
+        let all = [
             AuditEvent(timestamp: Int64(Date().timeIntervalSince1970 * 1000) - 60000,
                       userId: "admin", action: "switch_on", target: 0, detail: nil),
             AuditEvent(timestamp: Int64(Date().timeIntervalSince1970 * 1000) - 120000,
                       userId: "admin", action: "config_change", target: nil,
                       detail: "V_min: 24000→25000"),
         ]
+        return all.filter { event in
+            if let action, !event.action.hasPrefix(action) { return false }
+            if let batteryIndex, event.target?.intValue != batteryIndex { return false }
+            return true
+        }
     }
 
     func getPendingSyncCount() -> Int64 { 2 }
@@ -224,4 +229,33 @@ class SharedFactoryCompanion {
     func createAuditUseCase() -> AuditUseCase { AuditUseCase() }
     func createAuthUseCase() -> AuthUseCase { auth }
     func createTransportManager() -> TransportManager { TransportManager() }
+}
+
+// MARK: - GATT extended models
+
+struct RintResult {
+    let rOhmicMohm: Float
+    let rTotalMohm: Float
+    let valid: Bool
+}
+
+struct SohResult {
+    let sohPercent: Float
+    let confidence: Float
+    let rintMohm: Float
+    let rintValid: Bool
+}
+
+struct BalancerInfo {
+    let isOff: Bool
+    let balancing: Bool
+    let dutyPct: Int
+}
+
+struct VictronDevice: Identifiable {
+    let id: String
+    let recordType: UInt8
+    let mac: Data
+    let decrypted: Bool
+    let rawData: Data
 }

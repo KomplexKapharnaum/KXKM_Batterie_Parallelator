@@ -59,10 +59,14 @@ struct AuditRowView: View {
         }
     }
 
-    private func formatTimestamp(_ ms: Int64) -> String {
-        let date = Date(timeIntervalSince1970: Double(ms) / 1000.0)
+    private static let timestampFormatter: DateFormatter = {
         let fmt = DateFormatter()
         fmt.dateFormat = "dd/MM HH:mm:ss"
-        return fmt.string(from: date)
+        return fmt
+    }()
+
+    private func formatTimestamp(_ ms: Int64) -> String {
+        let date = Date(timeIntervalSince1970: Double(ms) / 1000.0)
+        return Self.timestampFormatter.string(from: date)
     }
 }

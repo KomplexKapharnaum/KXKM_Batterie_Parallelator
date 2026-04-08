@@ -7,8 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		AA11223344556677MQTT0001 /* MqttConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11223344556677MQTT0002 /* MqttConfigView.swift */; };
-		AA11223344556677DNAM0001 /* DeviceNameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11223344556677DNAM0002 /* DeviceNameView.swift */; };
+		BB22334455667788BLAB0001 /* BatteryLabelsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB22334455667788BLAB0002 /* BatteryLabelsView.swift */; };
 		060D8D2D855935F1BEE1685A /* VoltageChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC4206F6FB0F6D4D71FB7E1 /* VoltageChartView.swift */; };
 		064B62D281AEAA02729A0F1B /* DeviceSelectorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43ABA90AF8E356A8FB4F4B49 /* DeviceSelectorView.swift */; };
 		09E4CDA758805B415798A71F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2529217A25EC1127FC4F407B /* Assets.xcassets */; };
@@ -30,11 +29,14 @@
 		875AE5419BC47B9EE9881F1F /* BiometricAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD60D2AECB93EEEB576B0E55 /* BiometricAuth.swift */; };
 		8C78A8172F853901003BB624 /* SolarCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C78A8162F853901003BB624 /* SolarCardView.swift */; };
 		8C78A81A2F853925003BB624 /* SolarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C78A8192F853925003BB624 /* SolarView.swift */; };
+		8C9E0F542F8652CC00093473 /* WifiKeychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C9E0F532F8652CC00093473 /* WifiKeychain.swift */; };
 		987036656FACD4C5E8C7E862 /* ConfigViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 705D1CE3DAAFB6DA948AD547 /* ConfigViewModel.swift */; };
 		A044BED3DE63BDBA887CA753 /* UserManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 599C082FAC1E1E65F6EB2A72 /* UserManagementView.swift */; };
 		A09612E54B3E699CED12E21F /* BatteryStateIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24799B1AC8B9B2F08B70C6DD /* BatteryStateIcon.swift */; };
 		A2E1D948A4387B91A970AF6A /* BatteryCellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E48424398EFB6CEBE108E575 /* BatteryCellView.swift */; };
 		A86627D3775D942FC4D5A045 /* ConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F93AF4721A4B3137369EFA1 /* ConfigView.swift */; };
+		AA11223344556677DNAM0001 /* DeviceNameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11223344556677DNAM0002 /* DeviceNameView.swift */; };
+		AA11223344556677MQTT0001 /* MqttConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11223344556677MQTT0002 /* MqttConfigView.swift */; };
 		AFF2B2F63093A65435F329B5 /* AuditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D12AA57315D84A3AB1984D9A /* AuditView.swift */; };
 		B27483583ED9E0E9683547BC /* TransportConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 252A7B23DB63CC7121CFFB9D /* TransportConfigView.swift */; };
 		C6A73716ABAFFCE4A06A0B1C /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 379A503998B00741DB667641 /* DashboardView.swift */; };
@@ -70,11 +72,14 @@
 		7AC4206F6FB0F6D4D71FB7E1 /* VoltageChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoltageChartView.swift; sourceTree = "<group>"; };
 		8C78A8162F853901003BB624 /* SolarCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SolarCardView.swift; sourceTree = "<group>"; };
 		8C78A8192F853925003BB624 /* SolarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SolarView.swift; sourceTree = "<group>"; };
+		8C9E0F532F8652CC00093473 /* WifiKeychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WifiKeychain.swift; sourceTree = "<group>"; };
+		8CFE37462F864D28007D5519 /* KXKMBmu.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = KXKMBmu.entitlements; sourceTree = "<group>"; };
 		8EE67BE788F8256657FFF2EE /* SharedBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedBridge.swift; sourceTree = "<group>"; };
 		8F8D1EF2A383025B06735AEA /* WifiConfigView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WifiConfigView.swift; sourceTree = "<group>"; };
-		AA11223344556677MQTT0002 /* MqttConfigView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MqttConfigView.swift; sourceTree = "<group>"; };
-		AA11223344556677DNAM0002 /* DeviceNameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceNameView.swift; sourceTree = "<group>"; };
 		A3B0C9A29C2FB43C95303349 /* ProtectionConfigView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtectionConfigView.swift; sourceTree = "<group>"; };
+		AA11223344556677DNAM0002 /* DeviceNameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceNameView.swift; sourceTree = "<group>"; };
+		BB22334455667788BLAB0002 /* BatteryLabelsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatteryLabelsView.swift; sourceTree = "<group>"; };
+		AA11223344556677MQTT0002 /* MqttConfigView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MqttConfigView.swift; sourceTree = "<group>"; };
 		C151C1366A79ABE7EB64BA9C /* AuditViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuditViewModel.swift; sourceTree = "<group>"; };
 		D12AA57315D84A3AB1984D9A /* AuditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuditView.swift; sourceTree = "<group>"; };
 		D953460FDF153340A26278A8 /* ConfirmationDialog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfirmationDialog.swift; sourceTree = "<group>"; };
@@ -92,6 +97,7 @@
 			children = (
 				2529217A25EC1127FC4F407B /* Assets.xcassets */,
 				3C3B63D9D2AE795AE72E6430 /* Info.plist */,
+				8CFE37462F864D28007D5519 /* KXKMBmu.entitlements */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -149,12 +155,12 @@
 			path = App;
 			sourceTree = "<group>";
 		};
-		8C78A8182F853904003BB624 /* Solar 2 */ = {
+		8C78A8182F853904003BB624 /* Solar */ = {
 			isa = PBXGroup;
 			children = (
 				8C78A8192F853925003BB624 /* SolarView.swift */,
 			);
-			path = "Solar 2";
+			path = Solar;
 			sourceTree = "<group>";
 		};
 		8D217C544207D45A96A278EA /* KXKMBmu */ = {
@@ -191,6 +197,7 @@
 				8F8D1EF2A383025B06735AEA /* WifiConfigView.swift */,
 				AA11223344556677MQTT0002 /* MqttConfigView.swift */,
 				AA11223344556677DNAM0002 /* DeviceNameView.swift */,
+				BB22334455667788BLAB0002 /* BatteryLabelsView.swift */,
 			);
 			path = Config;
 			sourceTree = "<group>";
@@ -231,6 +238,7 @@
 			children = (
 				FD60D2AECB93EEEB576B0E55 /* BiometricAuth.swift */,
 				8EE67BE788F8256657FFF2EE /* SharedBridge.swift */,
+				8C9E0F532F8652CC00093473 /* WifiKeychain.swift */,
 			);
 			path = Helpers;
 			sourceTree = "<group>";
@@ -245,7 +253,7 @@
 				8EB7E8B3B2098DC3E80133BA /* Dashboard */,
 				E214873C14A8D75B52351C5B /* Detail */,
 				7236E3C8D6B97D6FCA6150F6 /* System */,
-				8C78A8182F853904003BB624 /* Solar 2 */,
+				8C78A8182F853904003BB624 /* Solar */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -332,6 +340,7 @@
 			files = (
 				AA11223344556677MQTT0001 /* MqttConfigView.swift in Sources */,
 				AA11223344556677DNAM0001 /* DeviceNameView.swift in Sources */,
+				BB22334455667788BLAB0001 /* BatteryLabelsView.swift in Sources */,
 				4E1BAA31C3E5743EE328A5EC /* AuditRowView.swift in Sources */,
 				AFF2B2F63093A65435F329B5 /* AuditView.swift in Sources */,
 				6492D2233C6D7A4910B93AF8 /* AuditViewModel.swift in Sources */,
@@ -342,6 +351,7 @@
 				459A5367660722950BB68784 /* BatteryDetailViewModel.swift in Sources */,
 				A09612E54B3E699CED12E21F /* BatteryStateIcon.swift in Sources */,
 				875AE5419BC47B9EE9881F1F /* BiometricAuth.swift in Sources */,
+				8C9E0F542F8652CC00093473 /* WifiKeychain.swift in Sources */,
 				1CB962253F34CB57297753CE /* BleManager.swift in Sources */,
 				A86627D3775D942FC4D5A045 /* ConfigView.swift in Sources */,
 				987036656FACD4C5E8C7E862 /* ConfigViewModel.swift in Sources */,
@@ -440,6 +450,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = KXKMBmu/KXKMBmu.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				INFOPLIST_FILE = KXKMBmu/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -456,6 +467,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = KXKMBmu/KXKMBmu.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				INFOPLIST_FILE = KXKMBmu/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (

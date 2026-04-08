@@ -1,5 +1,8 @@
 import SwiftUI
+import NetworkExtension
+import CoreLocation
 
+@MainActor
 class ConfigViewModel: ObservableObject {
     // Protection
     @Published var minMv: Int = 24000
@@ -34,13 +37,46 @@ class ConfigViewModel: ObservableObject {
     @Published var forceChannel: TransportChannel? = nil
 
     @Published var statusMessage: String? = nil
+    @Published var iPhoneSSID: String? = nil
 
     private let ble = BleManager.shared
     private let authUseCase = AuthUseCase()
+    private let locationManager = CLLocationManager()
+    private var observeTasks: [Task<Void, Never>] = []
 
     init() {
         activeChannel = ble.isConnected ? .ble : .offline
         users = authUseCase.getAllUsers()
+        startObserving()
+    }
+
+    deinit {
+        for task in observeTasks { task.cancel() }
+    }
+
+    private func startObserving() {
+        // Observe WiFi status from BMU
+        let wifiTask = Task { [weak self] in
+            guard let self else { return }
+            for await status in BleManager.shared.$wifiStatus.values {
+                guard let status else { continue }
+                self.wifiStatus = status
+                // Pre-fill SSID from BMU if field is empty
+                if self.wifiSsid.isEmpty && !status.ssid.isEmpty {
+                    self.wifiSsid = status.ssid
+                    self.tryLoadKeychainPassword(for: status.ssid)
+                }
+            }
+        }
+        observeTasks.append(wifiTask)
+    }
+
+    /// Try to load a saved password from Keychain for the given SSID.
+    private func tryLoadKeychainPassword(for ssid: String) {
+        if let saved = WifiKeychain.load(ssid: ssid) {
+            wifiPassword = saved
+            statusMessage = "Mot de passe récupéré (Keychain)"
+        }
     }
 
     func loadAll() {
@@ -48,6 +84,14 @@ class ConfigViewModel: ObservableObject {
         mqttUri = ble.mqttUri ?? ""
         mqttUsername = ble.mqttUsername ?? ""
         deviceName = ble.connectedDeviceName ?? ""
+        // Load WiFi status from BMU
+        if let status = ble.wifiStatus {
+            wifiStatus = status
+            if wifiSsid.isEmpty && !status.ssid.isEmpty {
+                wifiSsid = status.ssid
+                tryLoadKeychainPassword(for: status.ssid)
+            }
+        }
     }
 
     func saveProtection() {
@@ -58,7 +102,13 @@ class ConfigViewModel: ObservableObject {
 
     func sendWifiConfig() {
         ble.setWifiConfig(ssid: wifiSsid, password: wifiPassword)
-        statusMessage = ble.isConnected ? "WiFi configuré" : "BLE non connecté"
+        if ble.isConnected {
+            // Save password to Keychain for future auto-fill
+            WifiKeychain.save(ssid: wifiSsid, password: wifiPassword)
+            statusMessage = "WiFi configuré"
+        } else {
+            statusMessage = "BLE non connecté"
+        }
     }
 
     func sendMqttConfig() {
@@ -69,6 +119,41 @@ class ConfigViewModel: ObservableObject {
     func sendDeviceName() {
         ble.setDeviceName(deviceName)
         statusMessage = "Nom appareil mis a jour"
+    }
+
+    /// Fetch the SSID of the WiFi network the iPhone is currently connected to.
+    /// Requires: Access WiFi Information entitlement + Location When In Use permission.
+    func fetchCurrentSSID() {
+        // Request location permission if needed (required to read SSID on iOS 13+)
+        let status = locationManager.authorizationStatus
+        if status == .notDetermined {
+            locationManager.requestWhenInUseAuthorization()
+            // Will need to call again after user responds
+            statusMessage = "Autorisez la localisation puis réessayez"
+            return
+        }
+        if status == .denied || status == .restricted {
+            statusMessage = "Localisation requise pour lire le SSID (Réglages > KXKM BMU)"
+            return
+        }
+
+        NEHotspotNetwork.fetchCurrent { [weak self] network in
+            Task { @MainActor in
+                guard let self else { return }
+                if let ssid = network?.ssid, !ssid.isEmpty {
+                    self.wifiSsid = ssid
+                    self.iPhoneSSID = ssid
+                    self.tryLoadKeychainPassword(for: ssid)
+                    if self.wifiPassword.isEmpty {
+                        self.statusMessage = "SSID '\(ssid)' récupéré"
+                    } else {
+                        self.statusMessage = "SSID '\(ssid)' + mot de passe récupérés"
+                    }
+                } else {
+                    self.statusMessage = "Impossible de lire le SSID — vérifiez que le WiFi est activé"
+                }
+            }
+        }
     }
 
     func deleteUser(_ user: UserProfile) {

@@ -43,7 +43,7 @@ static const float FEAT_STDS[NUM_FEATURES] = {
 
 /* ── TFLite Micro state ───────────────────────────────────────────── */
 
-static constexpr int kArenaSize = 16 * 1024;  /* 16 KB — generous for FPNN */
+static constexpr int kArenaSize = CONFIG_BMU_SOH_ARENA_KB * 1024;
 static uint8_t s_arena[kArenaSize] __attribute__((aligned(16)));
 static tflite::MicroInterpreter *s_interpreter = nullptr;
 static bool s_ready = false;

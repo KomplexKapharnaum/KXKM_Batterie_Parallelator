@@ -45,7 +45,26 @@ struct DashboardView: View {
                             .font(.system(size: 40))
                             .foregroundColor(.secondary)
                         Text("Aucune batterie détectée")
+                            .font(.headline)
                             .foregroundColor(.secondary)
+
+                        if let sys = BleManager.shared.systemInfo {
+                            VStack(spacing: 4) {
+                                Text("BMU connecté — FW \(sys.firmwareVersion)")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Text("INA=\(sys.nbIna) TCA=\(sys.nbTca)")
+                                    .font(.caption.monospacedDigit())
+                                    .foregroundColor(.secondary)
+                                if sys.nbIna == 0 {
+                                    Text("Le firmware doit scanner le bus I2C.\nReflashez avec le fix bmu_ble_battery_svc.")
+                                        .font(.caption2)
+                                        .foregroundColor(.orange)
+                                        .multilineTextAlignment(.center)
+                                }
+                            }
+                            .padding(.top, 4)
+                        }
                     }
                     .padding(.top, 60)
                 } else {

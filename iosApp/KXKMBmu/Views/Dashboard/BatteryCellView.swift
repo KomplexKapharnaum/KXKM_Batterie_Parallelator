@@ -59,6 +59,22 @@ struct BatteryCellView: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(stateColor.opacity(0.3), lineWidth: 1)
         )
+        .overlay(alignment: .topTrailing) {
+            if let soh = BleManager.shared.sohResults[Int(battery.index)], soh.sohPercent < 70 {
+                Circle()
+                    .fill(soh.sohPercent < 40 ? Color.red : Color.orange)
+                    .frame(width: 10, height: 10)
+                    .padding(4)
+            }
+        }
+        .overlay(alignment: .topLeading) {
+            if let bal = BleManager.shared.balancerState[Int(battery.index)], bal.balancing {
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.caption2)
+                    .foregroundColor(.orange)
+                    .padding(4)
+            }
+        }
     }
 
     private var voltageColor: Color {

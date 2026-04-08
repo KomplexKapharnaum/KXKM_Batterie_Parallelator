@@ -9,14 +9,14 @@ struct MqttConfigView: View {
                 TextField("URI", text: $vm.mqttUri)
                     .textContentType(.URL)
                     .keyboardType(.URL)
-                    .autocapitalization(.none)
+                    .textInputAutocapitalization(.never)
                 Text("Ex: mqtt://192.168.0.1:1883")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
             Section("Authentification") {
                 TextField("Utilisateur", text: $vm.mqttUsername)
-                    .autocapitalization(.none)
+                    .textInputAutocapitalization(.never)
                 SecureField("Mot de passe", text: $vm.mqttPassword)
             }
             Section {

@@ -270,19 +270,34 @@ extern "C" void app_main(void)
         /* Le scan diagnostic sert de "warm-up" du bus I2C — sans lui,
          * les esclaves derriere l'ISO1540 ne repondent pas.
          * IMPORTANT: ne pas supprimer ce scan. */
-        int dev_count = bmu_i2c_scan(i2c_bus);
-        ESP_LOGI(TAG, "I2C scan: %d devices", dev_count);
-        bmu_ui_debug_set_device_count(dev_count);
+        /* Scan + init avec retry — les INA237 derriere l'ISO1540
+         * peuvent mettre 1-2s a repondre apres power-on. */
+        for (int attempt = 0; attempt < 3; attempt++) {
+            if (attempt > 0) {
+                ESP_LOGW(TAG, "I2C scan retry %d/3 — attente 500ms", attempt + 1);
+                i2c_master_bus_reset(i2c_bus);
+                vTaskDelay(pdMS_TO_TICKS(500));
+            }
+
+            int dev_count = bmu_i2c_scan(i2c_bus);
+            ESP_LOGI(TAG, "I2C scan: %d devices", dev_count);
+
+            /* Bus reset apres scan pour nettoyer les handles internes */
+            i2c_master_bus_reset(i2c_bus);
+            vTaskDelay(pdMS_TO_TICKS(50));
+
+            bmu_ina237_scan_init(i2c_bus, 2000, 10.0f, ina, &nb_ina);
+            ESP_LOGI(TAG, "INA237: %d", nb_ina);
+
+            vTaskDelay(pdMS_TO_TICKS(10));
+
+            bmu_tca9535_scan_init(i2c_bus, tca, BMU_MAX_TCA, &nb_tca);
+            ESP_LOGI(TAG, "TCA9535: %d", nb_tca);
+
+            if (nb_ina > 0 && nb_tca > 0) break; /* Tous trouves */
+        }
+        bmu_ui_debug_set_device_count(nb_ina + nb_tca);
         bmu_ui_debug_log("I2C scan OK");
-
-        bmu_ina237_scan_init(i2c_bus, 2000, 10.0f, ina, &nb_ina);
-        ESP_LOGI(TAG, "INA237: %d", nb_ina);
-
-        /* Yield pour eviter watchdog pendant l'init longue */
-        vTaskDelay(pdMS_TO_TICKS(10));
-
-        bmu_tca9535_scan_init(i2c_bus, tca, BMU_MAX_TCA, &nb_tca);
-        ESP_LOGI(TAG, "TCA9535: %d", nb_tca);
 
         topology_ok = (nb_ina > 0) && (nb_tca > 0) && (nb_tca * 4 == nb_ina);
         if (!topology_ok && (nb_ina > 0 || nb_tca > 0)) {

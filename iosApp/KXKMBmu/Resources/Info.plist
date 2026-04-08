@@ -26,6 +26,8 @@
 	<string>KXKM BMU utilise le Bluetooth pour communiquer avec le gestionnaire de batteries.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Utilisez Face ID pour déverrouiller l'app KXKM BMU.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>KXKM BMU a besoin de votre position pour lire le nom du réseau WiFi actuel.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>KXKM BMU se connecte au BMU sur votre réseau local.</string>
 	<key>UILaunchScreen</key>

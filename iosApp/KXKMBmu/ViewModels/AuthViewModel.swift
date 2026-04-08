@@ -1,5 +1,6 @@
 import SwiftUI
 
+@MainActor
 class AuthViewModel: ObservableObject {
     @Published var isAuthenticated = false
     @Published var needsOnboarding = false

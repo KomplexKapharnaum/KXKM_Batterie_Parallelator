@@ -14,15 +14,16 @@ class BatteryDetailViewModel: ObservableObject {
         self.batteryIndex = batteryIndex
 
         observeTasks.append(Task { [weak self] in
-            guard let self else { return }
             for await bleBatteries in BleManager.shared.$batteries.values {
+                guard let self else { return }
                 self.battery = bleBatteries.first { $0.index == batteryIndex }
             }
         })
 
         observeTasks.append(Task { [weak self] in
             for await result in BleManager.shared.$lastCommandResult.values {
-                guard let self, let r = result else { continue }
+                guard let self else { return }
+                guard let r = result else { continue }
                 self.commandResult = r.isSuccess ? "OK" : (r.errorMessage ?? "Erreur")
             }
         })

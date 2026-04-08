@@ -10,6 +10,7 @@
 #if CONFIG_BMU_BLE_ENABLED
 
 #include "bmu_ble_internal.h"
+#include "bmu_ble_victron_scan.h"
 #include "bmu_protection.h"
 #include "bmu_vedirect.h"
 #include "bmu_wifi.h"
@@ -58,6 +59,18 @@ static ble_uuid128_t s_wifi_ip_chr_uuid    = BMU_BLE_UUID128_DECLARE(0x23, 0x00)
 static ble_uuid128_t s_topology_chr_uuid   = BMU_BLE_UUID128_DECLARE(0x24, 0x00);
 static ble_uuid128_t s_solar_chr_uuid      = BMU_BLE_UUID128_DECLARE(0x25, 0x00);
 
+/* Victron scan — 19 bytes per device */
+typedef struct __attribute__((packed)) {
+    uint8_t  record_type;
+    uint8_t  mac[6];
+    uint8_t  decrypted;
+    uint8_t  data[10];
+    int8_t   rssi;
+} ble_vic_scan_entry_t;
+
+static ble_uuid128_t s_vic_scan_chr_uuid = BMU_BLE_UUID128_DECLARE(0x26, 0x00);
+static uint16_t s_vic_scan_val_handle = 0;
+
 /* ── Identification de la characteristic par UUID ────────────────── */
 enum sys_chr_id {
     SYS_CHR_FIRMWARE = 0,
@@ -66,6 +79,7 @@ enum sys_chr_id {
     SYS_CHR_WIFI_IP,
     SYS_CHR_TOPOLOGY,
     SYS_CHR_SOLAR,
+    SYS_CHR_VIC_SCAN,
 };
 
 /* ── Callback acces GATT ─────────────────────────────────────────── */
@@ -133,6 +147,23 @@ static int system_chr_access_cb(uint16_t conn_handle, uint16_t attr_handle,
             solar.valid = 0;
         }
         rc = os_mbuf_append(ctxt->om, &solar, sizeof(solar));
+        break;
+    }
+    case SYS_CHR_VIC_SCAN: {
+        bmu_vic_device_t devs[4];
+        int n = bmu_vic_scan_get_devices(devs, 4);
+        uint8_t count = (uint8_t)n;
+        os_mbuf_append(ctxt->om, &count, 1);
+        for (int i = 0; i < n; i++) {
+            ble_vic_scan_entry_t entry = {};
+            entry.record_type = devs[i].record_type;
+            memcpy(entry.mac, devs[i].mac, 6);
+            entry.decrypted = devs[i].decrypted ? 1 : 0;
+            memcpy(entry.data, devs[i].raw_decrypted, 10);
+            entry.rssi = 0;
+            os_mbuf_append(ctxt->om, &entry, sizeof(entry));
+        }
+        rc = 0;
         break;
     }
     default:
@@ -255,6 +286,13 @@ static struct ble_gatt_chr_def s_sys_chr_defs[] = {
         .min_key_size = 0,
         .val_handle = &s_solar_val_handle,
         .cpfd = nullptr,
+    },
+    {
+        .uuid       = &s_vic_scan_chr_uuid.u,
+        .access_cb  = system_chr_access_cb,
+        .arg        = (void *)(intptr_t)SYS_CHR_VIC_SCAN,
+        .flags      = BLE_GATT_CHR_F_READ,
+        .val_handle = &s_vic_scan_val_handle,
     },
     {}, /* Terminateur */
 };

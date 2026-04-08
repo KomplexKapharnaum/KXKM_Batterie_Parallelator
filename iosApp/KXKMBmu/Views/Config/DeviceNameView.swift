@@ -7,7 +7,7 @@ struct DeviceNameView: View {
         Form {
             Section("Nom de l'appareil") {
                 TextField("Nom", text: $vm.deviceName)
-                    .autocapitalization(.none)
+                    .textInputAutocapitalization(.never)
                 Text("Visible dans le BLE et les topics MQTT (bmu/{nom}/battery/N)")
                     .font(.caption)
                     .foregroundColor(.secondary)

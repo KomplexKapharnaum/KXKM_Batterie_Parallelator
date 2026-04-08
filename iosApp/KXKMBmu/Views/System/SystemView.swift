@@ -36,6 +36,34 @@ struct SystemView: View {
                     }
                 }
 
+                if !BleManager.shared.victronDevices.isEmpty {
+                    Section("Victron") {
+                        ForEach(BleManager.shared.victronDevices) { dev in
+                            HStack {
+                                Image(systemName: dev.recordType == 0x01 ? "sun.max" :
+                                      dev.recordType == 0x02 ? "battery.75percent" : "bolt")
+                                    .foregroundColor(dev.decrypted ? .green : .gray)
+                                if dev.decrypted && dev.rawData.count >= 10 {
+                                    VStack(alignment: .leading) {
+                                        if dev.recordType == 0x01 {
+                                            let ppv = Int(dev.rawData[4]) | (Int(dev.rawData[5]) << 8)
+                                            let vbat = Float(Int(dev.rawData[8]) | (Int(dev.rawData[9]) << 8)) / 100.0
+                                            Text(String(format: "%.1fV  %dW", vbat, ppv))
+                                        } else if dev.recordType == 0x02 {
+                                            let v = Float(Int(dev.rawData[2]) | (Int(dev.rawData[3]) << 8)) / 100.0
+                                            let soc = (Int(dev.rawData[6]) | (Int(dev.rawData[7]) << 8)) / 10
+                                            Text(String(format: "%.1fV  %d%%", v, soc))
+                                        }
+                                    }
+                                } else {
+                                    Text(dev.id).foregroundColor(.secondary)
+                                    Text("(locked)").font(.caption).foregroundColor(.orange)
+                                }
+                            }
+                        }
+                    }
+                }
+
                 if let solar = vm.solar {
                     Section("Solaire (VE.Direct)") {
                         iconRow("sun.max", "Tension panneau", String(format: "%.1f V", Double(solar.panelVoltageMv) / 1000.0))

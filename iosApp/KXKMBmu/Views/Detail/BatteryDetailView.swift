@@ -28,6 +28,60 @@ struct BatteryDetailView: View {
                     countersSection(bat)
                 }
 
+                // R_int
+                if let rint = BleManager.shared.rintResults[vm.batteryIndex], rint.valid {
+                    GroupBox("Resistance interne") {
+                        VStack(spacing: 8) {
+                            HStack {
+                                Text("R ohmique")
+                                Spacer()
+                                Text(String(format: "%.1f m\u{03A9}", rint.rOhmicMohm))
+                                    .foregroundColor(rint.rOhmicMohm <= 50 ? .green : rint.rOhmicMohm <= 100 ? .orange : .red)
+                                    .monospacedDigit()
+                            }
+                            HStack {
+                                Text("R total")
+                                Spacer()
+                                Text(String(format: "%.1f m\u{03A9}", rint.rTotalMohm))
+                                    .monospacedDigit()
+                            }
+                        }
+                    }
+                }
+
+                // SOH
+                if let soh = BleManager.shared.sohResults[vm.batteryIndex] {
+                    GroupBox("Sante batterie") {
+                        VStack(spacing: 8) {
+                            HStack {
+                                Text("SOH")
+                                Spacer()
+                                Text("\(Int(soh.sohPercent))%")
+                                    .font(.title2.bold())
+                                    .foregroundColor(soh.sohPercent >= 70 ? .green : soh.sohPercent >= 40 ? .orange : .red)
+                            }
+                            if soh.confidence > 0 {
+                                HStack {
+                                    Text("Confiance")
+                                    Spacer()
+                                    Text("\(Int(soh.confidence))%").foregroundColor(.secondary)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Balancer
+                if let bal = BleManager.shared.balancerState[vm.batteryIndex], bal.balancing {
+                    GroupBox("Equilibrage") {
+                        HStack {
+                            Image(systemName: "arrow.triangle.2.circlepath").foregroundColor(.orange)
+                            Text("Duty: \(bal.dutyPct)%")
+                            if bal.isOff { Text("(OFF)").foregroundColor(.orange) }
+                        }
+                    }
+                }
+
                 // Controls (role-gated)
                 if authVM.currentUser?.role.canControl == true {
                     controlsSection

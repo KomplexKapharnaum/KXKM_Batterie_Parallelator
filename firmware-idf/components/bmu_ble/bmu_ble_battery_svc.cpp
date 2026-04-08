@@ -21,6 +21,8 @@
 #include "host/ble_gatt.h"
 #include "os/os_mbuf.h"
 
+#include "bmu_balancer.h"
+
 #if CONFIG_BMU_RINT_ENABLED
 #include "bmu_rint.h"
 #endif
@@ -110,6 +112,15 @@ typedef struct __attribute__((packed)) {
 static ble_uuid128_t s_soh_result_uuid = BMU_BLE_UUID128_DECLARE(0x3A, 0x00);
 static uint16_t s_soh_val_handle;
 
+/* Balancer state 0x003B — 2 bytes per battery (flags + duty_pct) */
+typedef struct __attribute__((packed)) {
+    uint8_t flags;      /* bit0=is_off, bit1=balancing */
+    uint8_t duty_pct;   /* 0-100 */
+} ble_balancer_char_t;
+
+static ble_uuid128_t s_bal_state_uuid = BMU_BLE_UUID128_DECLARE(0x3B, 0x00);
+static uint16_t s_bal_val_handle = 0;
+
 static void build_soh_payload(int idx, ble_soh_char_t *out)
 {
     float soh = bmu_soh_get_cached(idx);
@@ -144,6 +155,26 @@ static int soh_result_access_cb(uint16_t conn_handle, uint16_t attr_handle,
         }
     }
 
+    return 0;
+}
+
+static int bal_state_access_cb(uint16_t conn, uint16_t attr,
+                               struct ble_gatt_access_ctxt *ctxt, void *arg)
+{
+    (void)conn; (void)attr; (void)arg;
+    if (ctxt->op != BLE_GATT_ACCESS_OP_READ_CHR) return BLE_ATT_ERR_UNLIKELY;
+    bmu_protection_ctx_t *prot = bmu_ble_get_prot();
+    uint8_t nb = prot ? prot->nb_ina : bmu_ble_get_nb_ina();
+    if (nb > 32) nb = 32;
+    os_mbuf_append(ctxt->om, &nb, 1);
+    for (int i = 0; i < nb; i++) {
+        ble_balancer_char_t b;
+        b.flags = 0;
+        if (bmu_balancer_is_off((uint8_t)i)) b.flags |= 0x01;
+        if (bmu_balancer_get_duty_pct((uint8_t)i) < 100) b.flags |= 0x02;
+        b.duty_pct = (uint8_t)bmu_balancer_get_duty_pct((uint8_t)i);
+        os_mbuf_append(ctxt->om, &b, sizeof(b));
+    }
     return 0;
 }
 
@@ -195,6 +226,24 @@ static void notify_timer_cb(void *arg)
             } else {
                 os_mbuf_free_chain(om_soh);
             }
+        }
+    }
+
+    /* Balancer state notify */
+    if (s_bal_val_handle != 0) {
+        struct os_mbuf *om_bal = ble_hs_mbuf_from_flat(NULL, 0);
+        if (om_bal) {
+            uint8_t nb_bal = nb_ina > 32 ? 32 : nb_ina;
+            os_mbuf_append(om_bal, &nb_bal, 1);
+            for (int i = 0; i < nb_bal; i++) {
+                ble_balancer_char_t bl;
+                bl.flags = 0;
+                if (bmu_balancer_is_off((uint8_t)i)) bl.flags |= 0x01;
+                if (bmu_balancer_get_duty_pct((uint8_t)i) < 100) bl.flags |= 0x02;
+                bl.duty_pct = (uint8_t)bmu_balancer_get_duty_pct((uint8_t)i);
+                os_mbuf_append(om_bal, &bl, sizeof(bl));
+            }
+            ble_gatts_notify_custom(0xFFFF, s_bal_val_handle, om_bal);
         }
     }
 #endif
@@ -337,8 +386,8 @@ static int rint_result_access_cb(uint16_t conn_handle, uint16_t attr_handle,
 #endif /* CONFIG_BMU_RINT_ENABLED */
 
 /* Tableau de characteristics — construit dynamiquement car arg = index */
-/* +1 terminateur, +2 pour R_int, +1 pour SOH */
-static struct ble_gatt_chr_def s_bat_chr_defs[BMU_MAX_BATTERIES + 4];
+/* +1 terminateur, +2 pour R_int, +1 pour SOH, +1 pour Balancer */
+static struct ble_gatt_chr_def s_bat_chr_defs[BMU_MAX_BATTERIES + 5];
 
 static struct ble_gatt_svc_def s_bat_svc[] = {
     {
@@ -386,8 +435,16 @@ const struct ble_gatt_svc_def *bmu_ble_battery_svc_defs(void)
         s_bat_chr_defs[soh_base].flags      = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY;
         s_bat_chr_defs[soh_base].val_handle = &s_soh_val_handle;
 
+        /* Balancer state 0x003B */
+        int bal_base = soh_base + 1;
+        s_bat_chr_defs[bal_base].uuid       = &s_bal_state_uuid.u;
+        s_bat_chr_defs[bal_base].access_cb  = bal_state_access_cb;
+        s_bat_chr_defs[bal_base].arg        = NULL;
+        s_bat_chr_defs[bal_base].flags      = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY;
+        s_bat_chr_defs[bal_base].val_handle = &s_bal_val_handle;
+
         /* Terminateur */
-        memset(&s_bat_chr_defs[soh_base + 1], 0, sizeof(struct ble_gatt_chr_def));
+        memset(&s_bat_chr_defs[bal_base + 1], 0, sizeof(struct ble_gatt_chr_def));
 #else
         /* Terminateur (RINT sans SOH) */
         memset(&s_bat_chr_defs[BMU_MAX_BATTERIES + 2], 0, sizeof(struct ble_gatt_chr_def));

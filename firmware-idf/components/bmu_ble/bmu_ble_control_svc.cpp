@@ -60,6 +60,7 @@ static ble_uuid128_t s_mqtt_cfg_chr_uuid  = BMU_BLE_UUID128_DECLARE(0x37, 0x00);
 static ble_uuid128_t s_dev_name_chr_uuid  = BMU_BLE_UUID128_DECLARE(0x38, 0x00);
 
 static uint16_t s_wifi_sts_val_handle = 0;
+static uint16_t s_bat_label_val_handle = 0;
 static esp_timer_handle_t s_wifi_notify_timer = NULL;
 
 enum ctrl_chr_id {
@@ -99,6 +100,19 @@ static int control_chr_access_cb(uint16_t conn_handle, uint16_t attr_handle,
             return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
         }
         return BLE_ATT_ERR_UNLIKELY;
+    }
+
+    /* Battery Label — READ returns nb + all labels (9 bytes each) */
+    if (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR && chr_id == CTRL_CHR_BAT_LABEL) {
+        uint8_t nb = bmu_ble_get_nb_ina();
+        if (nb > 32) nb = 32;
+        os_mbuf_append(ctxt->om, &nb, 1);
+        for (int i = 0; i < nb; i++) {
+            char lbl[9] = {};
+            strncpy(lbl, bmu_config_get_battery_label(i), 8);
+            os_mbuf_append(ctxt->om, lbl, 9);
+        }
+        return 0;
     }
 
     /* MQTT Config — READ returns URI + username (no password) */
@@ -453,15 +467,15 @@ static struct ble_gatt_chr_def s_ctrl_chr_defs[] = {
         .val_handle = &s_wifi_sts_val_handle,
         .cpfd = nullptr,
     },
-    /* Battery Label — write encrypted */
+    /* Battery Label — read + write encrypted */
     {
         .uuid       = &s_bat_label_chr_uuid.u,
         .access_cb  = control_chr_access_cb,
         .arg        = (void *)(intptr_t)CTRL_CHR_BAT_LABEL,
         .descriptors = nullptr,
-        .flags      = BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_WRITE_ENC,
+        .flags      = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_WRITE_ENC,
         .min_key_size = 0,
-        .val_handle = nullptr,
+        .val_handle = &s_bat_label_val_handle,
         .cpfd = nullptr,
     },
     /* MQTT Config — read + write encrypted */

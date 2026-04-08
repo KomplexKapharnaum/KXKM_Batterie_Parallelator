@@ -34,6 +34,16 @@ class DashboardViewModel: ObservableObject {
                 }
             }
         })
+
+        // Stop spinner once topology is received (even if 0 batteries)
+        observeTasks.append(Task { [weak self] in
+            for await received in BleManager.shared.$topologyReceived.values {
+                guard let self else { return }
+                if received {
+                    self.isLoading = false
+                }
+            }
+        })
     }
 
     deinit {

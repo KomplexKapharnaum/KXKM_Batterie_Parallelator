@@ -18,6 +18,9 @@ struct ConfigView: View {
                 NavigationLink("Nom BMU") {
                     DeviceNameView().environmentObject(vm)
                 }
+                NavigationLink("Noms batteries") {
+                    BatteryLabelsView()
+                }
                 NavigationLink("Utilisateurs") {
                     UserManagementView().environmentObject(vm)
                 }
@@ -29,6 +32,7 @@ struct ConfigView: View {
                 }
             }
             .navigationTitle("Configuration")
+            .onAppear { vm.loadAll() }
         }
     }
 }

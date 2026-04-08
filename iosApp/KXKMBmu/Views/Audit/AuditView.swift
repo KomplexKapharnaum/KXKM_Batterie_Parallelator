@@ -23,7 +23,7 @@ struct AuditView: View {
                         FilterChip("Tous", isActive: vm.filterAction == nil) {
                             vm.clearFilters()
                         }
-                        FilterChip("Switch", isActive: vm.filterAction == "switch_on" || vm.filterAction == "switch_off") {
+                        FilterChip("Switch", isActive: vm.filterAction == "switch") {
                             vm.filterAction = "switch"
                             vm.reload()
                         }

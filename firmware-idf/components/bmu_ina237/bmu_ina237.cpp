@@ -166,11 +166,22 @@ esp_err_t bmu_ina237_init(i2c_master_bus_handle_t bus, uint8_t addr,
 
     ESP_LOGI(TAG, "[0x%02X] INA237 detecte (MFR=0x%04X DEV=0x%04X)", addr, mfr_id, dev_id);
 
-    /* 2. Reset device (CONFIG bit 15) */
+    /* 2. Reset device (CONFIG bit 15) — soft-fail: le device demarre
+     *    en etat connu apres power-on, le reset n'est pas critique.
+     *    Apres un scan diagnostic, le bus peut etre instable temporairement. */
     ret = ina237_write_reg16_retry(ctx->dev, INA237_REG_CONFIG, INA237_CONFIG_RST);
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "[0x%02X] Echec reset: %s", addr, esp_err_to_name(ret));
-        goto fail_remove_device;
+        ESP_LOGW(TAG, "[0x%02X] Reset skip (bus instable): %s — retry apres delai",
+                 addr, esp_err_to_name(ret));
+        /* Bus instable apres scan — attendre et retenter */
+        bmu_i2c_unlock();
+        vTaskDelay(pdMS_TO_TICKS(50));
+        if (bmu_i2c_lock() != ESP_OK) goto fail_remove_device_no_unlock;
+        ret = ina237_write_reg16_retry(ctx->dev, INA237_REG_CONFIG, INA237_CONFIG_RST);
+        if (ret != ESP_OK) {
+            ESP_LOGW(TAG, "[0x%02X] Reset skip definitif — config sans reset", addr);
+            /* Continue sans reset — le device est en etat power-on */
+        }
     }
     /* Attente post-reset (datasheet : typique 1 ms) */
     vTaskDelay(pdMS_TO_TICKS(INA237_RESET_DELAY_MS));
@@ -178,8 +189,15 @@ esp_err_t bmu_ina237_init(i2c_master_bus_handle_t bus, uint8_t addr,
     /* 3. CONFIG : ADCRANGE=0 (+-163.84 mV), pas de delai de conversion */
     ret = ina237_write_reg16_retry(ctx->dev, INA237_REG_CONFIG, INA237_CONFIG_ADCRANGE_0);
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "[0x%02X] Echec ecriture CONFIG: %s", addr, esp_err_to_name(ret));
-        goto fail_remove_device;
+        ESP_LOGW(TAG, "[0x%02X] CONFIG write echec — retry", addr);
+        bmu_i2c_unlock();
+        vTaskDelay(pdMS_TO_TICKS(50));
+        if (bmu_i2c_lock() != ESP_OK) goto fail_remove_device_no_unlock;
+        ret = ina237_write_reg16_retry(ctx->dev, INA237_REG_CONFIG, INA237_CONFIG_ADCRANGE_0);
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "[0x%02X] Echec ecriture CONFIG definitif: %s", addr, esp_err_to_name(ret));
+            goto fail_remove_device;
+        }
     }
 
     /* 4. Calcul et ecriture SHUNT_CAL (datasheet SBOS945 section 8.1.2)
@@ -235,6 +253,7 @@ esp_err_t bmu_ina237_init(i2c_master_bus_handle_t bus, uint8_t addr,
 
 fail_remove_device:
     bmu_i2c_unlock();
+fail_remove_device_no_unlock:
     if (ctx->dev != NULL) {
         i2c_master_bus_rm_device(ctx->dev);
         ctx->dev = NULL;

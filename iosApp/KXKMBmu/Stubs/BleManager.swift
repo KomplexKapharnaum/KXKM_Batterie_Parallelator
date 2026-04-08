@@ -36,6 +36,11 @@ private let kWifiCfgUUID     = bmuUUID(0x0034)
 private let kWifiStsUUID     = bmuUUID(0x0035)
 private let kMqttCfgUUID     = bmuUUID(0x0037)
 private let kDeviceNameUUID  = bmuUUID(0x0038)
+private let kRintResultUUID  = bmuUUID(0x0039)
+private let kSohUUID         = bmuUUID(0x003A)
+private let kBalancerUUID    = bmuUUID(0x003B)
+private let kVictronScanUUID = bmuUUID(0x0026)
+private let kBatLabelUUID    = bmuUUID(0x0036)
 
 // MARK: - Timing constants
 
@@ -77,6 +82,14 @@ class BleManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
     @Published var mqttUri: String?
     @Published var mqttUsername: String?
     @Published var deviceName: String?
+    @Published var rintResults: [Int: RintResult] = [:]
+    @Published var sohResults: [Int: SohResult] = [:]
+    @Published var balancerState: [Int: BalancerInfo] = [:]
+    @Published var victronDevices: [VictronDevice] = []
+    @Published var batteryLabels: [Int: String] = [:]
+    @Published var wifiStatus: WifiStatusInfo?
+    /// True once topology has been received at least once this connection
+    @Published var topologyReceived = false
 
     private lazy var central = CBCentralManager(delegate: self, queue: nil)
     private var peripheral: CBPeripheral?
@@ -87,6 +100,10 @@ class BleManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
     private var systemChars: [CBCharacteristic] = []
     /// Timer for polling reads (workaround firmware notify_custom(0xFFFF) bug)
     private var pollTimer: Timer?
+    /// Track which unknown services we've already logged (avoid Victron spam)
+    private var loggedUnknownServices: Set<String> = []
+    /// Track read errors we've already logged (avoid flooding on firmware nb_ina=0)
+    private var loggedReadErrors: Set<String> = []
 
     override init() {
         super.init()
@@ -212,6 +229,20 @@ class BleManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
         logBle("Device name sent: \(name)")
     }
 
+    func setBatteryLabel(index: Int, label: String) {
+        guard let char = controlChars[kBatLabelUUID] else {
+            logBle("Battery label char not found")
+            return
+        }
+        var buf = Data(count: 10)
+        buf[0] = UInt8(index)
+        if let d = label.prefix(8).data(using: .utf8) {
+            buf.replaceSubrange(1..<(1 + min(d.count, 8)), with: d)
+        }
+        peripheral?.writeValue(buf, for: char, type: .withResponse)
+        logBle("Label[\(index)] = '\(label)'")
+    }
+
     // MARK: - Poll timer (workaround for firmware notify bug)
 
     private func startPollTimer() {
@@ -273,8 +304,11 @@ class BleManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         logBle("Connected to \(peripheral.name ?? "?")")
         isConnected = true
+        topologyReceived = false
         batteryChars = [:]
         systemChars = []
+        loggedUnknownServices = []
+        loggedReadErrors = []
         logBle("Discovering ALL services...")
         // Discover ALL services (nil) — avoids CoreBluetooth UUID cache issues with 128-bit customs
         peripheral.discoverServices(nil)
@@ -289,11 +323,20 @@ class BleManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
         logBle("Disconnected: \(error?.localizedDescription ?? "clean")")
         isConnected = false
+        topologyReceived = false
         connectedDeviceName = nil
         batteries = []
         controlChars = [:]
         batteryChars = [:]
         systemChars = []
+        wifiStatus = nil
+        rintResults = [:]
+        sohResults = [:]
+        balancerState = [:]
+        victronDevices = []
+        batteryLabels = [:]
+        loggedUnknownServices = []
+        loggedReadErrors = []
         stopPollTimer()
         DispatchQueue.main.asyncAfter(deadline: .now() + BLEConstants.reconnectDelaySeconds) { [weak self] in
             self?.startScan()
@@ -344,7 +387,7 @@ class BleManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
             let short = charUUID.count > 12 ? String(charUUID.prefix(12)) + "..." : charUUID
             logBle("  \(short) R=\(props.contains(.read)) N=\(props.contains(.notify)) W=\(props.contains(.write))")
 
-            // Store battery characteristics for polling
+            // Store battery characteristics for polling (don't read/subscribe yet)
             if isBatSvc {
                 for i in 0..<16 {
                     if char.uuid == batteryCharUUID(i) {
@@ -352,6 +395,9 @@ class BleManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
                         break
                     }
                 }
+                // Don't subscribe to battery notifications until topology tells us
+                // which indices are valid — avoids flood of "handle invalid" errors
+                continue
             }
 
             // Store system characteristics for polling
@@ -362,9 +408,8 @@ class BleManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
             if props.contains(.notify) {
                 peripheral.setNotifyValue(true, for: char)
             }
-            // Read system + control chars immediately, but defer battery reads
-            // to poll timer (after topology trim to avoid Invalid Handle errors)
-            if !isBatSvc && props.contains(.read) {
+            // Read system + control chars immediately
+            if props.contains(.read) {
                 peripheral.readValue(for: char)
             }
             if isCtlSvc {
@@ -372,16 +417,20 @@ class BleManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
             }
         }
 
-        // Start poll timer once we have battery characteristics
-        if isBatSvc && !batteryChars.isEmpty {
-            logBle("Starting poll timer (\(Int(BLEConstants.pollIntervalSeconds))s) for \(batteryChars.count) batteries")
-            startPollTimer()
+        // Don't start poll timer yet — wait for topology to arrive
+        // (topology triggers startBatteryPolling with the right INA count)
+        if isBatSvc {
+            logBle("Stored \(batteryChars.count) battery chars — waiting for topology")
         }
     }
 
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
         if let error {
-            logBle("READ ERR \(characteristic.uuid.uuidString.prefix(12)): \(error.localizedDescription)")
+            let key = String(characteristic.uuid.uuidString.prefix(12))
+            if !loggedReadErrors.contains(key) {
+                loggedReadErrors.insert(key)
+                logBle("READ ERR \(key): \(error.localizedDescription)")
+            }
             return
         }
         guard let data = characteristic.value, !data.isEmpty else {
@@ -412,7 +461,47 @@ class BleManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
                     return
                 }
             }
-            // Battery char > 15 or R_int/SOH — ignore for now
+            // R_int results (0x0039)
+            if uuid == kRintResultUUID && data.count >= 12 {
+                let nb = Int(data[0])
+                for i in 0..<min(nb, (data.count - 1) / 11) {
+                    let off = 1 + i * 11
+                    guard off + 11 <= data.count else { break }
+                    let rOhmic = Float(data.readUInt16LE(at: off)) / 10.0
+                    let rTotal = Float(data.readUInt16LE(at: off + 2)) / 10.0
+                    let valid = data[off + 10] != 0
+                    rintResults[i] = RintResult(rOhmicMohm: rOhmic, rTotalMohm: rTotal, valid: valid)
+                }
+                return
+            }
+
+            // SOH (0x003A)
+            if uuid == kSohUUID && data.count >= 8 {
+                let nb = Int(data[0])
+                for i in 0..<min(nb, (data.count - 1) / 7) {
+                    let off = 1 + i * 7
+                    guard off + 7 <= data.count else { break }
+                    let soh = Float(data[off])
+                    let rint = Float(data.readUInt16LE(at: off + 1)) / 10.0
+                    let rv = data[off + 5] != 0
+                    let conf = Float(data[off + 6])
+                    sohResults[i] = SohResult(sohPercent: soh, confidence: conf, rintMohm: rint, rintValid: rv)
+                }
+                return
+            }
+
+            // Balancer state (0x003B)
+            if uuid == kBalancerUUID && data.count >= 3 {
+                let nb = Int(data[0])
+                for i in 0..<min(nb, (data.count - 1) / 2) {
+                    let off = 1 + i * 2
+                    let flags = data[off]
+                    let duty = Int(data[off + 1])
+                    balancerState[i] = BalancerInfo(isOff: (flags & 0x01) != 0, balancing: (flags & 0x02) != 0, dutyPct: duty)
+                }
+                return
+            }
+
             return
         }
 
@@ -471,6 +560,8 @@ class BleManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
             case kTopologyUUID:
                 if data.count >= 3 {
                     let nbIna = Int(data[0])
+                    let prevReceived = topologyReceived
+                    topologyReceived = true
                     logBle("Topo: INA=\(nbIna) TCA=\(data[1]) valid=\(data[2])")
                     systemInfo = SystemInfo(
                         firmwareVersion: systemInfo?.firmwareVersion ?? "?",
@@ -482,11 +573,27 @@ class BleManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
                         topologyValid: data[2] != 0
                     )
                     // Trim battery poll list to real INA count
-                    let validKeys = batteryChars.keys.filter { $0 < nbIna }
                     let invalidKeys = batteryChars.keys.filter { $0 >= nbIna }
-                    if !invalidKeys.isEmpty {
-                        for k in invalidKeys { batteryChars.removeValue(forKey: k) }
-                        logBle("Poll trimmed to \(validKeys.count) batteries")
+                    for k in invalidKeys { batteryChars.removeValue(forKey: k) }
+
+                    if nbIna > 0 && !batteryChars.isEmpty {
+                        // Subscribe to notifications + start polling for valid chars
+                        if !prevReceived {
+                            for (_, char) in batteryChars {
+                                peripheral.setNotifyValue(true, for: char)
+                            }
+                            logBle("Subscribed \(batteryChars.count) battery notifications")
+                        }
+                        if pollTimer == nil {
+                            logBle("Starting poll timer for \(batteryChars.count) batteries")
+                            startPollTimer()
+                        }
+                    } else {
+                        // No batteries — unsubscribe and stop polling
+                        if !invalidKeys.isEmpty {
+                            logBle("Poll trimmed to 0 batteries — stopping")
+                        }
+                        stopPollTimer()
                     }
                 }
             case kSolarUUID:
@@ -507,6 +614,22 @@ class BleManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
                         yieldTodayWh: Int64(data.readUInt32LE(at: 10)),
                         isValid: valid
                     )
+                }
+            case kVictronScanUUID:
+                if data.count >= 1 {
+                    let nb = Int(data[0])
+                    var devs: [VictronDevice] = []
+                    for i in 0..<min(nb, (data.count - 1) / 19) {
+                        let off = 1 + i * 19
+                        guard off + 19 <= data.count else { break }
+                        let rt = data[off]
+                        let mac = data.subdata(in: (off+1)..<(off+7))
+                        let dec = data[off + 7] != 0
+                        let raw = data.subdata(in: (off+8)..<(off+18))
+                        let macHex = mac.map { String(format: "%02X", $0) }.joined(separator: ":")
+                        devs.append(VictronDevice(id: macHex, recordType: rt, mac: mac, decrypted: dec, rawData: raw))
+                    }
+                    victronDevices = devs
                 }
             default:
                 break
@@ -536,18 +659,44 @@ class BleManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
                     .trimmingCharacters(in: .controlCharacters)
                     .replacingOccurrences(of: "\0", with: "")
                 logBle("Device name: \(deviceName ?? "?")")
+            } else if uuid == kBatLabelUUID && data.count >= 10 {
+                let nb = Int(data[0])
+                for i in 0..<min(nb, (data.count - 1) / 9) {
+                    let off = 1 + i * 9
+                    let labelData = data.subdata(in: off..<min(off + 9, data.count))
+                    let label = String(data: labelData, encoding: .utf8)?
+                        .replacingOccurrences(of: "\0", with: "")
+                        .trimmingCharacters(in: .controlCharacters) ?? "B\(i+1)"
+                    if !label.isEmpty { batteryLabels[i] = label }
+                }
+            } else if uuid == kWifiStsUUID && data.count >= 50 {
+                // Firmware pack: ssid(32) + ip(16) + rssi(1) + connected(1) = 50 bytes
+                let ssid = String(data: data.subdata(in: 0..<32), encoding: .utf8)?
+                    .replacingOccurrences(of: "\0", with: "") ?? ""
+                let ip = String(data: data.subdata(in: 32..<48), encoding: .utf8)?
+                    .replacingOccurrences(of: "\0", with: "") ?? ""
+                let rssiVal = Int(Int8(bitPattern: data[48]))
+                let connected = data[49] != 0
+                wifiStatus = WifiStatusInfo(ssid: ssid, ip: ip, rssi: rssiVal, connected: connected)
+                logBle("WiFi status: \(ssid) ip=\(ip) rssi=\(rssiVal) conn=\(connected)")
             }
             return
         }
 
-        // Unknown service characteristic
-        logBle("Unknown char \(uuid.uuidString.prefix(12)) from svc \(parentSvcUUID?.uuidString.prefix(12) ?? "nil")")
+        // Unknown service characteristic — log once per service to avoid spam
+        let svcKey = parentSvcUUID?.uuidString ?? "nil"
+        if !loggedUnknownServices.contains(svcKey) {
+            loggedUnknownServices.insert(svcKey)
+            logBle("Ignoring chars from unknown svc \(svcKey.prefix(12))... (logged once)")
+        }
     }
 
     func peripheral(_ peripheral: CBPeripheral, didReadRSSI RSSI: NSNumber, error: Error?) {
         rssi = RSSI.intValue
+        guard isConnected else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + BLEConstants.rssiPollIntervalSeconds) { [weak self] in
-            self?.peripheral?.readRSSI()
+            guard let self, self.isConnected else { return }
+            self.peripheral?.readRSSI()
         }
     }
 
