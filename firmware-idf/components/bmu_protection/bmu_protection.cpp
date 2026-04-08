@@ -89,11 +89,15 @@ static bool is_imbalance_ok(float voltage_mv, float fleet_max_mv)
     return true;
 }
 
-/* ── Helper: find max voltage across all batteries ─────────────────── */
+/* ── Helper: find max voltage across CONNECTED batteries only ─────── */
 static float find_fleet_max_mv(bmu_protection_ctx_t *ctx)
 {
     float max_mv = 0;
     for (int i = 0; i < ctx->nb_ina; i++) {
+        /* Ignorer les batteries OFF/ERROR/LOCKED — leur tension cachee
+         * est stale et provoquerait une cascade d'imbalance */
+        bmu_battery_state_t st = ctx->battery_state[i];
+        if (st != BMU_STATE_CONNECTED && st != BMU_STATE_RECONNECTING) continue;
         if (ctx->battery_voltages[i] > max_mv) {
             max_mv = ctx->battery_voltages[i];
         }
@@ -111,6 +115,11 @@ esp_err_t bmu_protection_check_battery(bmu_protection_ctx_t *ctx, int idx)
     esp_err_t ret = bmu_ina237_read_voltage_current(&ctx->ina_devices[idx], &v_mv, &i_a);
     if (ret != ESP_OK || std::isnan(v_mv) || std::isnan(i_a)) {
         ESP_LOGW(TAG, "BAT[%d] I2C read error — skip protection", idx + 1);
+        /* Invalider la tension cachee pour ne pas polluer fleet_max */
+        if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+            ctx->battery_voltages[idx] = 0;
+            xSemaphoreGive(ctx->state_mutex);
+        }
         return ret;
     }
 

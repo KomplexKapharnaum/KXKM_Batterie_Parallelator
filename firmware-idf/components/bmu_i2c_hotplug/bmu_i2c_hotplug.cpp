@@ -57,6 +57,8 @@ void bmu_hotplug_get_stats(bmu_hotplug_stats_t *stats)
 
 static bool device_still_present(uint8_t addr)
 {
+    /* Yield avant chaque probe pour laisser la boucle protection lire le bus */
+    vTaskDelay(pdMS_TO_TICKS(2));
     return bmu_i2c_probe(s_cfg.bus, addr, pdMS_TO_TICKS(20)) == ESP_OK;
 }
 
