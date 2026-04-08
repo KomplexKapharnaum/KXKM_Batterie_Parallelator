@@ -95,7 +95,8 @@ static void cloud_telemetry_task(void *pv)
             }
         }
 
-        for (int i = 0; i < *ctx->nb_ina; i++) {
+        uint8_t snap_ina = *ctx->nb_ina; /* snapshot atomique */
+        for (int i = 0; i < snap_ina; i++) {
             float v_mv = bmu_protection_get_voltage(ctx->prot, i);
             float ah_d = bmu_battery_manager_get_ah_discharge(ctx->mgr, i);
             float ah_c = bmu_battery_manager_get_ah_charge(ctx->mgr, i);
@@ -506,19 +507,18 @@ extern "C" void app_main(void)
                 }
             } else {
                 topology_fail_safe_applied = false;
-                for (int i = 0; i < nb_ina; i++) {
-                    /* Skip la protection si le balancer a mis cette batterie en OFF volontaire */
+                /* Snapshot atomique pour eviter les data races avec hotplug */
+                uint8_t snap_ina = nb_ina;
+                for (int i = 0; i < snap_ina; i++) {
                     if (bmu_balancer_is_off((uint8_t)i)) continue;
                     bmu_protection_check_battery(&prot, i);
                 }
-                /* Soft-balancing : duty-cycling des batteries trop chargees */
                 int balancing = bmu_balancer_tick();
                 if (balancing > 0) {
                     ESP_LOGD("MAIN", "%d batterie(s) en equilibrage", balancing);
                 }
-                /* Update display context if hotplug changed nb_ina */
-                if (disp_ctx.nb_ina != nb_ina) {
-                    disp_ctx.nb_ina = nb_ina;
+                if (disp_ctx.nb_ina != snap_ina) {
+                    disp_ctx.nb_ina = snap_ina;
                     bmu_display_request_update();
                 }
             }

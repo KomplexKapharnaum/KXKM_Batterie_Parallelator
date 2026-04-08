@@ -375,19 +375,24 @@ esp_err_t bmu_protection_get_switch_count(bmu_protection_ctx_t *ctx, int idx,
     return ESP_OK;
 }
 
-/* ── Web-initiated switch — validates through protection (audit H-06) ─── */
+/* ── Web-initiated switch — validates through protection ──────────────── */
 esp_err_t bmu_protection_web_switch(bmu_protection_ctx_t *ctx, int idx, bool on)
 {
     if (idx < 0 || idx >= ctx->nb_ina) return ESP_ERR_INVALID_ARG;
 
-    /* Check if battery is locked */
     bmu_battery_state_t state = bmu_protection_get_state(ctx, idx);
+
+    /* Rejeter les etats dangereux */
     if (state == BMU_STATE_LOCKED) {
         ESP_LOGW(TAG, "BAT[%d] web switch rejected — LOCKED", idx + 1);
         return ESP_ERR_NOT_ALLOWED;
     }
+    if (on && state == BMU_STATE_ERROR) {
+        ESP_LOGW(TAG, "BAT[%d] web switch ON rejected — ERROR state", idx + 1);
+        return ESP_ERR_NOT_ALLOWED;
+    }
 
-    /* For switch ON: validate voltage is in safe range */
+    /* Pour switch ON: valider tension dans la plage securisee */
     if (on) {
         float v_mv = bmu_protection_get_voltage(ctx, idx);
         if (v_mv < BMU_MIN_VOLTAGE_MV || v_mv > BMU_MAX_VOLTAGE_MV) {
@@ -397,7 +402,6 @@ esp_err_t bmu_protection_web_switch(bmu_protection_ctx_t *ctx, int idx, bool on)
         }
     }
 
-    /* Execute switch via TCA */
     int tca_idx = idx / 4;
     int channel = idx % 4;
     if (tca_idx >= ctx->nb_tca) return ESP_ERR_INVALID_ARG;
@@ -405,7 +409,21 @@ esp_err_t bmu_protection_web_switch(bmu_protection_ctx_t *ctx, int idx, bool on)
     esp_err_t ret = bmu_tca9535_switch_battery(&ctx->tca_devices[tca_idx], channel, on);
     if (ret == ESP_OK) {
         bmu_tca9535_set_led(&ctx->tca_devices[tca_idx], channel, !on, on);
-        ESP_LOGI(TAG, "BAT[%d] web switch %s OK", idx + 1, on ? "ON" : "OFF");
+
+        /* Mettre a jour l'etat et le compteur de switch — meme logique
+         * que la state machine automatique pour coherence */
+        if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+            if (on) {
+                ctx->nb_switch[idx]++;
+                ctx->reconnect_time_ms[idx] = esp_timer_get_time() / 1000;
+                ctx->battery_state[idx] = BMU_STATE_RECONNECTING;
+            } else {
+                ctx->battery_state[idx] = BMU_STATE_DISCONNECTED;
+            }
+            xSemaphoreGive(ctx->state_mutex);
+        }
+        ESP_LOGI(TAG, "BAT[%d] web switch %s OK (sw=%d)",
+                 idx + 1, on ? "ON" : "OFF", ctx->nb_switch[idx]);
     }
     return ret;
 }
