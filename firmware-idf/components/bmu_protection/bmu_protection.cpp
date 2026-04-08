@@ -339,3 +339,46 @@ esp_err_t bmu_protection_web_switch(bmu_protection_ctx_t *ctx, int idx, bool on)
     }
     return ret;
 }
+
+esp_err_t bmu_protection_update_topology(bmu_protection_ctx_t *ctx,
+                                          uint8_t new_nb_ina,
+                                          uint8_t new_nb_tca)
+{
+    if (new_nb_ina > BMU_MAX_BATTERIES || new_nb_tca > BMU_MAX_TCA) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(100)) != pdTRUE) {
+        return ESP_ERR_TIMEOUT;
+    }
+
+    uint8_t old_nb_ina = ctx->nb_ina;
+
+    /* Init state for newly added battery slots */
+    for (int i = old_nb_ina; i < new_nb_ina; i++) {
+        ctx->battery_state[i] = BMU_STATE_DISCONNECTED;
+        ctx->battery_voltages[i] = 0;
+        ctx->nb_switch[i] = 0;
+        ctx->reconnect_time_ms[i] = 0;
+    }
+
+    /* Clear state for removed battery slots */
+    for (int i = new_nb_ina; i < old_nb_ina; i++) {
+        ctx->battery_state[i] = BMU_STATE_DISCONNECTED;
+        ctx->battery_voltages[i] = 0;
+        ctx->nb_switch[i] = 0;
+        ctx->reconnect_time_ms[i] = 0;
+    }
+
+    ctx->nb_ina = new_nb_ina;
+    ctx->nb_tca = new_nb_tca;
+
+    xSemaphoreGive(ctx->state_mutex);
+
+    if (new_nb_ina != old_nb_ina) {
+        ESP_LOGI(TAG, "Topology updated: %d→%d INA, %d TCA",
+                 old_nb_ina, new_nb_ina, new_nb_tca);
+    }
+
+    return ESP_OK;
+}

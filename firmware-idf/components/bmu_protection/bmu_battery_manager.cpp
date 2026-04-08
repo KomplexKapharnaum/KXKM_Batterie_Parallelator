@@ -214,3 +214,27 @@ float bmu_battery_manager_get_last_current_a(bmu_battery_manager_t *mgr, int idx
     }
     return value;
 }
+
+esp_err_t bmu_battery_manager_update_nb_ina(bmu_battery_manager_t *mgr, uint8_t new_nb_ina)
+{
+    if (new_nb_ina > BMU_MAX_BATTERIES) return ESP_ERR_INVALID_ARG;
+
+    if (xSemaphoreTake(mgr->mutex, pdMS_TO_TICKS(100)) != pdTRUE) {
+        return ESP_ERR_TIMEOUT;
+    }
+
+    uint8_t old = mgr->nb_ina;
+
+    /* Reset Ah counters for new slots */
+    for (int i = old; i < new_nb_ina; i++) {
+        mgr->last_voltage_mv[i] = 0;
+        mgr->last_current_a[i] = 0;
+        mgr->ah_discharge[i] = 0;
+        mgr->ah_charge[i] = 0;
+    }
+
+    mgr->nb_ina = new_nb_ina;
+    xSemaphoreGive(mgr->mutex);
+
+    return ESP_OK;
+}

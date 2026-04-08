@@ -54,6 +54,15 @@ esp_err_t bmu_protection_get_switch_count(bmu_protection_ctx_t *ctx, int battery
  */
 esp_err_t bmu_protection_web_switch(bmu_protection_ctx_t *ctx, int battery_idx, bool on);
 
+/**
+ * @brief Update topology counts after hotplug re-scan.
+ * Resets state of new battery slots to DISCONNECTED.
+ * Must be called with valid nb_ina <= BMU_MAX_BATTERIES and nb_tca <= BMU_MAX_TCA.
+ */
+esp_err_t bmu_protection_update_topology(bmu_protection_ctx_t *ctx,
+                                          uint8_t new_nb_ina,
+                                          uint8_t new_nb_tca);
+
 #ifdef __cplusplus
 }
 #endif

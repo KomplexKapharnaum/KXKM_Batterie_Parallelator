@@ -39,6 +39,11 @@ float bmu_battery_manager_get_total_current_a(bmu_battery_manager_t *mgr);
 float bmu_battery_manager_get_last_voltage_mv(bmu_battery_manager_t *mgr, int idx);
 float bmu_battery_manager_get_last_current_a(bmu_battery_manager_t *mgr, int idx);
 
+/**
+ * @brief Update nb_ina after hotplug topology change.
+ */
+esp_err_t bmu_battery_manager_update_nb_ina(bmu_battery_manager_t *mgr, uint8_t new_nb_ina);
+
 #ifdef __cplusplus
 }
 #endif
