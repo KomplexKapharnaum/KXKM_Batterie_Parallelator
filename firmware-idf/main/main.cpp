@@ -260,6 +260,15 @@ extern "C" void app_main(void)
     static bool topology_ok = false;
 
     if (i2c_ok) {
+        /* 5 cycles de reset I2C pour nettoyer le bus au demarrage.
+         * Apres un crash ou reset hardware, un esclave peut rester bloque
+         * mid-transaction (SDA low). Le bit-bang recovery debloque le bus. */
+        ESP_LOGI(TAG, "I2C bus cleanup — 5 recovery cycles");
+        for (int cycle = 0; cycle < 5; cycle++) {
+            bmu_i2c_bus_recover();
+            vTaskDelay(pdMS_TO_TICKS(10));
+        }
+
         int dev_count = bmu_i2c_scan(i2c_bus);
         ESP_LOGI(TAG, "I2C scan: %d devices", dev_count);
         bmu_ui_debug_set_device_count(dev_count);
