@@ -14,21 +14,23 @@
 
 #include "esp_log.h"
 #include "esp_http_client.h"
+#include "esp_heap_caps.h"
 #include "sdkconfig.h"
+
+static constexpr size_t URL_BUF_SIZE = 256;
+static constexpr size_t AUTH_BUF_SIZE = 256;
 
 static const char *TAG = "INFLUX";
 
-// --- Buffer statique pour les lignes line-protocol ---
+// --- Buffer pour les lignes line-protocol (PSRAM pour economiser la DRAM) ---
 static constexpr size_t BUFFER_MAX_BYTES = 4096;
-static char s_buffer[BUFFER_MAX_BYTES];
+static char *s_buffer = NULL;  /* alloue en PSRAM dans bmu_influx_init() */
 static size_t s_buffer_len = 0;
 static int s_buffer_lines = 0;
 
-// URL complète construite à l'init
-static char s_write_url[256];
-
-// Token d'authentification formaté
-static char s_auth_header[256];
+// URL + token (PSRAM — pas de perf critique)
+static char *s_write_url = NULL;     /* 256 bytes */
+static char *s_auth_header = NULL;   /* 256 bytes */
 
 // Indicateur d'initialisation
 static bool s_initialized = false;
@@ -38,27 +40,44 @@ static bool s_initialized = false;
 // ---------------------------------------------------------------------------
 esp_err_t bmu_influx_init(void)
 {
-    // Avertissement sécurité si HTTP (pas HTTPS)
-    const char *url = CONFIG_BMU_INFLUX_URL;
-    if (strncmp(url, "http://", 7) == 0) {
-        ESP_LOGW(TAG, "URL InfluxDB utilise HTTP non chiffré — HTTPS recommandé (audit)");
+    /* Allouer les buffers en PSRAM pour economiser la DRAM interne */
+    if (s_buffer == NULL) {
+        s_buffer = (char *)heap_caps_calloc(1, BUFFER_MAX_BYTES, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        if (s_buffer == NULL) {
+            s_buffer = (char *)calloc(1, BUFFER_MAX_BYTES); /* fallback DRAM */
+        }
+    }
+    if (s_write_url == NULL) {
+        s_write_url = (char *)heap_caps_calloc(1, URL_BUF_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        if (s_write_url == NULL) s_write_url = (char *)calloc(1, URL_BUF_SIZE);
+    }
+    if (s_auth_header == NULL) {
+        s_auth_header = (char *)heap_caps_calloc(1, AUTH_BUF_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        if (s_auth_header == NULL) s_auth_header = (char *)calloc(1, AUTH_BUF_SIZE);
+    }
+    if (s_buffer == NULL || s_write_url == NULL || s_auth_header == NULL) {
+        ESP_LOGE(TAG, "Echec allocation buffers InfluxDB");
+        return ESP_ERR_NO_MEM;
     }
 
-    // Construire l'URL d'écriture
-    int ret = snprintf(s_write_url, sizeof(s_write_url),
+    const char *url = CONFIG_BMU_INFLUX_URL;
+    if (strncmp(url, "http://", 7) == 0) {
+        ESP_LOGW(TAG, "URL InfluxDB utilise HTTP non chiffré — HTTPS recommandé");
+    }
+
+    int ret = snprintf(s_write_url, URL_BUF_SIZE,
                        "%s/api/v2/write?org=%s&bucket=%s&precision=ns",
                        CONFIG_BMU_INFLUX_URL,
                        CONFIG_BMU_INFLUX_ORG,
                        CONFIG_BMU_INFLUX_BUCKET);
-    if (ret < 0 || (size_t)ret >= sizeof(s_write_url)) {
+    if (ret < 0 || (size_t)ret >= URL_BUF_SIZE) {
         ESP_LOGE(TAG, "URL trop longue pour le buffer interne");
         return ESP_ERR_NO_MEM;
     }
 
-    // Construire le header Authorization
-    ret = snprintf(s_auth_header, sizeof(s_auth_header),
+    ret = snprintf(s_auth_header, AUTH_BUF_SIZE,
                    "Token %s", CONFIG_BMU_INFLUX_TOKEN);
-    if (ret < 0 || (size_t)ret >= sizeof(s_auth_header)) {
+    if (ret < 0 || (size_t)ret >= AUTH_BUF_SIZE) {
         ESP_LOGE(TAG, "Token trop long pour le buffer interne");
         return ESP_ERR_NO_MEM;
     }
