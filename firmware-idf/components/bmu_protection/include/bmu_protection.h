@@ -1,5 +1,6 @@
 #pragma once
 
+#include "bmu_types.h"
 #include "bmu_ina237.h"
 #include "bmu_tca9535.h"
 #include "bmu_config.h"
@@ -11,13 +12,7 @@
 extern "C" {
 #endif
 
-typedef enum {
-    BMU_STATE_CONNECTED,
-    BMU_STATE_DISCONNECTED,
-    BMU_STATE_RECONNECTING,
-    BMU_STATE_ERROR,
-    BMU_STATE_LOCKED
-} bmu_battery_state_t;
+// bmu_battery_state_t now defined in bmu_types.h
 
 typedef struct {
     bmu_ina237_t         *ina_devices;
