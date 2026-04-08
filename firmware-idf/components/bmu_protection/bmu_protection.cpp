@@ -199,37 +199,54 @@ esp_err_t bmu_protection_check_battery(bmu_protection_ctx_t *ctx, int idx)
         }
         return ESP_OK; /* Locked — no further processing until reboot */
     }
-    /* Protection checks failed */
-    else if (!is_voltage_in_range(v_mv) ||
-             !is_current_in_range(i_a) ||
-             !is_imbalance_ok(v_mv, find_fleet_max_mv(ctx))) {
+    /* Protection checks: voltage, current, imbalance */
+    else if (!is_voltage_in_range(v_mv) || !is_current_in_range(i_a)) {
+        /* Voltage ou courant hors range — deconnexion immediate */
         state = BMU_STATE_DISCONNECTED;
-        /* DEBUG: identifier la cause de deconnexion */
-        float fm = find_fleet_max_mv(ctx);
-        ESP_LOGW(TAG, "BAT[%d] PROT FAIL: V=%.0f I=%.3f Vok=%d Iok=%d Imb=%d (fleet=%.0f diff=%.0f)",
-                 idx + 1, v_mv, i_a,
-                 is_voltage_in_range(v_mv),
-                 is_current_in_range(i_a),
-                 is_imbalance_ok(v_mv, fm),
-                 fm, fm - v_mv);
+        ctx->imbalance_count[idx] = 0;
+        ESP_LOGW(TAG, "BAT[%d] PROT: V=%.0f I=%.3f — hors range", idx + 1, v_mv, i_a);
     }
-    /* Already connected and all checks pass — stay CONNECTED */
-    else if (local_prev_state == BMU_STATE_CONNECTED ||
-             local_prev_state == BMU_STATE_RECONNECTING) {
-        state = BMU_STATE_CONNECTED;
+    else if (!is_imbalance_ok(v_mv, find_fleet_max_mv(ctx))) {
+        /* Imbalance — deconnexion seulement apres N cycles consecutifs.
+         * Les transitoires post-connexion causent des faux positifs. */
+        ctx->imbalance_count[idx]++;
+        if (ctx->imbalance_count[idx] >= BMU_IMBALANCE_CONFIRM_CYCLES) {
+            state = BMU_STATE_DISCONNECTED;
+            float fm = find_fleet_max_mv(ctx);
+            ESP_LOGW(TAG, "BAT[%d] IMBALANCE confirme (%d cycles): V=%.0f fleet=%.0f diff=%.0f",
+                     idx + 1, ctx->imbalance_count[idx], v_mv, fm, fm - v_mv);
+            ctx->imbalance_count[idx] = 0;
+        } else {
+            /* Pas encore confirme — rester dans l'etat actuel */
+            float fm = find_fleet_max_mv(ctx);
+            ESP_LOGD(TAG, "BAT[%d] imbalance %d/%d: V=%.0f fleet=%.0f diff=%.0f",
+                     idx + 1, ctx->imbalance_count[idx], BMU_IMBALANCE_CONFIRM_CYCLES,
+                     v_mv, fm, fm - v_mv);
+            state = local_prev_state; /* Garder l'etat actuel */
+        }
     }
-    /* First connection (never switched) */
-    else if (local_nb_switch == 0) {
-        state = BMU_STATE_RECONNECTING;
-    }
-    /* Reconnect eligible after delay */
-    else if (local_nb_switch <= BMU_NB_SWITCH_MAX &&
-             (now_ms() - local_reconnect_time > BMU_RECONNECT_DELAY_MS)) {
-        state = BMU_STATE_RECONNECTING;
-    }
-    /* Waiting for reconnect delay — stay disconnected */
+    /* All protection checks pass — reset imbalance counter */
     else {
-        state = BMU_STATE_DISCONNECTED;
+        ctx->imbalance_count[idx] = 0;
+
+        /* Already connected — stay CONNECTED */
+        if (local_prev_state == BMU_STATE_CONNECTED ||
+            local_prev_state == BMU_STATE_RECONNECTING) {
+            state = BMU_STATE_CONNECTED;
+        }
+        /* First connection (never switched) */
+        else if (local_nb_switch == 0) {
+            state = BMU_STATE_RECONNECTING;
+        }
+        /* Reconnect eligible after delay */
+        else if (local_nb_switch <= BMU_NB_SWITCH_MAX &&
+                 (now_ms() - local_reconnect_time > BMU_RECONNECT_DELAY_MS)) {
+            state = BMU_STATE_RECONNECTING;
+        }
+        /* Waiting for reconnect delay — stay disconnected */
+        else {
+            state = BMU_STATE_DISCONNECTED;
+        }
     }
 
     /* ── Act on state ─────────────────────────────────────────────── */

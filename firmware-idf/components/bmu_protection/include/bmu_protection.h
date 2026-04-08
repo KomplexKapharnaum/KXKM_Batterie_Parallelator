@@ -30,7 +30,10 @@ typedef struct {
     int                   nb_switch[BMU_MAX_BATTERIES];
     int64_t               reconnect_time_ms[BMU_MAX_BATTERIES];
     bmu_battery_state_t   battery_state[BMU_MAX_BATTERIES];
+    uint8_t               imbalance_count[BMU_MAX_BATTERIES]; /**< Consecutive imbalance cycles */
 } bmu_protection_ctx_t;
+
+#define BMU_IMBALANCE_CONFIRM_CYCLES 3  /**< Cycles d'imbalance avant disconnect */
 
 esp_err_t bmu_protection_init(bmu_protection_ctx_t *ctx,
                                bmu_ina237_t *ina, uint8_t nb_ina,
