@@ -110,6 +110,13 @@ esp_err_t bmu_protection_check_battery(bmu_protection_ctx_t *ctx, int idx)
 {
     if (idx < 0 || idx >= ctx->nb_ina) return ESP_ERR_INVALID_ARG;
 
+    /* Skip si deja LOCKED — ne pas re-log ni re-switch inutilement */
+    if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+        bmu_battery_state_t cur = ctx->battery_state[idx];
+        xSemaphoreGive(ctx->state_mutex);
+        if (cur == BMU_STATE_LOCKED) return ESP_OK;
+    }
+
     /* Read voltage (mV) and current (A) from INA237 */
     float v_mv = 0, i_a = 0;
     esp_err_t ret = bmu_ina237_read_voltage_current(&ctx->ina_devices[idx], &v_mv, &i_a);

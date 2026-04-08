@@ -386,6 +386,10 @@ void bmu_ui_detail_update(bmu_ui_ctx_t *ctx, int idx)
                 lv_chart_set_value_by_id(s_chart, s_ser_v, i, LV_CHART_POINT_NONE);
                 lv_chart_set_value_by_id(s_chart, s_ser_i, i, LV_CHART_POINT_NONE);
             }
+            /* Yield toutes les 20 iterations pour eviter le watchdog IDLE0 */
+            if ((i % 20) == 19) {
+                vTaskDelay(1);
+            }
         }
 
         /* Auto-scale axe Y tension */

@@ -202,6 +202,13 @@ static int scan_new_ina(void)
 
         if (bmu_i2c_probe(s_cfg.bus, addr, pdMS_TO_TICKS(20)) != ESP_OK) continue;
 
+        /* Double-probe pour confirmer (eviter faux positifs bruit I2C) */
+        vTaskDelay(pdMS_TO_TICKS(50));
+        if (bmu_i2c_probe(s_cfg.bus, addr, pdMS_TO_TICKS(20)) != ESP_OK) {
+            ESP_LOGD(TAG, "INA237 @ 0x%02X: 1er probe OK, 2e echec — ignore", addr);
+            continue;
+        }
+
         esp_err_t ret = bmu_ina237_init(s_cfg.bus, addr,
                                          INA237_SHUNT_RESISTANCE_UOHM, 10.0f,
                                          &s_cfg.ina_devices[cur]);
@@ -237,6 +244,13 @@ static int scan_new_tca(void)
         if (known) continue;
 
         if (bmu_i2c_probe(s_cfg.bus, addr, pdMS_TO_TICKS(20)) != ESP_OK) continue;
+
+        /* Double-probe pour confirmer */
+        vTaskDelay(pdMS_TO_TICKS(50));
+        if (bmu_i2c_probe(s_cfg.bus, addr, pdMS_TO_TICKS(20)) != ESP_OK) {
+            ESP_LOGD(TAG, "TCA9535 @ 0x%02X: 1er probe OK, 2e echec — ignore", addr);
+            continue;
+        }
 
         esp_err_t ret = bmu_tca9535_init(s_cfg.bus, addr, &s_cfg.tca_devices[cur]);
         if (ret == ESP_OK) {

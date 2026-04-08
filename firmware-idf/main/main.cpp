@@ -380,9 +380,9 @@ extern "C" void app_main(void)
     disp_ctx.nb_ina = total_ina;
     bmu_display_request_update();
 
-    /* ── 9c. I2C Hotplug (si bus ok) ──────────────────────────────────── */
+    /* ── 9c. I2C Hotplug (si bus ok ET devices trouves au boot) ─────── */
 #ifdef CONFIG_BMU_I2C_HOTPLUG_ENABLED
-    if (i2c_ok) {
+    if (i2c_ok && (nb_ina > 0 || nb_tca > 0)) {
         bmu_hotplug_cfg_t hp_cfg = {
             .bus = i2c_bus,
             .ina_devices = ina,
