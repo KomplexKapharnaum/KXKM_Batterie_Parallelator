@@ -9,7 +9,7 @@ UNITY_INC = -I$(UNITY_DIR)
 COMP_INC  = -I../components/bmu_types/include
 BUILD     = build
 
-TESTS = test_protection test_vrm_topics test_ble_victron test_config_labels test_vedirect_parser test_i2c_bitbang test_health_score test_snapshot
+TESTS = test_protection test_vrm_topics test_ble_victron test_config_labels test_vedirect_parser test_i2c_bitbang test_health_score test_snapshot test_balancer_logic
 BINS  = $(addprefix $(BUILD)/,$(TESTS))
 
 .PHONY: all clean download_unity run
