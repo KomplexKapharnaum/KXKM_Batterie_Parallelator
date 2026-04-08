@@ -192,8 +192,8 @@ void bmu_ui_main_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx)
     lv_obj_set_style_pad_all(s_bat_list, 0, 0);
     lv_obj_set_scroll_dir(s_bat_list, LV_DIR_VER); /* vertical seulement */
 
-    /* Battery rows created lazily in update() when nb_ina is known */
     s_bat_created = 0;
+    /* Rows crees progressivement dans update() — 1 par appel timer max */
 }
 
 /* ── Create battery rows on demand ────────────────────────────────── */
@@ -203,7 +203,13 @@ static void ensure_battery_rows(int nb)
     if (nb <= s_bat_created) return;
     if (nb > 32) nb = 32;
 
-    for (int i = s_bat_created; i < nb; i++) {
+    /* Creer au max 2 rows par appel timer pour eviter le watchdog.
+     * Le display_periodic_cb tourne sur esp_timer (pas de vTaskDelay).
+     * Les rows manquantes seront creees aux appels suivants (~500ms). */
+    int target = s_bat_created + 2;
+    if (target > nb) target = nb;
+
+    for (int i = s_bat_created; i < target; i++) {
         lv_obj_t *row = lv_obj_create(s_bat_list);
         lv_obj_set_size(row, 316, 18);
         lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
@@ -252,7 +258,7 @@ static void ensure_battery_rows(int nb)
         lv_obj_add_event_cb(row, cell_clicked_cb, LV_EVENT_CLICKED, (void *)(intptr_t)i);
         s_bat_rows[i] = row;
     }
-    s_bat_created = nb;
+    s_bat_created = target;
 }
 
 void bmu_ui_main_update(bmu_ui_ctx_t *ctx)
