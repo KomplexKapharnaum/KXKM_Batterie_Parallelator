@@ -84,6 +84,7 @@ typedef struct {
     bmu_protection_ctx_t  *prot;
     bmu_battery_manager_t *mgr;
     uint8_t               *nb_ina;   /* pointer — follows hotplug changes */
+    QueueHandle_t          q_snapshot;
 } cloud_task_ctx_t;
 
 static void cloud_telemetry_task(void *pv)
@@ -95,6 +96,12 @@ static void cloud_telemetry_task(void *pv)
 
     for (;;) {
         vTaskDelay(period);
+
+        // Peek latest snapshot
+        bmu_snapshot_t snap;
+        if (xQueuePeek(ctx->q_snapshot, &snap, 0) == pdTRUE) {
+            // Snapshot available — will use for telemetry in future refactor
+        }
 
 #if CONFIG_BMU_SOH_ENABLED
         bmu_soh_update_all(ctx->mgr, ctx->prot, *ctx->nb_ina);
@@ -439,6 +446,7 @@ extern "C" void app_main(void)
 
     /* Update display context avec nb_ina reel */
     disp_ctx.nb_ina = total_ina;
+    disp_ctx.q_snapshot = s_q_display;
     bmu_display_request_update();
 
     /* ── 9c. I2C Hotplug (si bus ok ET devices trouves au boot) ─────── */
@@ -453,6 +461,7 @@ extern "C" void app_main(void)
             .topology_ok = &topology_ok,
             .prot = &prot,
             .mgr = &mgr,
+            .q_cmd = s_q_cmd,
         };
         if (bmu_hotplug_init(&hp_cfg) == ESP_OK) {
             bmu_hotplug_start();
@@ -475,7 +484,14 @@ extern "C" void app_main(void)
 
     /* ── 10. Cloud (si WiFi) ───────────────────────────────────────── */
     bmu_influx_store_init(); /* Toujours init — persiste quand WiFi tombe */
-    bmu_balancer_init(&prot);
+    {
+        bmu_balancer_config_t bal_cfg = {
+            .q_snapshot = s_q_balancer,
+            .q_cmd      = s_q_cmd,
+        };
+        bmu_balancer_init(&bal_cfg);
+        bmu_balancer_start_task(3, 3072);
+    }
     if (bmu_wifi_is_connected()) {
         bmu_mqtt_init();
         bmu_influx_init();
@@ -485,6 +501,7 @@ extern "C" void app_main(void)
         cloud_ctx.prot = &prot;
         cloud_ctx.mgr = &mgr;
         cloud_ctx.nb_ina = &nb_ina;
+        cloud_ctx.q_snapshot = s_q_cloud;
         xTaskCreate(cloud_telemetry_task, "cloud", 4096, &cloud_ctx, 2, NULL);
 
         /* VRM — publish to Victron cloud */

@@ -37,6 +37,7 @@ typedef struct {
     int64_t               reconnect_time_ms[BMU_MAX_BATTERIES];
     bmu_battery_state_t   battery_state[BMU_MAX_BATTERIES];
     uint8_t               imbalance_count[BMU_MAX_BATTERIES]; /**< Consecutive imbalance cycles */
+    bmu_device_health_t   ina_health[BMU_MAX_BATTERIES];     /**< Per-INA I2C health score */
 
     // RTOS task + queue infrastructure
     bmu_protection_queues_t queues;

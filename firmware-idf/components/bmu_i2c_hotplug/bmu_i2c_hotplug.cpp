@@ -1,6 +1,7 @@
 #include "bmu_i2c_hotplug.h"
 #include "bmu_i2c.h"
 #include "bmu_config.h"
+#include "bmu_types.h"
 #ifdef CONFIG_BMU_BLE_ENABLED
 #include "bmu_ble.h"
 #endif
@@ -274,6 +275,15 @@ static void propagate_topology(uint8_t new_nb_ina, uint8_t new_nb_tca)
 {
     bmu_protection_update_topology(s_cfg.prot, new_nb_ina, new_nb_tca);
     bmu_battery_manager_update_nb_ina(s_cfg.mgr, new_nb_ina);
+
+    // Also notify via cmd queue for future decoupling
+    if (s_cfg.q_cmd) {
+        bmu_cmd_t cmd = {};
+        cmd.type = CMD_TOPOLOGY_CHANGED;
+        cmd.payload.topology.nb_ina = new_nb_ina;
+        cmd.payload.topology.nb_tca = new_nb_tca;
+        xQueueSend(s_cfg.q_cmd, &cmd, pdMS_TO_TICKS(100));
+    }
 
 #ifdef CONFIG_BMU_BLE_ENABLED
     bmu_ble_set_nb_ina(new_nb_ina);

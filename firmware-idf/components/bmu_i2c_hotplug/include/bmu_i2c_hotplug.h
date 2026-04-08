@@ -4,6 +4,7 @@
 #include "bmu_tca9535.h"
 #include "bmu_protection.h"
 #include "bmu_battery_manager.h"
+#include "bmu_types.h"
 #include "esp_err.h"
 
 #ifdef __cplusplus
@@ -19,6 +20,7 @@ typedef struct {
     bool                    *topology_ok;    /* pointer to live flag */
     bmu_protection_ctx_t    *prot;
     bmu_battery_manager_t   *mgr;
+    QueueHandle_t            q_cmd;
 } bmu_hotplug_cfg_t;
 
 typedef struct {
