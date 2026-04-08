@@ -231,18 +231,20 @@ void bmu_ui_detail_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx, int idx)
     lv_obj_align(tlbl, LV_ALIGN_TOP_MID, 0, 2);
 
     /* ── Graphique V/I (moitie gauche) ────────────────────────────── */
+    vTaskDelay(1); /* Yield avant creation chart — evite watchdog IDLE */
     s_chart = lv_chart_create(s_panel);
     lv_obj_set_size(s_chart, 150, 90);
     lv_obj_align(s_chart, LV_ALIGN_TOP_LEFT, 0, 26);
     lv_chart_set_type(s_chart, LV_CHART_TYPE_LINE);
-    lv_chart_set_point_count(s_chart, 60);  // affiche les 60 derniers points (30s)
+    lv_chart_set_point_count(s_chart, 30);  /* 30 points (15s a 500ms) — moins de RAM + plus rapide */
     lv_obj_set_style_bg_color(s_chart, lv_color_hex(0x121212), 0);
     lv_obj_set_style_border_color(s_chart, UI_COLOR_TEXT_DIM, 0);
     lv_obj_set_style_border_width(s_chart, 1, 0);
     lv_obj_set_style_line_width(s_chart, 2, LV_PART_ITEMS);
-    lv_obj_set_style_size(s_chart, 0, 0, LV_PART_INDICATOR); // pas de points
+    lv_obj_set_style_size(s_chart, 0, 0, LV_PART_INDICATOR);
 
     lv_chart_set_div_line_count(s_chart, 3, 0);
+    vTaskDelay(1); /* Yield avant add_series */
 
     /* Serie tension (axe Y primaire) — bleu */
     s_ser_v = lv_chart_add_series(s_chart, UI_COLOR_INFO, LV_CHART_AXIS_PRIMARY_Y);
@@ -253,7 +255,8 @@ void bmu_ui_detail_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx, int idx)
 
     /* Serie courant (axe Y secondaire) — vert */
     s_ser_i = lv_chart_add_series(s_chart, UI_COLOR_OK, LV_CHART_AXIS_SECONDARY_Y);
-    lv_chart_set_range(s_chart, LV_CHART_AXIS_SECONDARY_Y, -5000, 30000); // -5A..30A en mA
+    lv_chart_set_range(s_chart, LV_CHART_AXIS_SECONDARY_Y, -5000, 30000);
+    vTaskDelay(1); /* Yield apres series */
 
     /* ── Valeurs numeriques (moitie droite) ───────────────────────── */
     const char *labels[] = {
@@ -374,10 +377,10 @@ void bmu_ui_detail_update(bmu_ui_ctx_t *ctx, int idx)
 
     /* Mettre a jour le graphique avec les donnees du ring buffer */
     if (s_chart != NULL && h != NULL && h->count > 0) {
-        int points = h->count < 60 ? h->count : 60;
+        int points = h->count < 30 ? h->count : 30;
         int start = (h->head - points + CONFIG_BMU_CHART_HISTORY_POINTS) % CONFIG_BMU_CHART_HISTORY_POINTS;
 
-        for (int i = 0; i < 60; i++) {
+        for (int i = 0; i < 30; i++) {
             if (i < points) {
                 int ri = (start + i) % CONFIG_BMU_CHART_HISTORY_POINTS;
                 lv_chart_set_value_by_id(s_chart, s_ser_v, i, (int32_t)h->voltage_mv[ri]);
