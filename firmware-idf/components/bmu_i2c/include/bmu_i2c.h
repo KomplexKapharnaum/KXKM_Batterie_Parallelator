@@ -36,9 +36,15 @@ void bmu_i2c_unlock(void);
 void bmu_i2c_record_success(void);
 
 /**
- * @brief Record an I2C failure. After 5 consecutive failures, triggers bus reset.
+ * @brief Record an I2C failure. After 5 consecutive failures, triggers bus recovery.
  */
 void bmu_i2c_record_failure(void);
+
+/**
+ * @brief Manual I2C bus recovery — 9 SCL clock pulses + STOP condition (bit-bang).
+ * Unblocks a slave holding SDA low (stuck ACK). Falls back to i2c_master_bus_reset().
+ */
+esp_err_t bmu_i2c_bus_recover(void);
 
 #ifdef __cplusplus
 }

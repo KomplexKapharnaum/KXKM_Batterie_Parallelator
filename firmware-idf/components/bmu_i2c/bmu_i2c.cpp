@@ -1,6 +1,8 @@
 #include "bmu_i2c.h"
 #include "esp_log.h"
 #include "driver/i2c_master.h"
+#include "driver/gpio.h"
+#include "rom/ets_sys.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 
@@ -136,14 +138,81 @@ void bmu_i2c_record_failure(void)
     if (s_consecutive_failures >= BMU_I2C_RECOVERY_THRESHOLD) {
         ESP_LOGW(TAG, "I2C: %d echecs consecutifs — tentative de recovery bus",
                  s_consecutive_failures);
-        if (s_bus_handle != NULL) {
-            esp_err_t ret = i2c_master_bus_reset(s_bus_handle);
-            if (ret == ESP_OK) {
-                ESP_LOGI(TAG, "I2C bus reset OK");
-            } else {
-                ESP_LOGE(TAG, "I2C bus reset FAILED: %s", esp_err_to_name(ret));
-            }
-        }
+        bmu_i2c_bus_recover();
         s_consecutive_failures = 0;
     }
+}
+
+esp_err_t bmu_i2c_bus_recover(void)
+{
+    const gpio_num_t sda = (gpio_num_t)BMU_I2C_SDA_GPIO;
+    const gpio_num_t scl = (gpio_num_t)BMU_I2C_SCL_GPIO;
+
+    /* Step 1: Try ESP-IDF built-in reset first */
+    if (s_bus_handle != NULL) {
+        esp_err_t ret = i2c_master_bus_reset(s_bus_handle);
+        if (ret == ESP_OK) {
+            ESP_LOGI(TAG, "I2C bus reset (ESP-IDF) OK");
+            return ESP_OK;
+        }
+        ESP_LOGW(TAG, "ESP-IDF bus reset failed: %s — trying bit-bang recovery",
+                 esp_err_to_name(ret));
+    }
+
+    /* Step 2: Bit-bang 9 SCL clock pulses to free stuck SDA
+     * Si un esclave maintient SDA low (ACK coincé), 9 clocks le font
+     * revenir en idle car la trame I2C la plus longue = 9 bits. */
+    ESP_LOGW(TAG, "I2C bit-bang recovery: 9 SCL pulses on GPIO%d/%d", scl, sda);
+
+    /* Temporarily reconfigure SCL as GPIO output, SDA as GPIO input */
+    gpio_config_t scl_cfg = {
+        .pin_bit_mask = (1ULL << scl),
+        .mode = GPIO_MODE_OUTPUT_OD,
+        .pull_up_en = GPIO_PULLUP_ENABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+    gpio_config(&scl_cfg);
+
+    gpio_config_t sda_cfg = {
+        .pin_bit_mask = (1ULL << sda),
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = GPIO_PULLUP_ENABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+    gpio_config(&sda_cfg);
+
+    /* 9 clock pulses — check if SDA releases after each */
+    bool sda_freed = false;
+    for (int i = 0; i < 9; i++) {
+        gpio_set_level(scl, 0);
+        ets_delay_us(5);
+        gpio_set_level(scl, 1);
+        ets_delay_us(5);
+
+        if (gpio_get_level(sda) == 1) {
+            sda_freed = true;
+            ESP_LOGI(TAG, "SDA released after %d clock(s)", i + 1);
+            break;
+        }
+    }
+
+    /* Generate STOP condition: SDA low→high while SCL high */
+    if (sda_freed) {
+        /* SDA as output for STOP */
+        gpio_set_direction(sda, GPIO_MODE_OUTPUT_OD);
+        gpio_set_level(sda, 0);
+        ets_delay_us(5);
+        gpio_set_level(scl, 1);
+        ets_delay_us(5);
+        gpio_set_level(sda, 1);  /* STOP: SDA rises while SCL high */
+        ets_delay_us(5);
+    }
+
+    /* Restore pins to I2C peripheral — reinit the bus handle */
+    ESP_LOGI(TAG, "I2C recovery %s — bus will re-init on next operation",
+             sda_freed ? "OK" : "FAILED (SDA still low)");
+
+    return sda_freed ? ESP_OK : ESP_FAIL;
 }
