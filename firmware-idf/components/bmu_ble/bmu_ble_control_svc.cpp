@@ -3,7 +3,7 @@
  * @brief Service GATT Control — switch, reset, config (WRITE + pairing requis).
  *
  * Toutes les ecritures necessitent un lien chiffre (BLE_GATT_CHR_F_WRITE_ENC).
- * UUIDs : Service 0x0003, Chars 0x0030..0x0033.
+ * UUIDs : Service 0x0003, Chars 0x0030..0x0038.
  */
 #include "sdkconfig.h"
 
@@ -12,6 +12,7 @@
 #include "bmu_ble_internal.h"
 #include "bmu_protection.h"
 #include "bmu_config.h"
+#include "bmu_storage.h"
 #include "bmu_wifi.h"
 
 #include "esp_log.h"
@@ -55,6 +56,8 @@ static ble_uuid128_t s_status_chr_uuid   = BMU_BLE_UUID128_DECLARE(0x33, 0x00);
 static ble_uuid128_t s_wifi_cfg_chr_uuid = BMU_BLE_UUID128_DECLARE(0x34, 0x00);
 static ble_uuid128_t s_wifi_sts_chr_uuid = BMU_BLE_UUID128_DECLARE(0x35, 0x00);
 static ble_uuid128_t s_bat_label_chr_uuid = BMU_BLE_UUID128_DECLARE(0x36, 0x00);
+static ble_uuid128_t s_mqtt_cfg_chr_uuid  = BMU_BLE_UUID128_DECLARE(0x37, 0x00);
+static ble_uuid128_t s_dev_name_chr_uuid  = BMU_BLE_UUID128_DECLARE(0x38, 0x00);
 
 static uint16_t s_wifi_sts_val_handle = 0;
 static esp_timer_handle_t s_wifi_notify_timer = NULL;
@@ -67,6 +70,8 @@ enum ctrl_chr_id {
     CTRL_CHR_WIFI_CONFIG,
     CTRL_CHR_WIFI_STATUS,
     CTRL_CHR_BAT_LABEL,
+    CTRL_CHR_MQTT_CONFIG,
+    CTRL_CHR_DEV_NAME,
 };
 
 /* ── Helper : lire le payload d'un write dans un buffer ──────────── */
@@ -96,7 +101,39 @@ static int control_chr_access_cb(uint16_t conn_handle, uint16_t attr_handle,
         return BLE_ATT_ERR_UNLIKELY;
     }
 
-    /* Les 3 characteristics de controle : WRITE seul */
+    /* MQTT Config — READ returns URI + username (no password) */
+    if (chr_id == CTRL_CHR_MQTT_CONFIG && ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) {
+        uint8_t payload[48] = {};  /* 32 URI + 16 username */
+        const char *uri = bmu_config_get_mqtt_uri();
+        if (uri) {
+            size_t ul = strlen(uri);
+            if (ul > 32) ul = 32;
+            memcpy(payload, uri, ul);
+        }
+        nvs_handle_t nvs;
+        if (nvs_open("bmu", NVS_READONLY, &nvs) == ESP_OK) {
+            size_t ulen = 16;
+            nvs_get_str(nvs, "mqtt_user", (char *)(payload + 32), &ulen);
+            nvs_close(nvs);
+        }
+        int rc = os_mbuf_append(ctxt->om, payload, sizeof(payload));
+        return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+    }
+
+    /* Device Name — READ returns current name */
+    if (chr_id == CTRL_CHR_DEV_NAME && ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) {
+        uint8_t payload[32] = {};
+        const char *name = bmu_config_get_device_name();
+        if (name) {
+            size_t nl = strlen(name);
+            if (nl > 32) nl = 32;
+            memcpy(payload, name, nl);
+        }
+        int rc = os_mbuf_append(ctxt->om, payload, sizeof(payload));
+        return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+    }
+
+    /* Les characteristics de controle : WRITE seul */
     if (ctxt->op != BLE_GATT_ACCESS_OP_WRITE_CHR) {
         return BLE_ATT_ERR_UNLIKELY;
     }
@@ -296,6 +333,57 @@ static int control_chr_access_cb(uint16_t conn_handle, uint16_t attr_handle,
         return 0;
     }
 
+    case CTRL_CHR_MQTT_CONFIG: { /* MQTT Config — 82 bytes: URI(32) + user(16) + pass(34) */
+        uint8_t mqtt_buf[82] = {};
+        uint16_t mqtt_len = 0;
+        ble_hs_mbuf_to_flat(ctxt->om, mqtt_buf, sizeof(mqtt_buf), &mqtt_len);
+        if (mqtt_len < 32) {
+            ESP_LOGW(TAG, "MQTT config: payload trop court (%d)", mqtt_len);
+            return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+        }
+
+        char uri[33] = {};
+        char username[17] = {};
+        char password[35] = {};
+        memcpy(uri, mqtt_buf, 32);
+        if (mqtt_len > 32) memcpy(username, mqtt_buf + 32, mqtt_len > 48 ? 16 : mqtt_len - 32);
+        if (mqtt_len > 48) memcpy(password, mqtt_buf + 48, mqtt_len > 82 ? 34 : mqtt_len - 48);
+
+        bmu_config_set_mqtt_uri(uri);
+        bmu_nvs_set_str("mqtt_user", username);
+        bmu_nvs_set_str("mqtt_pass", password);
+
+        ESP_LOGI(TAG, "MQTT config via BLE: URI='%s' user='%s'", uri, username);
+
+        s_last_status.last_cmd = 5;
+        s_last_status.battery_idx = 0xFF;
+        s_last_status.result = 0;
+        notify_status();
+        return 0;
+    }
+
+    case CTRL_CHR_DEV_NAME: { /* Device Name — 32 bytes */
+        uint8_t name_buf[32] = {};
+        uint16_t name_len = 0;
+        ble_hs_mbuf_to_flat(ctxt->om, name_buf, sizeof(name_buf), &name_len);
+        if (name_len < 1) {
+            ESP_LOGW(TAG, "Device name: payload vide");
+            return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+        }
+
+        char name[33] = {};
+        memcpy(name, name_buf, name_len > 32 ? 32 : name_len);
+
+        bmu_config_set_device_name(name);
+        ESP_LOGI(TAG, "Device name via BLE: '%s'", name);
+
+        s_last_status.last_cmd = 6;
+        s_last_status.battery_idx = 0xFF;
+        s_last_status.result = 0;
+        notify_status();
+        return 0;
+    }
+
     default:
         return BLE_ATT_ERR_UNLIKELY;
     }
@@ -372,6 +460,28 @@ static struct ble_gatt_chr_def s_ctrl_chr_defs[] = {
         .arg        = (void *)(intptr_t)CTRL_CHR_BAT_LABEL,
         .descriptors = nullptr,
         .flags      = BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_WRITE_ENC,
+        .min_key_size = 0,
+        .val_handle = nullptr,
+        .cpfd = nullptr,
+    },
+    /* MQTT Config — read + write encrypted */
+    {
+        .uuid       = &s_mqtt_cfg_chr_uuid.u,
+        .access_cb  = control_chr_access_cb,
+        .arg        = (void *)(intptr_t)CTRL_CHR_MQTT_CONFIG,
+        .descriptors = nullptr,
+        .flags      = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_WRITE_ENC,
+        .min_key_size = 0,
+        .val_handle = nullptr,
+        .cpfd = nullptr,
+    },
+    /* Device Name — read + write encrypted */
+    {
+        .uuid       = &s_dev_name_chr_uuid.u,
+        .access_cb  = control_chr_access_cb,
+        .arg        = (void *)(intptr_t)CTRL_CHR_DEV_NAME,
+        .descriptors = nullptr,
+        .flags      = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_WRITE_ENC,
         .min_key_size = 0,
         .val_handle = nullptr,
         .cpfd = nullptr,

@@ -12,6 +12,12 @@ struct ConfigView: View {
                 NavigationLink("WiFi BMU") {
                     WifiConfigView().environmentObject(vm)
                 }
+                NavigationLink("MQTT") {
+                    MqttConfigView().environmentObject(vm)
+                }
+                NavigationLink("Nom BMU") {
+                    DeviceNameView().environmentObject(vm)
+                }
                 NavigationLink("Utilisateurs") {
                     UserManagementView().environmentObject(vm)
                 }

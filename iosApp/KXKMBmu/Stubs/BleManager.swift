@@ -34,6 +34,8 @@ private let kConfigUUID      = bmuUUID(0x0032)
 private let kStatusUUID      = bmuUUID(0x0033)
 private let kWifiCfgUUID     = bmuUUID(0x0034)
 private let kWifiStsUUID     = bmuUUID(0x0035)
+private let kMqttCfgUUID     = bmuUUID(0x0037)
+private let kDeviceNameUUID  = bmuUUID(0x0038)
 
 // MARK: - Timing constants
 
@@ -72,6 +74,9 @@ class BleManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
     @Published var lastCommandResult: CommandResult?
     @Published var rssi: Int = 0
     @Published var bleDebugLog: [String] = []
+    @Published var mqttUri: String?
+    @Published var mqttUsername: String?
+    @Published var deviceName: String?
 
     private lazy var central = CBCentralManager(delegate: self, queue: nil)
     private var peripheral: CBPeripheral?
@@ -173,6 +178,38 @@ class BleManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
             buf.replaceSubrange(32..<(32 + min(passData.count, 64)), with: passData)
         }
         peripheral?.writeValue(buf, for: char, type: .withResponse)
+    }
+
+    func setMqttConfig(uri: String, username: String, password: String) {
+        guard let char = controlChars[kMqttCfgUUID] else {
+            logBle("MQTT config char not found")
+            return
+        }
+        var buf = Data(count: 82)
+        if let uriData = uri.data(using: .utf8) {
+            buf.replaceSubrange(0..<min(uriData.count, 32), with: uriData)
+        }
+        if let userData = username.data(using: .utf8) {
+            buf.replaceSubrange(32..<(32 + min(userData.count, 16)), with: userData)
+        }
+        if let passData = password.data(using: .utf8) {
+            buf.replaceSubrange(48..<(48 + min(passData.count, 34)), with: passData)
+        }
+        peripheral?.writeValue(buf, for: char, type: .withResponse)
+        logBle("MQTT config sent: \(uri) user=\(username)")
+    }
+
+    func setDeviceName(_ name: String) {
+        guard let char = controlChars[kDeviceNameUUID] else {
+            logBle("Device name char not found")
+            return
+        }
+        var buf = Data(count: 32)
+        if let nameData = name.data(using: .utf8) {
+            buf.replaceSubrange(0..<min(nameData.count, 32), with: nameData)
+        }
+        peripheral?.writeValue(buf, for: char, type: .withResponse)
+        logBle("Device name sent: \(name)")
     }
 
     // MARK: - Poll timer (workaround for firmware notify bug)
@@ -477,11 +514,28 @@ class BleManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
             return
         }
 
-        // Control service — status response
+        // Control service — status response + config reads
         if parentSvcUUID == kControlSvcUUID {
             if uuid == kStatusUUID && data.count >= 3 {
                 let result = data[2]
                 lastCommandResult = result == 0 ? .ok() : .error("code=\(result)")
+            } else if uuid == kMqttCfgUUID && data.count >= 48 {
+                // READ response: URI(32) + username(16), no password
+                let uriData = data.subdata(in: 0..<32)
+                let userdata = data.subdata(in: 32..<48)
+                mqttUri = String(data: uriData, encoding: .utf8)?
+                    .trimmingCharacters(in: .controlCharacters)
+                    .replacingOccurrences(of: "\0", with: "")
+                mqttUsername = String(data: userdata, encoding: .utf8)?
+                    .trimmingCharacters(in: .controlCharacters)
+                    .replacingOccurrences(of: "\0", with: "")
+                logBle("MQTT config: uri=\(mqttUri ?? "?") user=\(mqttUsername ?? "?")")
+            } else if uuid == kDeviceNameUUID && data.count >= 1 {
+                let nameData = data.subdata(in: 0..<min(data.count, 32))
+                deviceName = String(data: nameData, encoding: .utf8)?
+                    .trimmingCharacters(in: .controlCharacters)
+                    .replacingOccurrences(of: "\0", with: "")
+                logBle("Device name: \(deviceName ?? "?")")
             }
             return
         }

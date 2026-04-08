@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AA11223344556677MQTT0001 /* MqttConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11223344556677MQTT0002 /* MqttConfigView.swift */; };
+		AA11223344556677DNAM0001 /* DeviceNameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11223344556677DNAM0002 /* DeviceNameView.swift */; };
 		060D8D2D855935F1BEE1685A /* VoltageChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC4206F6FB0F6D4D71FB7E1 /* VoltageChartView.swift */; };
 		064B62D281AEAA02729A0F1B /* DeviceSelectorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43ABA90AF8E356A8FB4F4B49 /* DeviceSelectorView.swift */; };
 		09E4CDA758805B415798A71F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2529217A25EC1127FC4F407B /* Assets.xcassets */; };
@@ -70,6 +72,8 @@
 		8C78A8192F853925003BB624 /* SolarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SolarView.swift; sourceTree = "<group>"; };
 		8EE67BE788F8256657FFF2EE /* SharedBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedBridge.swift; sourceTree = "<group>"; };
 		8F8D1EF2A383025B06735AEA /* WifiConfigView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WifiConfigView.swift; sourceTree = "<group>"; };
+		AA11223344556677MQTT0002 /* MqttConfigView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MqttConfigView.swift; sourceTree = "<group>"; };
+		AA11223344556677DNAM0002 /* DeviceNameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceNameView.swift; sourceTree = "<group>"; };
 		A3B0C9A29C2FB43C95303349 /* ProtectionConfigView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtectionConfigView.swift; sourceTree = "<group>"; };
 		C151C1366A79ABE7EB64BA9C /* AuditViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuditViewModel.swift; sourceTree = "<group>"; };
 		D12AA57315D84A3AB1984D9A /* AuditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuditView.swift; sourceTree = "<group>"; };
@@ -185,6 +189,8 @@
 				252A7B23DB63CC7121CFFB9D /* TransportConfigView.swift */,
 				599C082FAC1E1E65F6EB2A72 /* UserManagementView.swift */,
 				8F8D1EF2A383025B06735AEA /* WifiConfigView.swift */,
+				AA11223344556677MQTT0002 /* MqttConfigView.swift */,
+				AA11223344556677DNAM0002 /* DeviceNameView.swift */,
 			);
 			path = Config;
 			sourceTree = "<group>";
@@ -324,6 +330,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AA11223344556677MQTT0001 /* MqttConfigView.swift in Sources */,
+				AA11223344556677DNAM0001 /* DeviceNameView.swift in Sources */,
 				4E1BAA31C3E5743EE328A5EC /* AuditRowView.swift in Sources */,
 				AFF2B2F63093A65435F329B5 /* AuditView.swift in Sources */,
 				6492D2233C6D7A4910B93AF8 /* AuditViewModel.swift in Sources */,

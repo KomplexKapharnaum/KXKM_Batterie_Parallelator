@@ -12,6 +12,14 @@ class ConfigViewModel: ObservableObject {
     @Published var wifiPassword: String = ""
     @Published var wifiStatus: WifiStatusInfo? = nil
 
+    // MQTT
+    @Published var mqttUri: String = ""
+    @Published var mqttUsername: String = ""
+    @Published var mqttPassword: String = ""
+
+    // Device name
+    @Published var deviceName: String = ""
+
     // Users
     @Published var users: [UserProfile] = []
 
@@ -37,6 +45,9 @@ class ConfigViewModel: ObservableObject {
 
     func loadAll() {
         users = authUseCase.getAllUsers()
+        mqttUri = ble.mqttUri ?? ""
+        mqttUsername = ble.mqttUsername ?? ""
+        deviceName = ble.connectedDeviceName ?? ""
     }
 
     func saveProtection() {
@@ -48,6 +59,16 @@ class ConfigViewModel: ObservableObject {
     func sendWifiConfig() {
         ble.setWifiConfig(ssid: wifiSsid, password: wifiPassword)
         statusMessage = ble.isConnected ? "WiFi configuré" : "BLE non connecté"
+    }
+
+    func sendMqttConfig() {
+        ble.setMqttConfig(uri: mqttUri, username: mqttUsername, password: mqttPassword)
+        statusMessage = "MQTT config envoyee"
+    }
+
+    func sendDeviceName() {
+        ble.setDeviceName(deviceName)
+        statusMessage = "Nom appareil mis a jour"
     }
 
     func deleteUser(_ user: UserProfile) {
