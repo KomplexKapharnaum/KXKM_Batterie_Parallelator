@@ -507,11 +507,12 @@ extern "C" void app_main(void)
                 }
             } else {
                 topology_fail_safe_applied = false;
-                /* Snapshot atomique pour eviter les data races avec hotplug */
+                /* Snapshot atomique + fleet_max pre-calcule (1× au lieu de N×) */
                 uint8_t snap_ina = nb_ina;
+                float fleet_max = bmu_protection_compute_fleet_max(&prot);
                 for (int i = 0; i < snap_ina; i++) {
                     if (bmu_balancer_is_off((uint8_t)i)) continue;
-                    bmu_protection_check_battery(&prot, i);
+                    bmu_protection_check_battery_ex(&prot, i, fleet_max);
                 }
                 int balancing = bmu_balancer_tick();
                 if (balancing > 0) {

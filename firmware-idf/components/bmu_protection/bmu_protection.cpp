@@ -46,9 +46,9 @@ static esp_err_t switch_battery(bmu_protection_ctx_t *ctx, int idx, bool on)
     ret = bmu_tca9535_set_led(&ctx->tca_devices[tca_idx], channel, !on, on);
 
     if (on) {
-        vTaskDelay(pdMS_TO_TICKS(100)); /* MOSFET dead-time protection */
+        vTaskDelay(pdMS_TO_TICKS(10));  /* MOSFET dead-time (IRF4905 ~50ns, 10ms = marge 200000×) */
     } else {
-        vTaskDelay(pdMS_TO_TICKS(50));  /* Wait for switch off */
+        vTaskDelay(pdMS_TO_TICKS(5));   /* Attente switch off */
     }
 
     ESP_LOGI(TAG, "Battery %d %s (TCA%d CH%d)", idx + 1, on ? "ON" : "OFF", tca_idx, channel);
@@ -105,8 +105,31 @@ static float find_fleet_max_mv(bmu_protection_ctx_t *ctx)
     return max_mv;
 }
 
-/* ── Main state machine — called once per battery per loop ─────────── */
+/* ── Compute fleet_max under mutex (call once per cycle) ──────────── */
+float bmu_protection_compute_fleet_max(bmu_protection_ctx_t *ctx)
+{
+    float max_mv = 0;
+    if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+        for (int i = 0; i < ctx->nb_ina; i++) {
+            bmu_battery_state_t st = ctx->battery_state[i];
+            if (st != BMU_STATE_CONNECTED && st != BMU_STATE_RECONNECTING) continue;
+            if (ctx->battery_voltages[i] > max_mv) {
+                max_mv = ctx->battery_voltages[i];
+            }
+        }
+        xSemaphoreGive(ctx->state_mutex);
+    }
+    return max_mv;
+}
+
+/* ── Wrapper — backward compat ───────────────────────────────────── */
 esp_err_t bmu_protection_check_battery(bmu_protection_ctx_t *ctx, int idx)
+{
+    return bmu_protection_check_battery_ex(ctx, idx, find_fleet_max_mv(ctx));
+}
+
+/* ── Main state machine — called once per battery per loop ─────────── */
+esp_err_t bmu_protection_check_battery_ex(bmu_protection_ctx_t *ctx, int idx, float fleet_max_mv)
 {
     if (idx < 0 || idx >= ctx->nb_ina) return ESP_ERR_INVALID_ARG;
 
@@ -206,23 +229,19 @@ esp_err_t bmu_protection_check_battery(bmu_protection_ctx_t *ctx, int idx)
         ctx->imbalance_count[idx] = 0;
         ESP_LOGW(TAG, "BAT[%d] PROT: V=%.0f I=%.3f — hors range", idx + 1, v_mv, i_a);
     }
-    else if (!is_imbalance_ok(v_mv, find_fleet_max_mv(ctx))) {
-        /* Imbalance — deconnexion seulement apres N cycles consecutifs.
-         * Les transitoires post-connexion causent des faux positifs. */
+    else if (!is_imbalance_ok(v_mv, fleet_max_mv)) {
+        /* Imbalance — deconnexion seulement apres N cycles consecutifs */
         ctx->imbalance_count[idx]++;
         if (ctx->imbalance_count[idx] >= BMU_IMBALANCE_CONFIRM_CYCLES) {
             state = BMU_STATE_DISCONNECTED;
-            float fm = find_fleet_max_mv(ctx);
             ESP_LOGW(TAG, "BAT[%d] IMBALANCE confirme (%d cycles): V=%.0f fleet=%.0f diff=%.0f",
-                     idx + 1, ctx->imbalance_count[idx], v_mv, fm, fm - v_mv);
+                     idx + 1, ctx->imbalance_count[idx], v_mv, fleet_max_mv, fleet_max_mv - v_mv);
             ctx->imbalance_count[idx] = 0;
         } else {
-            /* Pas encore confirme — rester dans l'etat actuel */
-            float fm = find_fleet_max_mv(ctx);
             ESP_LOGD(TAG, "BAT[%d] imbalance %d/%d: V=%.0f fleet=%.0f diff=%.0f",
                      idx + 1, ctx->imbalance_count[idx], BMU_IMBALANCE_CONFIRM_CYCLES,
-                     v_mv, fm, fm - v_mv);
-            state = local_prev_state; /* Garder l'etat actuel */
+                     v_mv, fleet_max_mv, fleet_max_mv - v_mv);
+            state = local_prev_state;
         }
     }
     /* All protection checks pass — reset imbalance counter */
