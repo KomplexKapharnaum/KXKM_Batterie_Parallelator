@@ -122,12 +122,36 @@ esp_err_t bmu_protection_check_battery(bmu_protection_ctx_t *ctx, int idx)
     esp_err_t ret = bmu_ina237_read_voltage_current(&ctx->ina_devices[idx], &v_mv, &i_a);
     if (ret != ESP_OK || std::isnan(v_mv) || std::isnan(i_a)) {
         ESP_LOGW(TAG, "BAT[%d] I2C read error — skip protection", idx + 1);
-        /* Invalider la tension cachee pour ne pas polluer fleet_max */
         if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
             ctx->battery_voltages[idx] = 0;
             xSemaphoreGive(ctx->state_mutex);
         }
         return ret;
+    }
+
+    /* Rejet des lectures aberrantes — donnee corrompue par glitch I2C.
+     * Symptomes observes : V/2 (14.4V au lieu de 28.8V), V*1.4 (40V).
+     * Filtre : si la batterie est CONNECTED/RECONNECTING et que la tension
+     * s'ecarte de >30% de la derniere valeur connue, c'est un artefact. */
+    if (v_mv > 35000 || fabs(i_a) > 50.0f) {
+        ESP_LOGW(TAG, "BAT[%d] lecture aberrante V=%.0f I=%.1f — skip",
+                 idx + 1, v_mv, i_a);
+        return ESP_ERR_INVALID_RESPONSE;
+    }
+    {
+        float prev_v = 0;
+        if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+            prev_v = ctx->battery_voltages[idx];
+            xSemaphoreGive(ctx->state_mutex);
+        }
+        if (prev_v > 10000 && v_mv > 1000) {
+            float ratio = v_mv / prev_v;
+            if (ratio < 0.7f || ratio > 1.3f) {
+                ESP_LOGW(TAG, "BAT[%d] saut V: %.0f→%.0f (%.0f%%) — skip",
+                         idx + 1, prev_v, v_mv, (ratio - 1.0f) * 100.0f);
+                return ESP_ERR_INVALID_RESPONSE;
+            }
+        }
     }
 
     /* Cache voltage (mutex-protected) */
@@ -180,21 +204,32 @@ esp_err_t bmu_protection_check_battery(bmu_protection_ctx_t *ctx, int idx)
              !is_current_in_range(i_a) ||
              !is_imbalance_ok(v_mv, find_fleet_max_mv(ctx))) {
         state = BMU_STATE_DISCONNECTED;
+        /* DEBUG: identifier la cause de deconnexion */
+        float fm = find_fleet_max_mv(ctx);
+        ESP_LOGW(TAG, "BAT[%d] PROT FAIL: V=%.0f I=%.3f Vok=%d Iok=%d Imb=%d (fleet=%.0f diff=%.0f)",
+                 idx + 1, v_mv, i_a,
+                 is_voltage_in_range(v_mv),
+                 is_current_in_range(i_a),
+                 is_imbalance_ok(v_mv, fm),
+                 fm, fm - v_mv);
     }
-    /* First connection or reconnect eligible */
-    else if (local_nb_switch == 0 ||
-             (local_nb_switch < BMU_NB_SWITCH_MAX &&
-              (now_ms() - local_reconnect_time > BMU_RECONNECT_DELAY_MS))) {
+    /* Already connected and all checks pass — stay CONNECTED */
+    else if (local_prev_state == BMU_STATE_CONNECTED ||
+             local_prev_state == BMU_STATE_RECONNECTING) {
+        state = BMU_STATE_CONNECTED;
+    }
+    /* First connection (never switched) */
+    else if (local_nb_switch == 0) {
         state = BMU_STATE_RECONNECTING;
     }
-    /* At max switches — one final attempt with delay */
-    else if (local_nb_switch == BMU_NB_SWITCH_MAX &&
+    /* Reconnect eligible after delay */
+    else if (local_nb_switch <= BMU_NB_SWITCH_MAX &&
              (now_ms() - local_reconnect_time > BMU_RECONNECT_DELAY_MS)) {
         state = BMU_STATE_RECONNECTING;
     }
-    /* Nominal */
+    /* Waiting for reconnect delay — stay disconnected */
     else {
-        state = BMU_STATE_CONNECTED;
+        state = BMU_STATE_DISCONNECTED;
     }
 
     /* ── Act on state ─────────────────────────────────────────────── */
@@ -220,8 +255,9 @@ esp_err_t bmu_protection_check_battery(bmu_protection_ctx_t *ctx, int idx)
     case BMU_STATE_DISCONNECTED:
         if (local_prev_state != BMU_STATE_DISCONNECTED) {
             ESP_LOGI(TAG, "BAT[%d] disconnected V=%.0fmV I=%.3fA", idx + 1, v_mv, i_a);
+            switch_battery(ctx, idx, false);
         }
-        switch_battery(ctx, idx, false);
+        /* Ne pas re-appeler switch_battery si deja OFF — economise I2C + 50ms */
 #if CONFIG_BMU_RINT_ENABLED
         if (local_prev_state != BMU_STATE_DISCONNECTED) {
             bmu_rint_on_disconnect(idx, v_mv, i_a);
