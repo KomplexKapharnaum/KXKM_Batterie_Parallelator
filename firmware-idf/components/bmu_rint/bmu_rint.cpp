@@ -38,11 +38,12 @@ extern "C" void rint_output_route(uint8_t idx, bmu_rint_trigger_t trigger,
                                   const bmu_rint_result_t *res);
 
 /* ── État statique du module ──────────────────────────────────────────── */
-static bmu_protection_ctx_t *s_prot       = NULL;
+static bmu_protection_ctx_t *s_prot          = NULL;
 static bmu_rint_result_t     s_cache[BMU_MAX_BATTERIES];
-static SemaphoreHandle_t     s_mutex      = NULL;
-static volatile bool         s_measuring  = false;
-static TaskHandle_t          s_task_handle = NULL;
+static SemaphoreHandle_t     s_mutex         = NULL;   /* protection cache */
+static SemaphoreHandle_t     s_measure_mutex = NULL;   /* exclusion mesure active */
+static volatile bool         s_measuring     = false;
+static TaskHandle_t          s_task_handle   = NULL;
 
 /**
  * @brief Injecte le contexte protection utilisé par toutes les mesures.
@@ -210,7 +211,15 @@ esp_err_t bmu_rint_init(void)
 
     s_mutex = xSemaphoreCreateMutex();
     if (s_mutex == NULL) {
-        ESP_LOGE(TAG, "Échec création mutex");
+        ESP_LOGE(TAG, "Échec création mutex cache");
+        return ESP_ERR_NO_MEM;
+    }
+
+    s_measure_mutex = xSemaphoreCreateMutex();
+    if (s_measure_mutex == NULL) {
+        ESP_LOGE(TAG, "Échec création mutex mesure");
+        vSemaphoreDelete(s_mutex);
+        s_mutex = NULL;
         return ESP_ERR_NO_MEM;
     }
 
@@ -224,37 +233,50 @@ esp_err_t bmu_rint_init(void)
 
 esp_err_t bmu_rint_measure(uint8_t battery_idx, bmu_rint_trigger_t trigger)
 {
-    /* Préconditions de sécurité */
+    /* Préconditions de sécurité (lecture rapide, avant acquisition mutex) */
     esp_err_t ret = guard_check(battery_idx);
     if (ret != ESP_OK) {
         return ret;
     }
 
+    /* Acquisition non-bloquante : garantit exclusion mutuelle de la mesure */
+    if (s_measure_mutex == NULL) return ESP_ERR_INVALID_STATE;
+    if (xSemaphoreTake(s_measure_mutex, 0) != pdTRUE) {
+        ESP_LOGD(TAG, "Mesure deja en cours — skip");
+        return ESP_ERR_INVALID_STATE;
+    }
+    s_measuring = true;
+
     uint8_t tca_idx = battery_idx / 4;
     uint8_t channel = battery_idx % 4;
+    bool    switched_off = false;
+    esp_err_t result_err = ESP_OK;
+    float v1 = 0.0f, i1 = 0.0f;
+    float v2 = 0.0f, v3 = 0.0f, dummy = 0.0f;
+    int64_t ts = 0;
+    bmu_rint_result_t result = {};
 
-    s_measuring = true;
     ESP_LOGI(TAG, "Mesure R_int batterie %d (trigger=%d)", battery_idx, (int)trigger);
 
     /* ── Étape 1 : lecture V1/I1 sous charge ─────────────────────────── */
-    float v1 = 0.0f, i1 = 0.0f;
     ret = bmu_ina237_read_voltage_current(&s_prot->ina_devices[battery_idx], &v1, &i1);
     if (ret != ESP_OK) {
         ESP_LOGW(TAG, "Bat %d : erreur lecture V1/I1 (%s)",
                  battery_idx, esp_err_to_name(ret));
-        s_measuring = false;
-        return ret;
+        result_err = ret;
+        goto cleanup;
     }
-    int64_t ts = now_ms();
+    ts = now_ms();
 
     /* ── Étape 2 : switch OFF ─────────────────────────────────────────── */
     ret = bmu_tca9535_switch_battery(&s_prot->tca_devices[tca_idx], channel, false);
     if (ret != ESP_OK) {
         ESP_LOGW(TAG, "Bat %d : erreur switch OFF (%s)",
                  battery_idx, esp_err_to_name(ret));
-        s_measuring = false;
-        return ret;
+        result_err = ret;
+        goto cleanup;
     }
+    switched_off = true;
 
     /* ── Attente PULSE_FAST_MS → lecture V2 (ohmique) ────────────────── */
     vTaskDelay(pdMS_TO_TICKS(CONFIG_BMU_RINT_PULSE_FAST_MS));
@@ -262,51 +284,47 @@ esp_err_t bmu_rint_measure(uint8_t battery_idx, bmu_rint_trigger_t trigger)
     /* Vérification d'erreur intercalée avant V2 */
     if (has_error_or_locked()) {
         ESP_LOGW(TAG, "Bat %d : erreur/lock détectée pendant pulse — abandon", battery_idx);
-        bmu_tca9535_switch_battery(&s_prot->tca_devices[tca_idx], channel, true);
-        s_measuring = false;
-        return ESP_FAIL;
+        result_err = ESP_FAIL;
+        goto cleanup;
     }
 
-    float v2 = 0.0f, dummy = 0.0f;
     ret = bmu_ina237_read_voltage_current(&s_prot->ina_devices[battery_idx], &v2, &dummy);
     if (ret != ESP_OK) {
         ESP_LOGW(TAG, "Bat %d : erreur lecture V2 (%s)",
                  battery_idx, esp_err_to_name(ret));
-        bmu_tca9535_switch_battery(&s_prot->tca_devices[tca_idx], channel, true);
-        s_measuring = false;
-        return ret;
+        result_err = ret;
+        goto cleanup;
     }
 
     /* ── Attente complémentaire → lecture V3 (totale) ────────────────── */
-    int rest_ms = CONFIG_BMU_RINT_PULSE_TOTAL_MS - CONFIG_BMU_RINT_PULSE_FAST_MS;
-    if (rest_ms > 0) {
-        vTaskDelay(pdMS_TO_TICKS(rest_ms));
+    {
+        int rest_ms = CONFIG_BMU_RINT_PULSE_TOTAL_MS - CONFIG_BMU_RINT_PULSE_FAST_MS;
+        if (rest_ms > 0) {
+            vTaskDelay(pdMS_TO_TICKS(rest_ms));
+        }
     }
 
     /* Vérification d'erreur intercalée avant V3 */
     if (has_error_or_locked()) {
         ESP_LOGW(TAG, "Bat %d : erreur/lock avant V3 — abandon", battery_idx);
-        bmu_tca9535_switch_battery(&s_prot->tca_devices[tca_idx], channel, true);
-        s_measuring = false;
-        return ESP_FAIL;
+        result_err = ESP_FAIL;
+        goto cleanup;
     }
 
-    float v3 = 0.0f;
     ret = bmu_ina237_read_voltage_current(&s_prot->ina_devices[battery_idx], &v3, &dummy);
     if (ret != ESP_OK) {
         ESP_LOGW(TAG, "Bat %d : erreur lecture V3 (%s)",
                  battery_idx, esp_err_to_name(ret));
-        bmu_tca9535_switch_battery(&s_prot->tca_devices[tca_idx], channel, true);
-        s_measuring = false;
-        return ret;
+        result_err = ret;
+        goto cleanup;
     }
 
-    /* ── Étape 5 : switch ON ─────────────────────────────────────────── */
+    /* ── Étape 5 : switch ON (chemin nominal) ───────────────────────── */
     bmu_tca9535_switch_battery(&s_prot->tca_devices[tca_idx], channel, true);
-    s_measuring = false;
+    switched_off = false;
 
     /* ── Calcul et mise en cache ─────────────────────────────────────── */
-    bmu_rint_result_t result = compute_result(v1, i1, v2, v3, ts);
+    result = compute_result(v1, i1, v2, v3, ts);
 
     if (xSemaphoreTake(s_mutex, pdMS_TO_TICKS(100)) == pdTRUE) {
         s_cache[battery_idx] = result;
@@ -316,7 +334,16 @@ esp_err_t bmu_rint_measure(uint8_t battery_idx, bmu_rint_trigger_t trigger)
     /* ── Routage sortie (MQTT, InfluxDB, Display) ────────────────────── */
     rint_output_route(battery_idx, trigger, &result);
 
-    return result.valid ? ESP_OK : ESP_ERR_INVALID_RESPONSE;
+    result_err = result.valid ? ESP_OK : ESP_ERR_INVALID_RESPONSE;
+
+cleanup:
+    /* Remet la batterie en ligne si elle a été déconnectée pendant la mesure */
+    if (switched_off) {
+        bmu_tca9535_switch_battery(&s_prot->tca_devices[tca_idx], channel, true);
+    }
+    s_measuring = false;
+    xSemaphoreGive(s_measure_mutex);
+    return result_err;
 }
 
 esp_err_t bmu_rint_measure_all(bmu_rint_trigger_t trigger)
@@ -373,11 +400,6 @@ void bmu_rint_on_disconnect(uint8_t battery_idx, float v_before_mv, float i_befo
         return;
     }
 
-    if (s_measuring) {
-        ESP_LOGD(TAG, "Bat %d opportuniste : mesure active deja en cours", battery_idx);
-        return;
-    }
-
     const float i_min_a = CONFIG_BMU_RINT_MIN_CURRENT_MA / 1000.0f;
     if (v_before_mv < BMU_MIN_VOLTAGE_MV || fabsf(i_before_a) < i_min_a) {
         ESP_LOGD(TAG, "Bat %d opportuniste : skip (V=%.0f mV I=%.3f A)",
@@ -385,48 +407,60 @@ void bmu_rint_on_disconnect(uint8_t battery_idx, float v_before_mv, float i_befo
         return;
     }
 
+    /* Acquisition non-bloquante : si une mesure active est déjà en cours, on abandonne */
+    if (s_measure_mutex == NULL) return;
+    if (xSemaphoreTake(s_measure_mutex, 0) != pdTRUE) {
+        ESP_LOGD(TAG, "Bat %d opportuniste : mesure active deja en cours", battery_idx);
+        return;
+    }
     s_measuring = true;
+
     ESP_LOGI(TAG, "Bat %d : mesure opportuniste (V_before=%.0f mV, I=%.3f A)",
              battery_idx, v_before_mv, i_before_a);
 
     int64_t ts = now_ms();
+    float v2 = 0.0f, v3 = 0.0f, dummy = 0.0f;
+    esp_err_t ret;
 
     /* Attente → V2 ohmique */
     vTaskDelay(pdMS_TO_TICKS(CONFIG_BMU_RINT_PULSE_FAST_MS));
 
-    float v2 = 0.0f, dummy = 0.0f;
-    esp_err_t ret = bmu_ina237_read_voltage_current(
+    ret = bmu_ina237_read_voltage_current(
         &s_prot->ina_devices[battery_idx], &v2, &dummy);
     if (ret != ESP_OK) {
         ESP_LOGD(TAG, "Bat %d opportuniste : erreur V2", battery_idx);
-        s_measuring = false;
-        return;
+        goto cleanup;
     }
 
     /* Attente complémentaire → V3 totale */
-    int rest_ms = CONFIG_BMU_RINT_PULSE_TOTAL_MS - CONFIG_BMU_RINT_PULSE_FAST_MS;
-    if (rest_ms > 0) {
-        vTaskDelay(pdMS_TO_TICKS(rest_ms));
+    {
+        int rest_ms = CONFIG_BMU_RINT_PULSE_TOTAL_MS - CONFIG_BMU_RINT_PULSE_FAST_MS;
+        if (rest_ms > 0) {
+            vTaskDelay(pdMS_TO_TICKS(rest_ms));
+        }
     }
 
-    float v3 = 0.0f;
     ret = bmu_ina237_read_voltage_current(
         &s_prot->ina_devices[battery_idx], &v3, &dummy);
     if (ret != ESP_OK) {
         ESP_LOGD(TAG, "Bat %d opportuniste : erreur V3", battery_idx);
-        s_measuring = false;
-        return;
+        goto cleanup;
     }
 
-    bmu_rint_result_t result = compute_result(v_before_mv, i_before_a, v2, v3, ts);
+    {
+        bmu_rint_result_t result = compute_result(v_before_mv, i_before_a, v2, v3, ts);
 
-    if (s_mutex != NULL && xSemaphoreTake(s_mutex, pdMS_TO_TICKS(100)) == pdTRUE) {
-        s_cache[battery_idx] = result;
-        xSemaphoreGive(s_mutex);
+        if (s_mutex != NULL && xSemaphoreTake(s_mutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+            s_cache[battery_idx] = result;
+            xSemaphoreGive(s_mutex);
+        }
+
+        rint_output_route(battery_idx, BMU_RINT_TRIGGER_OPPORTUNISTIC, &result);
     }
 
-    rint_output_route(battery_idx, BMU_RINT_TRIGGER_OPPORTUNISTIC, &result);
+cleanup:
     s_measuring = false;
+    xSemaphoreGive(s_measure_mutex);
 }
 
 /* ── Tâche périodique ─────────────────────────────────────────────────── */
