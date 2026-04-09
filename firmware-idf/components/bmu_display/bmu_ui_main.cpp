@@ -288,13 +288,8 @@ void bmu_ui_main_update(bmu_ui_ctx_t *ctx)
         float v = v_mv / 1000.0f;
         bmu_battery_state_t state = bmu_protection_get_state(ctx->prot, i);
 
-        /* Courant : dernier point de l'historique graphique */
-        bmu_chart_history_t *h = (ctx->chart_hist != NULL) ? &ctx->chart_hist[i] : NULL;
-        float i_a = 0.0f;
-        if (h != NULL && h->count > 0) {
-            int last = (h->head - 1 + CONFIG_BMU_CHART_HISTORY_POINTS) % CONFIG_BMU_CHART_HISTORY_POINTS;
-            i_a = h->current_a[last];
-        }
+        /* Courant : cache temps-reel de la protection task */
+        float i_a = bmu_protection_get_current(ctx->prot, i);
 
         /* Labels tension et courant — skip si row pas encore creee */
         if (s_bat_vlabels[i] == NULL) continue;

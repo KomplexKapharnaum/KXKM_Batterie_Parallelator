@@ -527,9 +527,13 @@ extern "C" void app_main(void)
              (unsigned long)esp_get_free_heap_size(), BMU_LOOP_PERIOD_MS);
 
     /* ── 14. Start protection as autonomous FreeRTOS task ───────────── */
+    /* Period 200ms = 5 Hz: real-time voltage/current updates on display,
+     * still safe for state machine (thresholds work at any sample rate). */
     if (i2c_ok && topology_ok && nb_ina > 0) {
-        bmu_protection_start_task(&prot, BMU_LOOP_PERIOD_MS, 8, 8192);
-        ESP_LOGI(TAG, "Protection task launched (period=%dms, prio=8)", BMU_LOOP_PERIOD_MS);
+        const uint32_t prot_period_ms = 200;
+        bmu_protection_start_task(&prot, prot_period_ms, 8, 8192);
+        ESP_LOGI(TAG, "Protection task launched (period=%lums, prio=8)",
+                 (unsigned long)prot_period_ms);
     } else if (i2c_ok && !topology_ok) {
         ESP_LOGW(TAG, "Topology invalid — fail-safe all OFF");
         bmu_protection_all_off(&prot);

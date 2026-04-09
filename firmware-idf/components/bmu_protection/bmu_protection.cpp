@@ -199,9 +199,10 @@ esp_err_t bmu_protection_check_battery_ex(bmu_protection_ctx_t *ctx, int idx, fl
         }
     }
 
-    /* Cache voltage (mutex-protected) */
+    /* Cache voltage and current (mutex-protected) */
     if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
         ctx->battery_voltages[idx] = v_mv;
+        ctx->battery_currents[idx] = i_a;
         xSemaphoreGive(ctx->state_mutex);
     }
 
@@ -399,6 +400,18 @@ float bmu_protection_get_voltage(bmu_protection_ctx_t *ctx, int idx)
     return v;
 }
 
+float bmu_protection_get_current(bmu_protection_ctx_t *ctx, int idx)
+{
+    float i_a = 0;
+    if (idx >= 0 && idx < BMU_MAX_BATTERIES) {
+        if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+            i_a = ctx->battery_currents[idx];
+            xSemaphoreGive(ctx->state_mutex);
+        }
+    }
+    return i_a;
+}
+
 esp_err_t bmu_protection_get_switch_count(bmu_protection_ctx_t *ctx, int idx,
                                           int *switch_count_out)
 {
@@ -538,7 +551,7 @@ void bmu_protection_publish_snapshot(bmu_protection_ctx_t *ctx) {
         snap.battery[i].nb_switches = (uint8_t)ctx->nb_switch[i];
         snap.battery[i].health_score = ctx->ina_health[i].score;
         snap.battery[i].balancer_active = false;
-        snap.battery[i].current_a = 0; // populated when protection reads current
+        snap.battery[i].current_a = ctx->battery_currents[i];
 
         if (ctx->battery_state[i] == BMU_STATE_CONNECTED ||
             ctx->battery_state[i] == BMU_STATE_RECONNECTING) {
