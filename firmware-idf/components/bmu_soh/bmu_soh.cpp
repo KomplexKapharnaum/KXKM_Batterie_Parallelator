@@ -24,8 +24,8 @@ static const char *TAG = "SOH";
 
 /* ── Embedded model binary ────────────────────────────────────────── */
 
-extern const uint8_t model_start[] asm("_binary_models_fpnn_soh_int8_tflite_start");
-extern const uint8_t model_end[]   asm("_binary_models_fpnn_soh_int8_tflite_end");
+extern const uint8_t model_start[] asm("_binary_fpnn_soh_int8_tflite_start");
+extern const uint8_t model_end[]   asm("_binary_fpnn_soh_int8_tflite_end");
 
 /* ── Normalisation constants (from training checkpoint) ───────────── */
 
