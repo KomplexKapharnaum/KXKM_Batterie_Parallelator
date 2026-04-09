@@ -527,20 +527,22 @@ extern "C" void app_main(void)
              (unsigned long)esp_get_free_heap_size(), BMU_LOOP_PERIOD_MS);
 
     /* ── 14. Start protection as autonomous FreeRTOS task ───────────── */
-    /* Period 200ms = 5 Hz: real-time voltage/current updates on display,
-     * still safe for state machine (thresholds work at any sample rate). */
-    if (i2c_ok && topology_ok && nb_ina > 0) {
+    /* Period 200ms = 5 Hz. Always started if I2C bus is OK — the task
+     * handles nb_ina=0 and invalid topology internally (iterates 0 to
+     * nb_ina-1, gets updated via CMD_TOPOLOGY_CHANGED from hotplug). */
+    if (i2c_ok) {
+        if (!topology_ok) {
+            ESP_LOGW(TAG, "Topology invalid at boot — fail-safe all OFF, task will pick up via hotplug");
+            bmu_protection_all_off(&prot);
+        }
         const uint32_t prot_period_ms = 200;
         bmu_protection_start_task(&prot, prot_period_ms, 8, 8192);
-        ESP_LOGI(TAG, "Protection task launched (period=%lums, prio=8)",
-                 (unsigned long)prot_period_ms);
+        ESP_LOGI(TAG, "Protection task launched (period=%lums, prio=8, nb_ina=%d)",
+                 (unsigned long)prot_period_ms, nb_ina);
 
-        /* Small delay to let protection task do its warm-up (5 * 200ms = 1s)
-         * before display starts reading battery values. */
+        /* Small delay to let protection task do its warm-up before display
+         * starts reading battery values. */
         vTaskDelay(pdMS_TO_TICKS(1100));
-    } else if (i2c_ok && !topology_ok) {
-        ESP_LOGW(TAG, "Topology invalid — fail-safe all OFF");
-        bmu_protection_all_off(&prot);
     }
 
     /* ── 15. Start display updates (AFTER protection is running) ──── */
