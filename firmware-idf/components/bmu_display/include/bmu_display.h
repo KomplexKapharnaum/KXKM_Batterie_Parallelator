@@ -13,7 +13,7 @@ extern "C" {
 typedef struct {
     bmu_protection_ctx_t           *prot;
     bmu_battery_manager_t          *mgr;
-    uint8_t                         nb_ina;
+    const uint8_t                  *nb_ina_ptr;  /* Pointeur vers nb_ina live (e.g. &prot.nb_ina) */
     QueueHandle_t                   q_snapshot;
     bmu_snapshot_t                  last_snap;
 } bmu_display_ctx_t;

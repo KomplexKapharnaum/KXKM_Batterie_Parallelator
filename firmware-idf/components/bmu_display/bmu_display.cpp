@@ -48,8 +48,8 @@ static uint8_t visible_battery_count(void)
     uint8_t count = 0;
     if (s_ui_ctx.prot != NULL) {
         count = s_ui_ctx.prot->nb_ina;
-    } else if (s_ctx != NULL) {
-        count = s_ctx->nb_ina;
+    } else if (s_ctx != NULL && s_ctx->nb_ina_ptr != NULL) {
+        count = *s_ctx->nb_ina_ptr;
     }
 
     if (count > BMU_MAX_BATTERIES) {

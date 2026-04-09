@@ -248,7 +248,7 @@ extern "C" void app_main(void)
     ESP_LOGI(TAG, "Init display...");
     static bmu_protection_ctx_t prot = {};
     static bmu_battery_manager_t mgr = {};
-    static bmu_display_ctx_t disp_ctx = { .prot = &prot, .mgr = &mgr, .nb_ina = 0 };
+    static bmu_display_ctx_t disp_ctx = { .prot = &prot, .mgr = &mgr, .nb_ina_ptr = &prot.nb_ina };
     esp_err_t disp_ret = bmu_display_init(&disp_ctx);
     if (disp_ret == ESP_OK) {
         ESP_LOGI(TAG, "Display OK");
@@ -452,8 +452,7 @@ extern "C" void app_main(void)
     }
 #endif
 
-    /* Update display context avec nb_ina reel */
-    disp_ctx.nb_ina = total_ina;
+    /* Display context: nb_ina_ptr pointe vers prot.nb_ina (live via hotplug) */
     disp_ctx.q_snapshot = s_q_display;
     bmu_display_request_update();
 
