@@ -13,7 +13,6 @@
 #include "bmu_battery_manager.h"
 #include "bmu_config.h"
 #include "bmu_wifi.h"
-#include "bmu_web.h"
 #include "bmu_storage.h"
 #include "bmu_mqtt.h"
 #include "bmu_influx.h"
@@ -515,15 +514,6 @@ extern "C" void app_main(void)
 
         /* VRM — publish to Victron cloud */
         bmu_vrm_init(&prot, &mgr, nb_ina);
-    }
-
-    /* ── 11. Web server ────────────────────────────────────────────── */
-    if (bmu_wifi_is_connected()) {
-        static bmu_web_ctx_t web_ctx = { .prot = &prot, .mgr = &mgr };
-        bmu_web_start(&web_ctx);
-        char ip[16] = {};
-        bmu_wifi_get_ip(ip, sizeof(ip));
-        ESP_LOGI(TAG, "Web: http://%s/", ip);
     }
 
     /* ── 12. VE.Direct ─────────────────────────────────────────────── */
