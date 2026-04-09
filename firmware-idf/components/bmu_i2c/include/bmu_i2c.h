@@ -46,15 +46,6 @@ void bmu_i2c_record_failure(void);
  */
 esp_err_t bmu_i2c_bus_recover(void);
 
-// Per-device health tracking
-#include "bmu_types.h"
-
-void bmu_i2c_health_record_success(bmu_device_health_t *health);
-void bmu_i2c_health_record_failure(bmu_device_health_t *health);
-bool bmu_i2c_health_is_warn(const bmu_device_health_t *health);
-bool bmu_i2c_health_is_critical(const bmu_device_health_t *health);
-bool bmu_i2c_health_can_reconnect(const bmu_device_health_t *health);
-
 #ifdef __cplusplus
 }
 #endif

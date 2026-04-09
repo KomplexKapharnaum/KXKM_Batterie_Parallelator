@@ -13,19 +13,18 @@
 - For diagnostics, use DebugLogger categories over ad-hoc Serial.print.
 
 ## Build and Test
-- Core firmware checks (before substantial firmware edits):
+- Quick validation before substantial firmware edits:
   - pio test -e sim-host
+- Additional checks when scope grows:
   - pio run -e kxkm-s3-16MB
-- For large firmware changes, also run:
   - scripts/check_memory_budget.sh --env kxkm-s3-16MB --ram-max 75 --flash-max 85
-- ESP-IDF track (when editing firmware-idf/):
   - cd firmware-idf && idf.py build
 - PlatformIO gotcha:
   - Keep framework=arduino in [arduino_base] only; do not move it to global [env] (breaks sim-host/native tests).
-- Canonical command reference:
-  - CLAUDE.md
-  - README.md
-  - scripts/ci/README.md
+- Canonical command references:
+  - [CLAUDE.md](CLAUDE.md)
+  - [README.md](README.md)
+  - [scripts/ci/README.md](scripts/ci/README.md)
 
 ## Architecture
 - Safety core:
@@ -45,6 +44,7 @@
 ## Conventions
 - Keep French comments/identifiers consistent with surrounding code.
 - All I2C access must go through I2CLockGuard.
+- Keep I2C recovery semantics intact (kI2CRecoveryThreshold = 5 consecutive failures).
 - Validate battery/sensor indexes before any array/driver access.
 - Preserve NAN/early-return semantics for sensor and bus faults.
 - Keep periodic FreeRTOS tasks non-blocking.
@@ -54,12 +54,12 @@
 
 ## Copilot Workflow
 - Start by loading the scoped instruction file for the area being edited:
-  - .github/instructions/firmware-safety.instructions.md
-  - .github/instructions/webserver-safety.instructions.md
-  - .github/instructions/firmware-idf-display-safety.instructions.md
-  - .github/instructions/tests-python.instructions.md
-  - .github/instructions/ml-pipeline.instructions.md
-  - .github/instructions/plan-todo-implementation.instructions.md
+  - [.github/instructions/firmware-safety.instructions.md](.github/instructions/firmware-safety.instructions.md)
+  - [.github/instructions/webserver-safety.instructions.md](.github/instructions/webserver-safety.instructions.md)
+  - [.github/instructions/firmware-idf-display-safety.instructions.md](.github/instructions/firmware-idf-display-safety.instructions.md)
+  - [.github/instructions/tests-python.instructions.md](.github/instructions/tests-python.instructions.md)
+  - [.github/instructions/ml-pipeline.instructions.md](.github/instructions/ml-pipeline.instructions.md)
+  - [.github/instructions/plan-todo-implementation.instructions.md](.github/instructions/plan-todo-implementation.instructions.md)
 - For firmware safety changes, inspect the relevant code path and the closest sim-host tests before proposing edits.
 - Reuse existing validation/security helpers and keep diffs minimal.
 - Update nearby tests when behavior changes (especially protection, routes, auth, rate limiting).
@@ -67,10 +67,10 @@
 - Link to existing documentation rather than embedding long duplicated guidance in code changes.
 
 ## Link-First References
-- Safety and implementation context: CLAUDE.md
-- Project overview and setup: README.md
-- Kill_LIFE specs and gates: specs/00_intake.md, specs/01_spec.md, specs/02_arch.md, specs/03_plan.md, specs/04_validation.md
-- Current execution plan and safety refactor tracking: plan/refactor-safety-core-web-remote-1.md
-- CI/QA orchestration: scripts/ci/README.md, .github/workflows/
-- ML governance and artifacts: docs/ML_BATTERY_HEALTH_SPEC.md, models/
-- QA environments and remote proof flow: docs/QA_CICD_ENVIRONNEMENTS.md, docs/QA_REMOTE_PROOF_LATEST.md
+- Safety and implementation context: [CLAUDE.md](CLAUDE.md)
+- Project overview and setup: [README.md](README.md)
+- Kill_LIFE specs and gates: [specs/00_intake.md](specs/00_intake.md), [specs/01_spec.md](specs/01_spec.md), [specs/02_arch.md](specs/02_arch.md), [specs/03_plan.md](specs/03_plan.md), [specs/04_validation.md](specs/04_validation.md)
+- Current execution plan and safety refactor tracking: [plan/refactor-safety-core-web-remote-1.md](plan/refactor-safety-core-web-remote-1.md)
+- CI/QA orchestration: [scripts/ci/README.md](scripts/ci/README.md), [.github/workflows](.github/workflows)
+- ML governance and artifacts: [docs/ML_BATTERY_HEALTH_SPEC.md](docs/ML_BATTERY_HEALTH_SPEC.md), [models](models)
+- QA environments and remote proof flow: [docs/QA_CICD_ENVIRONNEMENTS.md](docs/QA_CICD_ENVIRONNEMENTS.md), [docs/QA_REMOTE_PROOF_LATEST.md](docs/QA_REMOTE_PROOF_LATEST.md)

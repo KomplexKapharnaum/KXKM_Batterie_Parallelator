@@ -31,14 +31,15 @@ extern const uint8_t model_end[]   asm("_binary_models_fpnn_soh_int8_tflite_end"
 
 #define NUM_FEATURES 13
 
+/* Updated 2026-04-08 from fpnn_soh.pt checkpoint (450K samples, 3 devices) */
 static const float FEAT_MEANS[NUM_FEATURES] = {
-    27.3381f, 0.2070f, 0.2388f, 0.3542f, -0.0010f, 0.0012f,
-    0.0068f, 0.0029f, 27.1311f, 27.5451f, 0.9603f, 47.1759f, 0.0585f
+    27.3286f, 0.3091f, 0.0820f, 0.4863f, -0.0699f, 0.0025f,
+    0.1654f, 0.2979f, 27.0195f, 27.6376f, 0.9870f, 59.7926f, 0.5576f
 };
 
 static const float FEAT_STDS[NUM_FEATURES] = {
-    1.7098f, 0.7784f, 1.1714f, 1.4683f, 0.0525f, 0.0964f,
-    0.0161f, 0.0892f, 1.8728f, 1.8845f, 2.0658f, 1.5550f, 0.0726f
+    1.5719f, 0.6584f, 0.8626f, 1.4825f, 0.5787f, 0.6206f,
+    6.2368f, 5.2352f, 1.6740f, 1.7339f, 1.8827f, 21.1871f, 1.5358f
 };
 
 /* ── TFLite Micro state ───────────────────────────────────────────── */

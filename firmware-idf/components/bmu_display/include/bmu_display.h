@@ -2,7 +2,6 @@
 #include "esp_err.h"
 #include "bmu_protection.h"
 #include "bmu_battery_manager.h"
-#include "bmu_types.h"
 
 typedef struct _lv_obj_t lv_obj_t;
 
@@ -14,8 +13,6 @@ typedef struct {
     bmu_protection_ctx_t           *prot;
     bmu_battery_manager_t          *mgr;
     uint8_t                         nb_ina;
-    QueueHandle_t                   q_snapshot;
-    bmu_snapshot_t                  last_snap;
 } bmu_display_ctx_t;
 
 /**

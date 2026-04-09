@@ -6,10 +6,9 @@ CXXFLAGS  = -Wall -Wextra -DNATIVE_TEST -std=c++17
 UNITY_DIR = unity
 UNITY_SRC = $(UNITY_DIR)/unity.c
 UNITY_INC = -I$(UNITY_DIR)
-COMP_INC  = -I../components/bmu_types/include
 BUILD     = build
 
-TESTS = test_protection test_vrm_topics test_ble_victron test_config_labels test_vedirect_parser test_i2c_bitbang test_health_score test_snapshot test_balancer_logic
+TESTS = test_protection test_vrm_topics test_ble_victron test_config_labels test_vedirect_parser test_i2c_bitbang
 BINS  = $(addprefix $(BUILD)/,$(TESTS))
 
 .PHONY: all clean download_unity run
@@ -27,7 +26,7 @@ download_unity:
 
 $(BUILD)/%: %/main/*.cpp download_unity
 	@mkdir -p $(BUILD)
-	$(CXX) $(CXXFLAGS) $(UNITY_INC) $(COMP_INC) -o $@ $< $(UNITY_SRC)
+	$(CXX) $(CXXFLAGS) $(UNITY_INC) -o $@ $< $(UNITY_SRC)
 
 run: $(BINS)
 	@echo "=== Running all host tests ==="

@@ -200,7 +200,7 @@ void bmu_ui_main_create(lv_obj_t *parent, bmu_ui_ctx_t *ctx)
 
 static void ensure_battery_rows(int nb)
 {
-    if (nb <= s_bat_created) return;
+    if (nb <= s_bat_created || s_bat_list == NULL) return;
     if (nb > 32) nb = 32;
 
     /* Creer au max 2 rows par appel timer pour eviter le watchdog.
@@ -297,7 +297,9 @@ void bmu_ui_main_update(bmu_ui_ctx_t *ctx)
             i_a = h->current_a[last];
         }
 
-        /* Labels tension et courant */
+        /* Labels tension et courant — skip si row pas encore creee */
+        if (s_bat_vlabels[i] == NULL) continue;
+
         char buf[16];
         snprintf(buf, sizeof(buf), "%.2fV", v);
         lv_label_set_text(s_bat_vlabels[i], buf);

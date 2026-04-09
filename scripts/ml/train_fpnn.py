@@ -119,19 +119,66 @@ class PolynomialExpansion(nn.Module):
         return torch.cat(parts, dim=1)
 
 
+class FakeQuantize(nn.Module):
+    """Simulate INT8 quantization during training (Straight-Through Estimator).
+
+    Quantizes to [-128, 127] range based on running min/max stats, then
+    dequantizes back to float.  Gradient passes through unchanged (STE).
+    First batch initializes ranges directly; subsequent batches use EMA.
+    """
+
+    def __init__(self, num_bits: int = 8, momentum: float = 0.01):
+        super().__init__()
+        self.num_bits = num_bits
+        self.qmin = -(2 ** (num_bits - 1))
+        self.qmax = 2 ** (num_bits - 1) - 1
+        self.register_buffer("running_min", torch.tensor(0.0))
+        self.register_buffer("running_max", torch.tensor(0.0))
+        self.register_buffer("initialized", torch.tensor(False))
+        self.momentum = momentum
+        self.enabled = True
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if not self.enabled:
+            return x
+        if self.training:
+            batch_min = x.detach().min()
+            batch_max = x.detach().max()
+            if not self.initialized:
+                self.running_min = batch_min
+                self.running_max = batch_max
+                self.initialized.fill_(True)
+            else:
+                self.running_min = (1 - self.momentum) * self.running_min + self.momentum * batch_min
+                self.running_max = (1 - self.momentum) * self.running_max + self.momentum * batch_max
+        rmin = self.running_min
+        rmax = self.running_max
+        if rmax - rmin < 1e-8:
+            return x
+        scale = (rmax - rmin) / (self.qmax - self.qmin)
+        zero_point = self.qmin - torch.round(rmin / scale)
+        # Quantize then dequantize (STE: gradient flows through round)
+        x_q = torch.clamp(torch.round(x / scale + zero_point), self.qmin, self.qmax)
+        return (x_q - zero_point) * scale
+
+
 class FPNN(nn.Module):
     """Feature-based Polynomial Neural Network — tiny model for edge deployment.
 
     Architecture:
         input (n_features)
           -> PolynomialExpansion (degree 2 or 3)
+          -> [FakeQuantize (QAT)]
           -> Linear(expanded, hidden) -> ReLU -> Dropout
           -> Linear(hidden, 1) -> Sigmoid
     """
 
-    def __init__(self, n_features: int, hidden: int = 32, degree: int = 3, dropout: float = 0.1):
+    def __init__(self, n_features: int, hidden: int = 32, degree: int = 3,
+                 dropout: float = 0.1, qat: bool = False):
         super().__init__()
         self.poly = PolynomialExpansion(n_features, degree)
+        self.fq_input = FakeQuantize() if qat else None
+        self.fq_hidden = FakeQuantize() if qat else None
         self.net = nn.Sequential(
             nn.Linear(self.poly.out_features, hidden),
             nn.ReLU(),
@@ -141,7 +188,17 @@ class FPNN(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.net(self.poly(x)).squeeze(-1)
+        x = self.poly(x)
+        if self.fq_input is not None:
+            x = self.fq_input(x)
+        x = self.net[0](x)  # Linear
+        x = self.net[1](x)  # ReLU
+        if self.fq_hidden is not None:
+            x = self.fq_hidden(x)
+        x = self.net[2](x)  # Dropout
+        x = self.net[3](x)  # Linear(hidden, 1)
+        x = self.net[4](x)  # Sigmoid
+        return x.squeeze(-1)
 
 
 # ---------------------------------------------------------------------------
@@ -294,6 +351,22 @@ def compute_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> dict:
     return {"MAPE": mape, "RMSE": rmse, "R2": r2}
 
 
+def _extract_fq_ranges(model: FPNN) -> dict:
+    """Extract learned min/max ranges from FakeQuantize modules."""
+    ranges = {}
+    if model.fq_input is not None and model.fq_input.initialized:
+        ranges["fq_input"] = {
+            "min": float(model.fq_input.running_min),
+            "max": float(model.fq_input.running_max),
+        }
+    if model.fq_hidden is not None and model.fq_hidden.initialized:
+        ranges["fq_hidden"] = {
+            "min": float(model.fq_hidden.running_min),
+            "max": float(model.fq_hidden.running_max),
+        }
+    return ranges
+
+
 # ---------------------------------------------------------------------------
 # Training loop
 # ---------------------------------------------------------------------------
@@ -317,11 +390,17 @@ def train(args: argparse.Namespace) -> None:
     train_loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True, drop_last=False)
     val_loader = DataLoader(val_ds, batch_size=args.batch_size * 2, shuffle=False)
 
-    # Model
-    model = FPNN(n_features, hidden=args.hidden, degree=args.degree, dropout=args.dropout).to(device)
-    n_params = sum(p.numel() for p in model.parameters())
-    log.info("FPNN — degree=%d  hidden=%d  params=%d  poly_features=%d",
-             args.degree, args.hidden, n_params, model.poly.out_features)
+    # Model — QAT starts disabled during warmup phase
+    model = FPNN(n_features, hidden=args.hidden, degree=args.degree,
+                 dropout=args.dropout, qat=args.qat).to(device)
+    if args.qat:
+        # Disable FQ during warmup — train float32 first
+        model.fq_input.enabled = False
+        model.fq_hidden.enabled = False
+    n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    log.info("FPNN — degree=%d  hidden=%d  params=%d  poly_features=%d  qat=%s  warmup=%d",
+             args.degree, args.hidden, n_params, model.poly.out_features,
+             args.qat, args.qat_warmup if args.qat else 0)
 
     criterion = nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
@@ -335,6 +414,18 @@ def train(args: argparse.Namespace) -> None:
     t0 = time.time()
 
     for epoch in range(1, args.epochs + 1):
+        # --- QAT warmup: enable fake quantization after warmup epochs ---
+        if args.qat and epoch == args.qat_warmup + 1:
+            model.fq_input.enabled = True
+            model.fq_hidden.enabled = True
+            # Reduce LR for QAT fine-tuning phase
+            for pg in optimizer.param_groups:
+                pg["lr"] = args.lr * 0.1
+            # Reset early stopping — QAT phase needs its own patience
+            best_val_loss = float("inf")
+            patience_counter = 0
+            log.info("QAT activated at epoch %d — LR reduced to %.1e", epoch, args.lr * 0.1)
+
         # --- Train ---
         model.train()
         train_loss_sum = 0.0
@@ -388,8 +479,12 @@ def train(args: argparse.Namespace) -> None:
         model.to(device)
     log.info("Best epoch: %d  best val_loss: %.6f", best_epoch, best_val_loss)
 
-    # --- Test evaluation ---
+    # --- Test evaluation (disable fake quantizers for clean float32 metrics) ---
     model.eval()
+    if model.fq_input is not None:
+        model.fq_input.enabled = False
+    if model.fq_hidden is not None:
+        model.fq_hidden.enabled = False
     with torch.no_grad():
         X_te_t = torch.from_numpy(X_te).to(device)
         y_pred = model(X_te_t).cpu().numpy()
@@ -413,6 +508,8 @@ def train(args: argparse.Namespace) -> None:
         "feature_means": f_means.tolist(),
         "feature_stds": f_stds.tolist(),
         "soh_mode": args.soh_mode,
+        "qat": args.qat,
+        "qat_ranges": _extract_fq_ranges(model) if args.qat else None,
         "best_epoch": best_epoch,
         "best_val_loss": best_val_loss,
         "test_metrics": metrics,
@@ -495,6 +592,14 @@ def parse_args() -> argparse.Namespace:
         choices=["voltage", "capacity"],
         help="SOH proxy method: 'voltage' = normalised rest_voltage, "
              "'capacity' = capacity fade from ah_cons (Phase 2.2 FIX: device-independent)",
+    )
+    p.add_argument(
+        "--qat", action="store_true", default=False,
+        help="Enable Quantization-Aware Training (fake INT8 quantization during training)",
+    )
+    p.add_argument(
+        "--qat-warmup", type=int, default=20,
+        help="Train this many epochs in float32 before enabling QAT (prevents early divergence)",
     )
     return p.parse_args()
 

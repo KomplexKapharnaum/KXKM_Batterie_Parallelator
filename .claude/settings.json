@@ -21,7 +21,8 @@
       "Bash(./gradlew :shared:generateCommonMainBmuDatabaseInterface)",
       "Bash(./gradlew :shared:compileKotlinIosArm64)",
       "Bash(xcodebuild -list)",
-      "Bash(xcodebuild build:*)"
+      "Bash(xcodebuild build:*)",
+      "Bash(ruby -e ':*)"
     ]
   }
 }

@@ -1,5 +1,4 @@
 #include "bmu_protection.h"
-#include "bmu_i2c.h"
 #include "bmu_rint.h"
 #include "esp_log.h"
 #include "esp_timer.h"
@@ -23,11 +22,9 @@ esp_err_t bmu_protection_init(bmu_protection_ctx_t *ctx,
     ctx->state_mutex = xSemaphoreCreateMutex();
     configASSERT(ctx->state_mutex != NULL);
 
-    /* All batteries start DISCONNECTED, health at max */
+    /* All batteries start DISCONNECTED */
     for (int i = 0; i < BMU_MAX_BATTERIES; i++) {
         ctx->battery_state[i] = BMU_STATE_DISCONNECTED;
-        ctx->ina_health[i].score = BMU_HEALTH_SCORE_INIT;
-        ctx->ina_health[i].consec_fails = 0;
     }
 
     ESP_LOGI(TAG, "Protection init: %d INA, %d TCA", nb_ina, nb_tca);
@@ -147,32 +144,13 @@ esp_err_t bmu_protection_check_battery_ex(bmu_protection_ctx_t *ctx, int idx, fl
     float v_mv = 0, i_a = 0;
     esp_err_t ret = bmu_ina237_read_voltage_current(&ctx->ina_devices[idx], &v_mv, &i_a);
     if (ret != ESP_OK || std::isnan(v_mv) || std::isnan(i_a)) {
-        bmu_i2c_health_record_failure(&ctx->ina_health[idx]);
-
-        // If critical: force battery OFF
-        if (bmu_i2c_health_is_critical(&ctx->ina_health[idx])) {
-            if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
-                if (ctx->battery_state[idx] == BMU_STATE_CONNECTED) {
-                    ESP_LOGW(TAG, "BAT[%d] health critical (score=%d), forcing OFF",
-                             idx + 1, ctx->ina_health[idx].score);
-                    switch_battery(ctx, idx, false);
-                    ctx->battery_state[idx] = BMU_STATE_DISCONNECTED;
-                }
-                ctx->battery_voltages[idx] = 0;
-                xSemaphoreGive(ctx->state_mutex);
-            }
-        } else {
-            ESP_LOGW(TAG, "BAT[%d] I2C read error (health=%d) — skip",
-                     idx + 1, ctx->ina_health[idx].score);
-            if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
-                ctx->battery_voltages[idx] = 0;
-                xSemaphoreGive(ctx->state_mutex);
-            }
+        ESP_LOGW(TAG, "BAT[%d] I2C read error — skip protection", idx + 1);
+        if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+            ctx->battery_voltages[idx] = 0;
+            xSemaphoreGive(ctx->state_mutex);
         }
         return ret;
     }
-
-    bmu_i2c_health_record_success(&ctx->ina_health[idx]);
 
     /* Rejet des lectures aberrantes — donnee corrompue par glitch I2C.
      * Symptomes observes : V/2 (14.4V au lieu de 28.8V), V*1.4 (40V).
@@ -510,144 +488,4 @@ esp_err_t bmu_protection_update_topology(bmu_protection_ctx_t *ctx,
     }
 
     return ESP_OK;
-}
-
-// ── RTOS queue / task API (Phase 2) ─────────────────────────────────
-
-esp_err_t bmu_protection_set_queues(bmu_protection_ctx_t *ctx,
-                                     const bmu_protection_queues_t *queues) {
-    if (!ctx || !queues) return ESP_ERR_INVALID_ARG;
-    ctx->queues = *queues;
-    ctx->cycle_count = 0;
-    return ESP_OK;
-}
-
-void bmu_protection_publish_snapshot(bmu_protection_ctx_t *ctx) {
-    bmu_snapshot_t snap = {};
-    snap.timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000);
-    snap.cycle_count = ctx->cycle_count++;
-    snap.nb_batteries = ctx->nb_ina;
-    snap.topology_ok = (ctx->nb_tca * 4 == ctx->nb_ina);
-
-    float max_v = 0, sum_v = 0;
-    int count_connected = 0;
-
-    for (int i = 0; i < ctx->nb_ina; i++) {
-        snap.battery[i].voltage_mv  = ctx->battery_voltages[i];
-        snap.battery[i].state       = ctx->battery_state[i];
-        snap.battery[i].nb_switches = (uint8_t)ctx->nb_switch[i];
-        snap.battery[i].health_score = ctx->ina_health[i].score;
-        snap.battery[i].balancer_active = false;
-        snap.battery[i].current_a = 0; // populated when protection reads current
-
-        if (ctx->battery_state[i] == BMU_STATE_CONNECTED ||
-            ctx->battery_state[i] == BMU_STATE_RECONNECTING) {
-            if (ctx->battery_voltages[i] > max_v)
-                max_v = ctx->battery_voltages[i];
-            sum_v += ctx->battery_voltages[i];
-            count_connected++;
-        }
-    }
-
-    snap.fleet_max_mv = max_v;
-    snap.fleet_mean_mv = count_connected > 0 ? sum_v / count_connected : 0;
-
-    if (ctx->queues.q_balancer)
-        xQueueOverwrite(ctx->queues.q_balancer, &snap);
-    if (ctx->queues.q_display)
-        xQueueOverwrite(ctx->queues.q_display, &snap);
-    if (ctx->queues.q_cloud)
-        xQueueOverwrite(ctx->queues.q_cloud, &snap);
-    if (ctx->queues.q_ble)
-        xQueueOverwrite(ctx->queues.q_ble, &snap);
-}
-
-void bmu_protection_process_commands(bmu_protection_ctx_t *ctx) {
-    if (!ctx->queues.q_cmd) return;
-    bmu_cmd_t cmd;
-    while (xQueueReceive(ctx->queues.q_cmd, &cmd, 0) == pdTRUE) {
-        switch (cmd.type) {
-        case CMD_WEB_SWITCH:
-            ESP_LOGI(TAG, "CMD web_switch bat=%d on=%d",
-                     cmd.payload.web_switch.battery_idx,
-                     cmd.payload.web_switch.on);
-            bmu_protection_web_switch(ctx,
-                                      cmd.payload.web_switch.battery_idx,
-                                      cmd.payload.web_switch.on);
-            break;
-        case CMD_TOPOLOGY_CHANGED:
-            ESP_LOGI(TAG, "CMD topology nb_ina=%d nb_tca=%d",
-                     cmd.payload.topology.nb_ina,
-                     cmd.payload.topology.nb_tca);
-            bmu_protection_update_topology(ctx,
-                                           cmd.payload.topology.nb_ina,
-                                           cmd.payload.topology.nb_tca);
-            break;
-        case CMD_BALANCE_REQUEST: {
-            uint8_t idx = cmd.payload.balance_req.battery_idx;
-            bool on = cmd.payload.balance_req.on;
-            ESP_LOGD(TAG, "CMD balance bat=%d on=%d", idx, on);
-            if (idx >= ctx->nb_ina) break;
-            if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
-                if (ctx->battery_state[idx] == BMU_STATE_CONNECTED ||
-                    (on && ctx->battery_state[idx] == BMU_STATE_DISCONNECTED)) {
-                    switch_battery(ctx, idx, on);
-                }
-                xSemaphoreGive(ctx->state_mutex);
-            }
-            break;
-        }
-        case CMD_CONFIG_UPDATE:
-            ESP_LOGI(TAG, "CMD config_update");
-            break;
-        case CMD_BUS_RECOVERY:
-            ESP_LOGW(TAG, "CMD bus_recovery bus=%d",
-                     cmd.payload.bus_recovery.bus_id);
-            bmu_i2c_bus_recover();
-            break;
-        }
-    }
-}
-
-static void protection_task(void *arg) {
-    bmu_protection_ctx_t *ctx = (bmu_protection_ctx_t *)arg;
-    TickType_t last_wake = xTaskGetTickCount();
-    const TickType_t period = pdMS_TO_TICKS(ctx->task_period_ms);
-
-    ESP_LOGI(TAG, "Protection task started (period=%lums, prio=%d)",
-             (unsigned long)ctx->task_period_ms, (int)uxTaskPriorityGet(NULL));
-
-    // Warm-up: 5 cycles to stabilize INA237 voltage cache
-    for (int w = 0; w < 5; w++) {
-        for (int i = 0; i < ctx->nb_ina; i++) {
-            float v, c;
-            bmu_ina237_read_voltage_current(&ctx->ina_devices[i], &v, &c);
-            if (v > 0) ctx->battery_voltages[i] = v;
-        }
-        vTaskDelay(pdMS_TO_TICKS(200));
-    }
-
-    while (true) {
-        bmu_protection_process_commands(ctx);
-
-        float fleet_max = bmu_protection_compute_fleet_max(ctx);
-
-        for (int i = 0; i < ctx->nb_ina; i++) {
-            bmu_protection_check_battery_ex(ctx, i, fleet_max);
-        }
-
-        bmu_protection_publish_snapshot(ctx);
-
-        vTaskDelayUntil(&last_wake, period);
-    }
-}
-
-esp_err_t bmu_protection_start_task(bmu_protection_ctx_t *ctx,
-                                     uint32_t period_ms,
-                                     UBaseType_t priority,
-                                     uint32_t stack_size) {
-    ctx->task_period_ms = period_ms;
-    BaseType_t ret = xTaskCreate(protection_task, "protection",
-                                  stack_size, ctx, priority, &ctx->task_handle);
-    return (ret == pdPASS) ? ESP_OK : ESP_FAIL;
 }
