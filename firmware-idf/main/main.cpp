@@ -616,8 +616,12 @@ extern "C" void app_main(void)
      * nb_ina-1, gets updated via CMD_TOPOLOGY_CHANGED from hotplug). */
     if (i2c_ok) {
         if (!topology_ok) {
-            ESP_LOGW(TAG, "Topology invalid at boot — fail-safe all OFF, task will pick up via hotplug");
-            bmu_protection_all_off(&prot);
+            ESP_LOGW(TAG, "Topology invalid at boot — task gerera via hotplug (pas d'all_off synchrone)");
+            /* NE PAS appeler bmu_protection_all_off ici: sur un bus I2C
+             * degrade, l'ecriture peut spin dans i2c_ll_is_bus_busy et
+             * causer un WDT trigger sur main task. La protection task
+             * a son propre WDT feed + skip balancer, elle gerera le
+             * fail-safe au runtime. */
         }
         const uint32_t prot_period_ms = 200;
         bmu_protection_start_task(&prot, prot_period_ms, 8, 8192);
