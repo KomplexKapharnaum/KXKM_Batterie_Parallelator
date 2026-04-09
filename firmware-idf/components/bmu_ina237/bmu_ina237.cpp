@@ -146,8 +146,21 @@ esp_err_t bmu_ina237_init(i2c_master_bus_handle_t bus, uint8_t addr,
         return ESP_ERR_TIMEOUT;
     }
 
-    /* 1. Verification identite — MANUFACTURER_ID doit etre 0x5449 ("TI") */
-    ret = ina237_read_reg16_retry(ctx->dev, INA237_REG_MANUFACTURER_ID, &mfr_id);
+    /* 1. Verification identite — MANUFACTURER_ID doit etre 0x5449 ("TI").
+     * Retry jusqu'a 3 lectures en cas de glitch I2C (bit flip observe en
+     * production: 0x5448 au lieu de 0x5449). Le DEVICE_ID est revalide
+     * apres, ce qui confirme l'identite reelle du composant. */
+    for (int mfr_attempt = 0; mfr_attempt < 3; mfr_attempt++) {
+        ret = ina237_read_reg16_retry(ctx->dev, INA237_REG_MANUFACTURER_ID, &mfr_id);
+        if (ret == ESP_OK && mfr_id == INA237_MANUFACTURER_ID) {
+            break;
+        }
+        if (mfr_attempt < 2) {
+            ESP_LOGW(TAG, "[0x%02X] MFR read glitch: 0x%04X — retry %d/3",
+                     addr, mfr_id, mfr_attempt + 2);
+            vTaskDelay(pdMS_TO_TICKS(5));
+        }
+    }
     if (ret != ESP_OK || mfr_id != INA237_MANUFACTURER_ID) {
         ESP_LOGE(TAG, "[0x%02X] ID fabricant invalide: 0x%04X (attendu 0x%04X)",
                  addr, mfr_id, INA237_MANUFACTURER_ID);
