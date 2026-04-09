@@ -85,6 +85,7 @@ typedef struct {
     bmu_battery_manager_t *mgr;
     uint8_t               *nb_ina;   /* pointer — follows hotplug changes */
     QueueHandle_t          q_snapshot;
+    SemaphoreHandle_t      nb_ina_mutex;
 } cloud_task_ctx_t;
 
 static void cloud_telemetry_task(void *pv)
@@ -117,7 +118,13 @@ static void cloud_telemetry_task(void *pv)
             }
         }
 
-        uint8_t snap_ina = *ctx->nb_ina; /* snapshot atomique */
+        uint8_t snap_ina = 0;
+        if (ctx->nb_ina_mutex && xSemaphoreTake(ctx->nb_ina_mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+            snap_ina = *ctx->nb_ina;
+            xSemaphoreGive(ctx->nb_ina_mutex);
+        } else {
+            snap_ina = *ctx->nb_ina;
+        }
         for (int i = 0; i < snap_ina; i++) {
             float v_mv = bmu_protection_get_voltage(ctx->prot, i);
             float ah_d = bmu_battery_manager_get_ah_discharge(ctx->mgr, i);
@@ -297,6 +304,8 @@ extern "C" void app_main(void)
     /* ── 8. Scan I2C + init sensors (si bus ok) ──────────────────── */
     static bmu_ina237_t ina[BMU_MAX_BATTERIES] = {};
     static uint8_t nb_ina = 0;
+    static SemaphoreHandle_t nb_ina_mutex = xSemaphoreCreateMutex();
+    configASSERT(nb_ina_mutex != NULL);
     static bmu_tca9535_handle_t tca[BMU_MAX_TCA] = {};
     static uint8_t nb_tca = 0;
     static bool topology_ok = false;
@@ -462,6 +471,7 @@ extern "C" void app_main(void)
             .prot = &prot,
             .mgr = &mgr,
             .q_cmd = s_q_cmd,
+            .nb_ina_mutex = nb_ina_mutex,
         };
         if (bmu_hotplug_init(&hp_cfg) == ESP_OK) {
             bmu_hotplug_start();
@@ -502,6 +512,7 @@ extern "C" void app_main(void)
         cloud_ctx.mgr = &mgr;
         cloud_ctx.nb_ina = &nb_ina;
         cloud_ctx.q_snapshot = s_q_cloud;
+        cloud_ctx.nb_ina_mutex = nb_ina_mutex;
         xTaskCreate(cloud_telemetry_task, "cloud", 4096, &cloud_ctx, 2, NULL);
 
         /* VRM — publish to Victron cloud */

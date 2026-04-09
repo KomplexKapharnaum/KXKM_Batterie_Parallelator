@@ -138,7 +138,12 @@ static int remove_gone_ina(void)
         /* Don't increment i — re-check the slot that shifted in */
     }
 
-    *s_cfg.nb_ina = cur;
+    if (s_cfg.nb_ina_mutex && xSemaphoreTake(s_cfg.nb_ina_mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+        *s_cfg.nb_ina = cur;
+        xSemaphoreGive(s_cfg.nb_ina_mutex);
+    } else if (s_cfg.nb_ina) {
+        *s_cfg.nb_ina = cur;  /* Fallback si mutex absent (backward compat) */
+    }
     return removed;
 }
 
@@ -223,7 +228,12 @@ static int scan_new_ina(void)
         }
     }
 
-    *s_cfg.nb_ina = cur;
+    if (s_cfg.nb_ina_mutex && xSemaphoreTake(s_cfg.nb_ina_mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+        *s_cfg.nb_ina = cur;
+        xSemaphoreGive(s_cfg.nb_ina_mutex);
+    } else if (s_cfg.nb_ina) {
+        *s_cfg.nb_ina = cur;  /* Fallback si mutex absent (backward compat) */
+    }
     return added;
 }
 

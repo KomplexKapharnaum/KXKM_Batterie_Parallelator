@@ -6,6 +6,7 @@
 #include "bmu_battery_manager.h"
 #include "bmu_types.h"
 #include "esp_err.h"
+#include "freertos/semphr.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -21,6 +22,7 @@ typedef struct {
     bmu_protection_ctx_t    *prot;
     bmu_battery_manager_t   *mgr;
     QueueHandle_t            q_cmd;
+    SemaphoreHandle_t        nb_ina_mutex;  /* Optionnel: protège les writes sur *nb_ina */
 } bmu_hotplug_cfg_t;
 
 typedef struct {
