@@ -89,14 +89,15 @@ esp_err_t bmu_soh_init(void)
     }
 
     /* Register only the ops our FPNN needs */
-    static tflite::MicroMutableOpResolver<7> resolver;
+    static tflite::MicroMutableOpResolver<8> resolver;
     resolver.AddFullyConnected();
     resolver.AddReshape();
     resolver.AddQuantize();
     resolver.AddDequantize();
-    resolver.AddLogistic();  /* Sigmoid */
-    resolver.AddMul();       /* Polynomial expansion element-wise multiply */
-    resolver.AddGather();    /* Embedding lookup used in polynomial feature expansion */
+    resolver.AddLogistic();        /* Sigmoid */
+    resolver.AddMul();             /* Polynomial expansion element-wise multiply */
+    resolver.AddGather();          /* Embedding lookup in polynomial feature expansion */
+    resolver.AddConcatenation();   /* Concat feature branches before final FC layers */
 
     static tflite::MicroInterpreter interpreter(model, resolver, s_arena, kArenaSize);
     if (interpreter.AllocateTensors() != kTfLiteOk) {
