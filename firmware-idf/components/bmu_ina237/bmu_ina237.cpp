@@ -443,6 +443,7 @@ esp_err_t bmu_ina237_scan_init(i2c_master_bus_handle_t bus,
     ESP_LOGI(TAG, "Scan INA237 sur bus I2C (0x%02X-0x%02X)...", INA237_ADDR_MIN, INA237_ADDR_MAX);
 
     for (uint8_t addr = INA237_ADDR_MIN; addr <= INA237_ADDR_MAX; addr++) {
+        vTaskDelay(pdMS_TO_TICKS(1));  // yield CPU pour task watchdog
         if (*count >= INA237_MAX_DEVICES) break;
 
         /* Quick check : ajouter le device, lire MFR_ID, retirer si absent.
