@@ -166,7 +166,37 @@ esp_err_t bmu_ina237_init(i2c_master_bus_handle_t bus, uint8_t addr,
 
     ESP_LOGI(TAG, "[0x%02X] INA237 detecte (MFR=0x%04X DEV=0x%04X)", addr, mfr_id, dev_id);
 
-    /* 2. Reset device (CONFIG bit 15) — fail-fast si SCL stuck.
+    /* 2. Calcul SHUNT_CAL attendu (avant reset, pour le check survivance reboot)
+     *    CURRENT_LSB = Max_Expected_Current / 2^15
+     *    SHUNT_CAL   = 819.2e6 * CURRENT_LSB * R_SHUNT                        */
+    ctx->current_lsb = max_current_a / 32768.0f;
+    r_shunt_ohm = (float)r_shunt_uohm / 1000000.0f;
+    shunt_cal_f = 819.2e6f * ctx->current_lsb * r_shunt_ohm;
+    shunt_cal = (uint16_t)(shunt_cal_f + 0.5f);
+
+    if (shunt_cal == 0) {
+        ESP_LOGE(TAG, "[0x%02X] SHUNT_CAL calcule a 0 — parametres invalides", addr);
+        ret = ESP_ERR_INVALID_ARG;
+        goto fail_remove_device;
+    }
+
+    /* Check survivance soft reboot : si SHUNT_CAL lu correspond a la valeur
+     * attendue, les INA237 sont deja configures (VDD non coupe).
+     * Skipper reset + writes pour eviter trafic I2C inutile et spin cumule
+     * lors de la boucle retry x3 de app_main sur bus degrade.               */
+    {
+        uint16_t current_cal = 0;
+        if (ina237_read_reg16_raw(ctx->dev, INA237_REG_SHUNT_CAL, &current_cal) == ESP_OK
+            && current_cal == shunt_cal) {
+            ESP_LOGI(TAG, "[0x%02X] INA237 deja configure (SHUNT_CAL=0x%04X) — skip init writes",
+                     addr, current_cal);
+            bmu_i2c_unlock();
+            ctx->ready = true;
+            return ESP_OK;
+        }
+    }
+
+    /* 3. Reset device (CONFIG bit 15) — fail-fast si SCL stuck.
      *    1 tentative : si echec, bus_recover + 1 retry, sinon abort immediat.
      *    Evite le spin i2c_ll_is_bus_busy ~15s du bug ESP-IDF 5.4. */
     ret = ina237_write_reg16_raw(ctx->dev, INA237_REG_CONFIG, INA237_CONFIG_RST);
@@ -187,28 +217,14 @@ esp_err_t bmu_ina237_init(i2c_master_bus_handle_t bus, uint8_t addr,
     /* Attente post-reset (datasheet : typique 1 ms) */
     vTaskDelay(pdMS_TO_TICKS(INA237_RESET_DELAY_MS));
 
-    /* 3. CONFIG : ADCRANGE=0 (+-163.84 mV), pas de delai de conversion */
+    /* 4. CONFIG : ADCRANGE=0 (+-163.84 mV), pas de delai de conversion */
     ret = ina237_write_reg16_retry(ctx->dev, INA237_REG_CONFIG, INA237_CONFIG_ADCRANGE_0);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "[0x%02X] Echec ecriture CONFIG: %s", addr, esp_err_to_name(ret));
         goto fail_remove_device;
     }
 
-    /* 4. Calcul et ecriture SHUNT_CAL (datasheet SBOS945 section 8.1.2)
-     *    CURRENT_LSB = Max_Expected_Current / 2^15
-     *    SHUNT_CAL   = 819.2e6 * CURRENT_LSB * R_SHUNT
-     *    R_SHUNT en ohms = r_shunt_uohm / 1e6                               */
-    ctx->current_lsb = max_current_a / 32768.0f;
-    r_shunt_ohm = (float)r_shunt_uohm / 1000000.0f;
-    shunt_cal_f = 819.2e6f * ctx->current_lsb * r_shunt_ohm;
-    shunt_cal = (uint16_t)(shunt_cal_f + 0.5f);
-
-    if (shunt_cal == 0) {
-        ESP_LOGE(TAG, "[0x%02X] SHUNT_CAL calcule a 0 — parametres invalides", addr);
-        ret = ESP_ERR_INVALID_ARG;
-        goto fail_remove_device;
-    }
-
+    /* 5. Ecriture SHUNT_CAL (calcule avant le check survivance reboot, cf. etape 2) */
     ret = ina237_write_reg16_retry(ctx->dev, INA237_REG_SHUNT_CAL, shunt_cal);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "[0x%02X] Echec ecriture SHUNT_CAL: %s", addr, esp_err_to_name(ret));
@@ -218,14 +234,14 @@ esp_err_t bmu_ina237_init(i2c_master_bus_handle_t bus, uint8_t addr,
     ESP_LOGI(TAG, "[0x%02X] CURRENT_LSB=%.6f A/bit, R_SHUNT=%.4f Ohm, SHUNT_CAL=%u",
              addr, ctx->current_lsb, r_shunt_ohm, shunt_cal);
 
-    /* 5. ADC_CONFIG optimise BMU : continu bus+shunt, 540us, 64 moyennes */
+    /* 6. ADC_CONFIG optimise BMU : continu bus+shunt, 540us, 64 moyennes */
     ret = ina237_write_reg16_retry(ctx->dev, INA237_REG_ADC_CONFIG, INA237_ADC_CONFIG_BMU);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "[0x%02X] Echec ecriture ADC_CONFIG: %s", addr, esp_err_to_name(ret));
         goto fail_remove_device;
     }
 
-    /* 6. Alertes bus tension : BOVL et BUVL
+    /* 7. Alertes bus tension : BOVL et BUVL
      *    Bus voltage LSB = 3.125 mV, registre = voltage_mV / 3.125          */
     bovl = (uint16_t)(30000U * 1000U / 3125U);
     buvl = (uint16_t)(24000U * 1000U / 3125U);
