@@ -1,4 +1,5 @@
 #include "bmu_protection.h"
+#include "bmu_balancer.h"
 #include "bmu_i2c.h"
 #include "bmu_rint.h"
 #include "esp_log.h"
@@ -648,6 +649,11 @@ static void protection_task(void *arg) {
         float fleet_max = bmu_protection_compute_fleet_max(ctx);
 
         for (int i = 0; i < ctx->nb_ina; i++) {
+            /* Skip batteries volontairement OFF par le balancer (évite nb_switch sur duty-cycle) */
+            if (bmu_balancer_is_off((uint8_t)i)) {
+                vTaskDelay(1);
+                continue;
+            }
             bmu_protection_check_battery_ex(ctx, i, fleet_max);
             // Yield between batteries to avoid starving lower-prio tasks (display, IDLE)
             vTaskDelay(1);
