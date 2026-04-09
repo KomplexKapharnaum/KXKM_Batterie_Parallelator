@@ -29,14 +29,14 @@ static lv_obj_t *s_pack_vmax_label  = NULL;
 static lv_obj_t *s_pack_vmoy_label  = NULL;
 static lv_obj_t *s_pack_temp_label  = NULL;
 
-/* Battery list */
+/* Battery list — s_bat_list BEFORE arrays to avoid corruption by overflow */
+static lv_obj_t *s_bat_list = NULL;
+static int s_bat_created = 0; /* number of rows already created */
 static lv_obj_t *s_bat_rows[32]    = {};
 static lv_obj_t *s_bat_bars[32]    = {};
 static lv_obj_t *s_bat_vlabels[32] = {};
 static lv_obj_t *s_bat_ilabels[32] = {};
 static lv_obj_t *s_bat_borders[32] = {};
-static lv_obj_t *s_bat_list = NULL;
-static int s_bat_created = 0; /* number of rows already created */
 
 static lv_obj_t *s_grid_parent = NULL;
 static bmu_ui_ctx_t *s_ctx_ref = NULL;
