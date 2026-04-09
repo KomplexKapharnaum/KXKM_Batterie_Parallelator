@@ -140,12 +140,8 @@ static void ensure_soh_rows(int nb)
     if (nb <= s_soh_created || s_soh_list == NULL) return;
     if (nb > 32) nb = 32;
 
-    int limit = s_soh_created + 2;  /* max 2 rows per tick to avoid watchdog */
-    if (limit > nb) limit = nb;
-
-    for (int i = s_soh_created; i < limit; i++) {
+    for (int i = s_soh_created; i < nb; i++) {
         lv_obj_t *row = lv_obj_create(s_soh_list);
-        if (row == NULL) break;  /* LVGL alloc failed — retry next tick */
         lv_obj_set_size(row, 288, 20);
         lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
         lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
@@ -180,10 +176,9 @@ static void ensure_soh_rows(int nb)
         lv_label_set_text(s_soh_warn_labels[i], "REMPLACER");
         lv_obj_set_style_text_color(s_soh_warn_labels[i], lv_color_hex(0xFF3333), 0);
         lv_obj_add_flag(s_soh_warn_labels[i], LV_OBJ_FLAG_HIDDEN);
-
-        s_soh_created = i + 1;
     }
-    s_nb = s_soh_created;
+    s_soh_created = nb;
+    s_nb = nb;
 }
 
 /* ── Update ───────────────────────────────────────────────────────── */
