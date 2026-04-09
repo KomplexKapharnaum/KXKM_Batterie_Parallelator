@@ -77,9 +77,12 @@ services:
       - "3001:3000"
     volumes:
       - grafana-data:/var/lib/grafana
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
     environment:
       - GF_SECURITY_ADMIN_USER=kxkm
       - GF_SECURITY_ADMIN_PASSWORD=kxkm-bmu-2026
+      - INFLUX_TOKEN=${INFLUX_TOKEN:-kxkm-influx-token-2026}
     depends_on:
       - influxdb
 

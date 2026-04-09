@@ -49,6 +49,40 @@ bmu/+/battery/#    # multi-BMU (bmu/<name>/battery/<idx>)
 bmu/battery/#      # legacy single-BMU
 ```
 
+## MQTT Topic Indexing
+
+> **Breaking change 2026-04-09** : MQTT topics utilisent désormais des indices
+> **0-indexed** (cohérent avec InfluxDB et le code firmware).
+
+- Avant : `bmu/{name}/battery/1` à `battery/16`
+- Après : `bmu/{name}/battery/0` à `battery/15`
+
+**Nouveaux topics :**
+
+- `bmu/{name}/climate` : température/humidité AHT30 (measurement `climate`)
+
+**Payload battery enrichi (champs optionnels) :**
+
+- `r_ohm`, `r_tot` : R_int résistance ohmique/totale (mΩ)
+- `soh` : State of Health (%)
+- `bal_duty` : duty cycle balancer (%)
+
+**Payload voltage** : champ renommé `v_mv` → `v` (unité passée de mV à V).
+
+Si tu as des consumers MQTT externes (Home Assistant, scripts custom, Node-RED),
+adapter les filtres en conséquence.
+
+## Grafana Provisioning
+
+Les dashboards sont versionnés dans `grafana/dashboards/` et auto-provisionnés via
+`grafana/provisioning/`. Pour ajouter un dashboard :
+
+1. Exporter le JSON depuis Grafana UI (Share → Export)
+2. Déposer dans `grafana/dashboards/`
+3. `docker compose restart grafana`
+
+Datasource InfluxDB-BMU : uid=`bfhrzlhskqhoge`, Flux mode, bucket=`bmu`.
+
 ## Anti-Patterns
 
 - Ne pas hardcoder de secrets dans `docker-compose.yml`

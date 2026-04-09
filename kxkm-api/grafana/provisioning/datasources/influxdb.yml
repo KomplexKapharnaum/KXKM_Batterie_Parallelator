@@ -1,0 +1,16 @@
+apiVersion: 1
+
+datasources:
+  - name: InfluxDB-BMU
+    type: influxdb
+    uid: bfhrzlhskqhoge
+    access: proxy
+    url: http://kxkm-influxdb:8086
+    isDefault: true
+    jsonData:
+      version: Flux
+      organization: kxkm
+      defaultBucket: bmu
+      tlsSkipVerify: true
+    secureJsonData:
+      token: ${INFLUX_TOKEN}
