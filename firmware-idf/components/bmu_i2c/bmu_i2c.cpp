@@ -4,6 +4,7 @@
 #include "driver/i2c_master.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
+#include "esp_task_wdt.h"
 #include <atomic>
 
 static const char *TAG = "I2C";
@@ -60,13 +61,24 @@ esp_err_t bmu_i2c_probe(i2c_master_bus_handle_t bus, uint8_t addr, TickType_t ti
 int bmu_i2c_scan(i2c_master_bus_handle_t bus)
 {
     int count = 0;
+    int consecutive_fails = 0;
+    const int MAX_CONSECUTIVE_FAILS = 8;
     ESP_LOGI(TAG, "Scanning BMU I2C bus (0x20-0x4F)...");
 
     /* Scan complet : add_device + read registres + rm_device.
-     * Sert aussi de warm-up pour les esclaves derriere l'ISO1540. */
+     * Sert aussi de warm-up pour les esclaves derriere l'ISO1540.
+     * Bail-out apres MAX_CONSECUTIVE_FAILS echecs consecutifs : si le bus
+     * est dead (SCL stuck), chaque transmit_receive spin >50ms (bug ESP-IDF
+     * 5.4 i2c_ll_is_bus_busy), 24 adresses → 30s+ → WDT trigger. */
     const uint8_t ranges[][2] = { {0x20, 0x27}, {0x40, 0x4F} };
     for (int r = 0; r < 2; r++) {
+        bool bail = false;
         for (uint8_t addr = ranges[r][0]; addr <= ranges[r][1]; addr++) {
+            /* Feed WDT si main task est registered — ESP_ERR_INVALID_STATE
+             * signifie que la tache n'est pas enregistree, ce n'est pas une
+             * erreur dans ce contexte. */
+            esp_task_wdt_reset();
+
             i2c_master_dev_handle_t dev = NULL;
             i2c_device_config_t cfg = {};
             cfg.dev_addr_length = I2C_ADDR_BIT_LEN_7;
@@ -74,6 +86,12 @@ int bmu_i2c_scan(i2c_master_bus_handle_t bus)
             cfg.scl_speed_hz = BMU_I2C_FREQ_HZ;
 
             if (i2c_master_bus_add_device(bus, &cfg, &dev) != ESP_OK) {
+                consecutive_fails++;
+                if (consecutive_fails >= MAX_CONSECUTIVE_FAILS) {
+                    ESP_LOGW(TAG, "Bus dead suspecte apres %d echecs consecutifs — bail", consecutive_fails);
+                    bail = true;
+                    break;
+                }
                 continue;
             }
 
@@ -84,6 +102,7 @@ int bmu_i2c_scan(i2c_master_bus_handle_t bus)
                                 (addr <= 0x27) ? 1 : 2, pdMS_TO_TICKS(50));
 
             if (ret == ESP_OK) {
+                consecutive_fails = 0;  /* reset sur succes */
                 if (addr <= 0x27) {
                     ESP_LOGI(TAG, "  Found 0x%02X — TCA9535 (Port0=0x%02X)", addr, rx[0]);
                 } else {
@@ -91,10 +110,19 @@ int bmu_i2c_scan(i2c_master_bus_handle_t bus)
                     ESP_LOGI(TAG, "  Found 0x%02X — INA237 (MFR=0x%04X)", addr, mfr);
                 }
                 count++;
+            } else {
+                consecutive_fails++;
             }
 
             i2c_master_bus_rm_device(dev);
+
+            if (consecutive_fails >= MAX_CONSECUTIVE_FAILS) {
+                ESP_LOGW(TAG, "Bus dead suspecte apres %d echecs consecutifs — bail", consecutive_fails);
+                bail = true;
+                break;
+            }
         }
+        if (bail) break;
     }
 
     ESP_LOGI(TAG, "Scan complete: %d device(s)", count);
