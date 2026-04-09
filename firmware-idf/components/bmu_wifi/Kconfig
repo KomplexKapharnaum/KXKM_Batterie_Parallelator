@@ -8,4 +8,19 @@ menu "BMU WiFi"
     config BMU_WIFI_MAX_RETRY
         int "Max reconnect attempts (0=infinite)"
         default 0
+
+    config BMU_WIFI_AP_FALLBACK_ENABLED
+        bool "Enable AP fallback when STA fails"
+        default y
+
+    config BMU_WIFI_AP_FALLBACK_THRESHOLD
+        int "STA failures before AP fallback"
+        depends on BMU_WIFI_AP_FALLBACK_ENABLED
+        default 5
+        range 1 50
+
+    config BMU_WIFI_AP_SSID_PREFIX
+        string "AP SSID prefix (suffix = last 4 MAC hex)"
+        depends on BMU_WIFI_AP_FALLBACK_ENABLED
+        default "KXKM-BMU-"
 endmenu
