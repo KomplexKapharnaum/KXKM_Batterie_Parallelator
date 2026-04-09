@@ -11,6 +11,7 @@
 #include <cstdio>
 #include <cstring>
 #include <cinttypes>
+#include <cmath>
 
 #include "esp_log.h"
 #include "esp_http_client.h"
@@ -232,6 +233,56 @@ esp_err_t bmu_influx_write_battery(int battery_id, float voltage_mv, float curre
     // Utiliser 0 comme timestamp — InfluxDB assignera le timestamp serveur
     // L'appelant peut utiliser bmu_sntp_get_timestamp_ns() pour un timestamp précis
     return bmu_influx_write("battery", tags, fields, 0);
+}
+
+// ---------------------------------------------------------------------------
+// Write Battery Full — télémétrie batterie étendue avec métriques santé
+// ---------------------------------------------------------------------------
+esp_err_t bmu_influx_write_battery_full(const bmu_influx_battery_full_t *d)
+{
+    if (!d || !d->state) return ESP_ERR_INVALID_ARG;
+
+    char tags[64];
+    snprintf(tags, sizeof(tags), "id=%d", d->battery_id);
+
+    char fields[512];
+    int len = snprintf(fields, sizeof(fields),
+        "voltage_mv=%.1f,current_a=%.3f,ah_discharge=%.4f,ah_charge=%.4f,state=\"%s\"",
+        d->voltage_mv, d->current_a, d->ah_discharge, d->ah_charge, d->state);
+
+    if (!std::isnan(d->r_ohmic_mohm)) {
+        len += snprintf(fields + len, sizeof(fields) - len,
+            ",r_ohmic_mohm=%.1f", d->r_ohmic_mohm);
+    }
+    if (!std::isnan(d->r_total_mohm)) {
+        len += snprintf(fields + len, sizeof(fields) - len,
+            ",r_total_mohm=%.1f", d->r_total_mohm);
+    }
+    if (!std::isnan(d->soh_percent)) {
+        len += snprintf(fields + len, sizeof(fields) - len,
+            ",soh_pct=%.1f", d->soh_percent);
+    }
+    if (d->balancer_duty >= 0) {
+        len += snprintf(fields + len, sizeof(fields) - len,
+            ",balancer_duty=%di", d->balancer_duty);
+    }
+
+    return bmu_influx_write("battery", tags, fields, 0);
+}
+
+// ---------------------------------------------------------------------------
+// Write Climate — télémétrie température/humidité AHT30
+// ---------------------------------------------------------------------------
+esp_err_t bmu_influx_write_climate(float temperature_c, float humidity_pct)
+{
+    if (std::isnan(temperature_c) || std::isnan(humidity_pct)) return ESP_ERR_INVALID_ARG;
+
+    char fields[128];
+    snprintf(fields, sizeof(fields),
+        "temperature_c=%.2f,humidity_pct=%.1f",
+        temperature_c, humidity_pct);
+
+    return bmu_influx_write("climate", "", fields, 0);
 }
 
 // ---------------------------------------------------------------------------
