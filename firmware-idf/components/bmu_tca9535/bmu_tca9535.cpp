@@ -167,6 +167,8 @@ esp_err_t bmu_tca9535_scan_init(i2c_master_bus_handle_t bus,
     for (uint8_t i = 0; i < TCA9535_MAX_DEVICES && *found < max_devices; i++) {
         uint8_t addr = TCA9535_BASE_ADDR + i;
 
+        vTaskDelay(pdMS_TO_TICKS(1));  /* yield CPU pour task watchdog (IDLE0) */
+
         /* Pas de probe prealable — i2c_master_probe() en ESP-IDF v5.4
          * cree un device handle interne qui bloque add_device().
          * On tente directement add_device + read pour detecter. */
@@ -379,6 +381,7 @@ esp_err_t bmu_tca9535_bb_scan_init(bmu_i2c_bb_handle_t bb,
     *found = 0;
     for (uint8_t addr = TCA9535_BASE_ADDR; addr < TCA9535_BASE_ADDR + TCA9535_MAX_DEVICES; addr++) {
         if (*found >= max_devices) break;
+        vTaskDelay(pdMS_TO_TICKS(1));  /* yield CPU pour task watchdog (IDLE0) */
         if (!bmu_i2c_bb_probe(bb, addr)) continue;
         if (tca_bb_init_one(bb, addr, &handles[*found]) == ESP_OK)
             (*found)++;
