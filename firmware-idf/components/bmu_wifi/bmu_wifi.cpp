@@ -67,20 +67,24 @@ static void try_start_ap_fallback(void)
     wifi_config_t ap_cfg = {};
     std::strncpy(reinterpret_cast<char *>(ap_cfg.ap.ssid),
                  s_ap_ssid, sizeof(ap_cfg.ap.ssid) - 1);
-    ap_cfg.ap.ssid_len      = static_cast<uint8_t>(std::strlen(s_ap_ssid));
-    ap_cfg.ap.channel       = 1;
-    ap_cfg.ap.authmode      = WIFI_AUTH_OPEN;
+    ap_cfg.ap.ssid_len       = static_cast<uint8_t>(std::strlen(s_ap_ssid));
+    ap_cfg.ap.channel        = 1;
+    ap_cfg.ap.authmode       = WIFI_AUTH_OPEN;
     ap_cfg.ap.max_connection = 4;
+    ap_cfg.ap.beacon_interval = 100;
+    ap_cfg.ap.pmf_cfg.required = false;
+
+    /* IMPORTANT : creer le netif AP AVANT esp_wifi_set_mode(APSTA).
+     * Sur ESP-IDF 5.4, set_mode declenche wifi_softap_start qui attend
+     * le netif alloue — sinon LoadProhibited sur offset 0x2c. */
+    if (esp_netif_get_handle_from_ifkey("WIFI_AP_DEF") == nullptr) {
+        esp_netif_create_default_wifi_ap();
+    }
 
     esp_err_t ret = esp_wifi_set_mode(WIFI_MODE_APSTA);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "APSTA set_mode failed: %s", esp_err_to_name(ret));
         return;
-    }
-
-    // Créer l'interface AP si elle n'existe pas encore
-    if (esp_netif_get_handle_from_ifkey("WIFI_AP_DEF") == nullptr) {
-        esp_netif_create_default_wifi_ap();
     }
 
     ret = esp_wifi_set_config(WIFI_IF_AP, &ap_cfg);
