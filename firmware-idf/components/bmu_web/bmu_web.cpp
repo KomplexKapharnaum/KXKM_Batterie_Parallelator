@@ -34,6 +34,7 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/semphr.h"
 
 #include <cstring>
 #include <cstdio>
@@ -54,6 +55,29 @@ static httpd_handle_t   s_server   = nullptr;
 static bmu_web_ctx_t   *s_ctx      = nullptr;
 static TaskHandle_t     s_ws_task  = nullptr;
 static int              s_ws_fd    = -1;       /* fd du client WS connecté */
+static SemaphoreHandle_t s_ws_mutex = NULL;    /* protège s_ws_fd contre race */
+
+/* -------------------------------------------------------------------------- */
+/*  Accès thread-safe au fd WebSocket                                         */
+/* -------------------------------------------------------------------------- */
+
+static int ws_fd_get(void)
+{
+    int fd = -1;
+    if (s_ws_mutex && xSemaphoreTake(s_ws_mutex, pdMS_TO_TICKS(5)) == pdTRUE) {
+        fd = s_ws_fd;
+        xSemaphoreGive(s_ws_mutex);
+    }
+    return fd;
+}
+
+static void ws_fd_set(int fd)
+{
+    if (s_ws_mutex && xSemaphoreTake(s_ws_mutex, pdMS_TO_TICKS(5)) == pdTRUE) {
+        s_ws_fd = fd;
+        xSemaphoreGive(s_ws_mutex);
+    }
+}
 
 /* -------------------------------------------------------------------------- */
 /*  Utilitaires                                                               */
@@ -476,8 +500,9 @@ static esp_err_t handler_ws(httpd_req_t *req)
         }
 
         /* Auth OK — enregistrer ce fd pour le push périodique */
-        s_ws_fd = httpd_req_to_sockfd(req);
-        ESP_LOGI(TAG, "WS authentifié fd=%d", s_ws_fd);
+        int new_fd = httpd_req_to_sockfd(req);
+        ws_fd_set(new_fd);
+        ESP_LOGI(TAG, "WS authentifié fd=%d", new_fd);
 
         /* Réponse de confirmation */
         httpd_ws_frame_t ack;
@@ -520,7 +545,7 @@ static void ws_send_work(void *arg)
     if (ret != ESP_OK) {
         ESP_LOGW(TAG, "WS push échoué fd=%d: %s", push->fd, esp_err_to_name(ret));
         /* Déconnecter ce client */
-        s_ws_fd = -1;
+        ws_fd_set(-1);
     }
 
     free(push->json);
@@ -534,7 +559,8 @@ static void ws_push_task(void *arg)
     while (true) {
         vTaskDelay(pdMS_TO_TICKS(500));
 
-        if (s_ws_fd < 0 || s_server == nullptr || s_ctx == nullptr) {
+        int cur_fd = ws_fd_get();
+        if (cur_fd < 0 || s_server == nullptr || s_ctx == nullptr) {
             continue;
         }
 
@@ -569,7 +595,7 @@ static void ws_push_task(void *arg)
             continue;
         }
         push->server = s_server;
-        push->fd     = s_ws_fd;
+        push->fd     = cur_fd;
         push->json   = json;
 
         if (httpd_queue_work(s_server, ws_send_work, push) != ESP_OK) {
@@ -948,6 +974,11 @@ esp_err_t bmu_web_start(bmu_web_ctx_t *ctx)
         return ESP_ERR_INVALID_ARG;
     }
 
+    if (s_ws_mutex == NULL) {
+        s_ws_mutex = xSemaphoreCreateMutex();
+        if (s_ws_mutex == NULL) return ESP_ERR_NO_MEM;
+    }
+
     s_ctx = ctx;
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
@@ -1121,7 +1152,7 @@ esp_err_t bmu_web_stop(void)
         s_ws_task = nullptr;
     }
 
-    s_ws_fd = -1;
+    ws_fd_set(-1);
 
     if (s_server != nullptr) {
         httpd_stop(s_server);
