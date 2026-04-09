@@ -140,8 +140,7 @@ static void cloud_telemetry_task(void *pv)
                 case BMU_STATE_LOCKED:       state_str = "locked"; break;
             }
 
-            float i_a = 0;
-            bmu_ina237_read_current(&ctx->mgr->ina_devices[i], &i_a);
+            float i_a = bmu_battery_manager_get_last_current_a(ctx->mgr, i);
             bmu_influx_write_battery(i, v_mv, i_a, ah_d, ah_c, state_str);
 
             char payload[192];
