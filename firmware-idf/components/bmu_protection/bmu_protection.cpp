@@ -4,6 +4,7 @@
 #include "bmu_rint.h"
 #include "esp_log.h"
 #include "esp_timer.h"
+#include "esp_task_wdt.h"
 #include <cmath>
 #include <cstring>
 
@@ -630,6 +631,12 @@ static void protection_task(void *arg) {
     ESP_LOGI(TAG, "Protection task started (period=%lums, prio=%d)",
              (unsigned long)ctx->task_period_ms, (int)uxTaskPriorityGet(NULL));
 
+    /* S'enregistrer au WDT pour detecter les spins I2C */
+    esp_err_t wdt_ret = esp_task_wdt_add(NULL);
+    if (wdt_ret != ESP_OK && wdt_ret != ESP_ERR_INVALID_STATE) {
+        ESP_LOGW(TAG, "WDT register failed: %s", esp_err_to_name(wdt_ret));
+    }
+
     // Warm-up: 5 cycles to stabilize INA237 voltage cache
     for (int w = 0; w < 5; w++) {
         for (int i = 0; i < ctx->nb_ina; i++) {
@@ -644,6 +651,8 @@ static void protection_task(void *arg) {
     TickType_t last_wake = xTaskGetTickCount();
 
     while (true) {
+        esp_task_wdt_reset();  /* feed watchdog — debut de cycle */
+
         bmu_protection_process_commands(ctx);
 
         float fleet_max = bmu_protection_compute_fleet_max(ctx);
@@ -658,6 +667,8 @@ static void protection_task(void *arg) {
             // Yield between batteries to avoid starving lower-prio tasks (display, IDLE)
             vTaskDelay(1);
         }
+
+        esp_task_wdt_reset();  /* feed watchdog — apres boucle batteries */
 
         bmu_protection_publish_snapshot(ctx);
 

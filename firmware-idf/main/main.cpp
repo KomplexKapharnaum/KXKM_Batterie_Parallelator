@@ -377,6 +377,14 @@ extern "C" void app_main(void)
     static bool topology_ok = false;
 
     if (i2c_ok) {
+        /* ── 8-pre. Bus recovery preventif (cas device stuck reliquat) ── */
+        ESP_LOGI(TAG, "Bus recovery I2C preventif...");
+        esp_err_t rec_ret = bmu_i2c_bus_recover();
+        if (rec_ret != ESP_OK) {
+            ESP_LOGW(TAG, "Bus recovery failed: %s — continuing", esp_err_to_name(rec_ret));
+        }
+        vTaskDelay(pdMS_TO_TICKS(10));  /* laisser le bus se stabiliser */
+
         /* Le scan diagnostic sert de "warm-up" du bus I2C — sans lui,
          * les esclaves derriere l'ISO1540 ne repondent pas.
          * IMPORTANT: ne pas supprimer ce scan. */
