@@ -1,5 +1,4 @@
 idf_component_register(
-    SRCS "bmu_i2c.cpp"
     INCLUDE_DIRS "include"
-    REQUIRES driver bmu_types
+    REQUIRES esp_driver_i2c
 )

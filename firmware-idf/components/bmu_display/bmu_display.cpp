@@ -44,26 +44,17 @@ static int s_chart_push_counter = 0;
 
 static uint8_t visible_battery_count(void)
 {
+    /* Source of truth = protection context (updated live by hotplug + protection task) */
     uint8_t count = 0;
-
-    if (s_ctx != NULL) {
-        count = s_ctx->nb_ina;
-    }
-
     if (s_ui_ctx.prot != NULL) {
-        const uint8_t prot_count = s_ui_ctx.prot->nb_ina;
-        count = (count == 0 || prot_count < count) ? prot_count : count;
-    }
-
-    if (s_ui_ctx.mgr != NULL) {
-        const uint8_t mgr_count = s_ui_ctx.mgr->nb_ina;
-        count = (count == 0 || mgr_count < count) ? mgr_count : count;
+        count = s_ui_ctx.prot->nb_ina;
+    } else if (s_ctx != NULL) {
+        count = s_ctx->nb_ina;
     }
 
     if (count > BMU_MAX_BATTERIES) {
         count = BMU_MAX_BATTERIES;
     }
-
     return count;
 }
 

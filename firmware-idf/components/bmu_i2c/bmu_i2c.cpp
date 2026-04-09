@@ -1,4 +1,5 @@
 #include "bmu_i2c.h"
+#include "bmu_types.h"
 #include "esp_log.h"
 #include "driver/i2c_master.h"
 #include "freertos/FreeRTOS.h"
@@ -26,6 +27,8 @@ esp_err_t bmu_i2c_init(i2c_master_bus_handle_t *bus_handle)
     }
 
     /* Create I2C bus mutex for multi-register atomic operations (audit H-01) */
+    // Priority inheritance: if prio-3 task holds this mutex and prio-8 protection
+    // task blocks on it, FreeRTOS boosts prio-3 to prio-8 until release.
     s_i2c_mutex = xSemaphoreCreateMutex();
     configASSERT(s_i2c_mutex != NULL);
 
@@ -139,4 +142,34 @@ esp_err_t bmu_i2c_bus_recover(void)
         ESP_LOGE(TAG, "I2C bus reset FAILED: %s", esp_err_to_name(ret));
     }
     return ret;
+}
+
+// ── Per-device health score tracking ──
+
+void bmu_i2c_health_record_success(bmu_device_health_t *health) {
+    if (health->score <= BMU_HEALTH_SCORE_MAX - BMU_HEALTH_OK_INCR)
+        health->score += BMU_HEALTH_OK_INCR;
+    else
+        health->score = BMU_HEALTH_SCORE_MAX;
+    health->consec_fails = 0;
+}
+
+void bmu_i2c_health_record_failure(bmu_device_health_t *health) {
+    if (health->score >= BMU_HEALTH_FAIL_DECR)
+        health->score -= BMU_HEALTH_FAIL_DECR;
+    else
+        health->score = 0;
+    health->consec_fails++;
+}
+
+bool bmu_i2c_health_is_warn(const bmu_device_health_t *health) {
+    return health->score < BMU_HEALTH_THRESH_WARN;
+}
+
+bool bmu_i2c_health_is_critical(const bmu_device_health_t *health) {
+    return health->score < BMU_HEALTH_THRESH_CRIT;
+}
+
+bool bmu_i2c_health_can_reconnect(const bmu_device_health_t *health) {
+    return health->score >= BMU_HEALTH_THRESH_RECONNECT;
 }

@@ -119,12 +119,33 @@ class PolynomialExpansion(nn.Module):
         return torch.cat(parts, dim=1)
 
 
+class FakeQuantize(nn.Module):
+    """Simulate INT8 quantization (STE). Must match train_fpnn.py definition."""
+
+    def __init__(self, num_bits: int = 8, momentum: float = 0.01):
+        super().__init__()
+        self.num_bits = num_bits
+        self.qmin = -(2 ** (num_bits - 1))
+        self.qmax = 2 ** (num_bits - 1) - 1
+        self.register_buffer("running_min", torch.tensor(0.0))
+        self.register_buffer("running_max", torch.tensor(0.0))
+        self.register_buffer("initialized", torch.tensor(False))
+        self.momentum = momentum
+        self.enabled = False  # Always disabled during quantization export
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return x  # No-op at export time
+
+
 class FPNN(nn.Module):
     """Feature-based Polynomial Neural Network."""
 
-    def __init__(self, n_features: int, hidden: int = 32, degree: int = 3, dropout: float = 0.1):
+    def __init__(self, n_features: int, hidden: int = 32, degree: int = 3,
+                 dropout: float = 0.1, qat: bool = False):
         super().__init__()
         self.poly = PolynomialExpansion(n_features, degree)
+        self.fq_input = FakeQuantize() if qat else None
+        self.fq_hidden = FakeQuantize() if qat else None
         self.net = nn.Sequential(
             nn.Linear(self.poly.out_features, hidden),
             nn.ReLU(),
@@ -134,7 +155,17 @@ class FPNN(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.net(self.poly(x)).squeeze(-1)
+        x = self.poly(x)
+        if self.fq_input is not None:
+            x = self.fq_input(x)
+        x = self.net[0](x)
+        x = self.net[1](x)
+        if self.fq_hidden is not None:
+            x = self.fq_hidden(x)
+        x = self.net[2](x)
+        x = self.net[3](x)
+        x = self.net[4](x)
+        return x.squeeze(-1)
 
 
 # ---------------------------------------------------------------------------
@@ -414,17 +445,69 @@ def validate_tflite(tflite_path: Path, X_test: np.ndarray, y_test: np.ndarray) -
 # Path B: ONNX Runtime quantization (fallback)
 # ---------------------------------------------------------------------------
 
+def _collect_activation_ranges(
+    onnx_path: Path,
+    X_calib: np.ndarray,
+    percentile: tuple[float, float] = (0.1, 99.9),
+) -> dict:
+    """Run forward pass on calibration data, collect per-tensor activation ranges.
+
+    Uses percentile clipping to reduce the impact of outliers on quantization
+    ranges.  Returns TensorQuantOverrides dict for quantize_static().
+
+    Target tensors (from FPNN ONNX graph):
+      /poly/Concat_output_0  — post polynomial expansion (104-dim, most critical)
+      /net.1/Relu_output_0   — post ReLU (64-dim)
+    """
+    import onnxruntime as ort
+    import onnx
+
+    TARGET_TENSORS = ["/poly/Concat_output_0", "/net.1/Relu_output_0"]
+
+    model = onnx.load(str(onnx_path))
+    # Add target tensors as model outputs so we can read them
+    for tensor_name in TARGET_TENSORS:
+        model.graph.output.append(onnx.helper.make_tensor_value_info(tensor_name, onnx.TensorProto.FLOAT, None))
+
+    # Run inference to collect activations
+    sess = ort.InferenceSession(model.SerializeToString())
+    input_name = sess.get_inputs()[0].name
+
+    activations = {t: [] for t in TARGET_TENSORS}
+    for i in range(len(X_calib)):
+        results = sess.run(None, {input_name: X_calib[i:i+1].astype(np.float32)})
+        # Output order: original output + appended tensors
+        for j, tensor_name in enumerate(TARGET_TENSORS):
+            activations[tensor_name].append(results[1 + j].flatten())
+
+    overrides = {}
+    for tensor_name in TARGET_TENSORS:
+        vals = np.concatenate(activations[tensor_name])
+        lo, hi = np.percentile(vals, [percentile[0], percentile[1]])
+        overrides[tensor_name] = [{"rmin": np.float32(lo), "rmax": np.float32(hi)}]
+        actual_min, actual_max = vals.min(), vals.max()
+        log.info("Percentile range %s: [%.4f, %.4f] (abs: [%.4f, %.4f], shrink %.1f%%)",
+                 tensor_name, lo, hi, actual_min, actual_max,
+                 100.0 * (1.0 - (hi - lo) / (actual_max - actual_min + 1e-8)))
+
+    return overrides
+
+
 def quantize_onnxrt(
     onnx_path: Path,
     output_path: Path,
     X_calib: np.ndarray,
     quant_format_name: str,
     per_channel: bool,
+    qat_ranges: dict | None = None,
+    percentile_range_override: bool = True,
 ) -> Path:
     """Quantize ONNX model to INT8 using onnxruntime.quantization.
 
     This is the fallback when TensorFlow/onnx2tf are not available.
     Output is an INT8-quantized .onnx file.
+    When percentile_range_override is True, collects activation ranges via forward
+    pass with percentile clipping and injects them as TensorQuantOverrides.
     """
     from onnxruntime.quantization import (
         CalibrationDataReader,
@@ -455,6 +538,14 @@ def quantize_onnxrt(
     calibration_reader = BatteryCalibrationReader(X_calib)
     quant_format = QuantFormat.QDQ if quant_format_name == "qdq" else QuantFormat.QOperator
 
+    extra_options = {}
+    if percentile_range_override:
+        log.info("Collecting percentile activation ranges for key tensors ...")
+        overrides = _collect_activation_ranges(onnx_path, X_calib, percentile=(0.1, 99.9))
+        if overrides:
+            extra_options["TensorQuantOverrides"] = overrides
+            log.info("Applying percentile range override for %d tensors", len(overrides))
+
     quantize_static(
         model_input=str(onnx_path),
         model_output=str(output_path),
@@ -462,6 +553,8 @@ def quantize_onnxrt(
         quant_format=quant_format,
         per_channel=per_channel,
         weight_type=QuantType.QInt8,
+        activation_type=QuantType.QInt8,
+        extra_options=extra_options if extra_options else None,
     )
 
     log.info("INT8 ONNX: %s (%.1f KB)", output_path, output_path.stat().st_size / 1024)
@@ -554,11 +647,11 @@ def main() -> None:
         help="Quantization backend: 'tflite' (ONNX->TFLite), 'onnxrt' (ONNX Runtime INT8), 'auto'",
     )
     parser.add_argument(
-        "--calib-samples", type=int, default=200,
+        "--calib-samples", type=int, default=2000,
         help="Number of representative calibration samples to use",
     )
     parser.add_argument(
-        "--calib-strategy", choices=["random", "stratified"], default="random",
+        "--calib-strategy", choices=["random", "stratified"], default="stratified",
         help="Calibration sampling strategy",
     )
     parser.add_argument(
@@ -591,8 +684,9 @@ def main() -> None:
     hidden = checkpoint["hidden"]
     degree = checkpoint["degree"]
     dropout = checkpoint.get("dropout", 0.1)
+    qat = checkpoint.get("qat", False)
 
-    model = FPNN(n_features, hidden=hidden, degree=degree, dropout=dropout)
+    model = FPNN(n_features, hidden=hidden, degree=degree, dropout=dropout, qat=qat)
     model.load_state_dict(checkpoint["model_state_dict"])
     model.eval()
 

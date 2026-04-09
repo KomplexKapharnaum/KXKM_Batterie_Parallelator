@@ -53,8 +53,8 @@ run_remote_pipeline() {
     test -f models/consolidated.parquet
     python3 scripts/ml/extract_features.py --input models/consolidated.parquet --output models/features_v2.parquet --window 60 --log-level INFO
     python3 scripts/ml/adapt_features.py --input models/features_v2.parquet --output models/features_adapted_v2.parquet
-    python3 scripts/ml/train_fpnn.py --input models/features_adapted_v2.parquet --output-dir models --epochs 50 --hidden 64 --degree 2 --soh-mode capacity --test-device k-led1 --val-ratio 0.1
-    python3 scripts/ml/quantize_tflite.py --model models/fpnn_soh.pt --features models/features_adapted_v2.parquet --output models/fpnn_soh_v2_quantized.onnx --backend onnxrt
+    python3 scripts/ml/train_fpnn.py --input models/features_adapted_v2.parquet --output-dir models --epochs 50 --hidden 64 --degree 2 --soh-mode capacity --test-device k-led1 --val-ratio 0.1 --qat
+    python3 scripts/ml/quantize_tflite.py --model models/fpnn_soh.pt --features models/features_adapted_v2.parquet --output models/fpnn_soh_v2_quantized.onnx --backend onnxrt --calib-samples 2000 --calib-strategy stratified --percentile-clip 1 99
     python3 scripts/ml/finalize_phase2_metrics.py --features models/features_adapted_v2.parquet --quantized models/fpnn_soh_v2_quantized.onnx --rul-model models/rul_sambamixer.pt --train-log phase2_fpnn_train_v2.log --output models/phase2_metrics.json
     ls -lh models/phase2_metrics.json models/fpnn_soh_v2_quantized.onnx
   "
@@ -85,8 +85,8 @@ run_container_pipeline() {
       fi
       python3 scripts/ml/extract_features.py --input models/consolidated.parquet --output models/features_v2.parquet --window 60 --log-level INFO
       python3 scripts/ml/adapt_features.py --input models/features_v2.parquet --output models/features_adapted_v2.parquet
-      python3 scripts/ml/train_fpnn.py --input models/features_adapted_v2.parquet --output-dir models --epochs 50 --hidden 64 --degree 2 --soh-mode capacity --test-device k-led1 --val-ratio 0.1
-      python3 scripts/ml/quantize_tflite.py --model models/fpnn_soh.pt --features models/features_adapted_v2.parquet --output models/fpnn_soh_v2_quantized.onnx --backend onnxrt
+      python3 scripts/ml/train_fpnn.py --input models/features_adapted_v2.parquet --output-dir models --epochs 50 --hidden 64 --degree 2 --soh-mode capacity --test-device k-led1 --val-ratio 0.1 --qat
+      python3 scripts/ml/quantize_tflite.py --model models/fpnn_soh.pt --features models/features_adapted_v2.parquet --output models/fpnn_soh_v2_quantized.onnx --backend onnxrt --calib-samples 2000 --calib-strategy stratified --percentile-clip 1 99
       python3 scripts/ml/finalize_phase2_metrics.py --features models/features_adapted_v2.parquet --quantized models/fpnn_soh_v2_quantized.onnx --rul-model models/rul_sambamixer.pt --train-log phase2_fpnn_train_v2.log --output models/phase2_metrics.json
       ls -lh models/phase2_metrics.json models/fpnn_soh_v2_quantized.onnx
     '

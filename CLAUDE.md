@@ -10,33 +10,44 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Build & Test Commands
 
 ```bash
-# Production build (ESP32-S3)
-pio run -e kxkm-s3-16MB
+# === ESP-IDF firmware (production, firmware-idf/) ===
+source ~/esp/esp-idf/export.sh
+cd firmware-idf && idf.py build
+idf.py -p /dev/cu.usbmodem* flash monitor
 
-# Upload to board
-pio run -e kxkm-s3-16MB --target upload
-
-# Serial monitor
+# === PlatformIO (legacy Arduino, firmware/) ===
+pio run -e kxkm-s3-16MB                      # build
+pio run -e kxkm-s3-16MB --target upload       # flash
 pio device monitor -e kxkm-s3-16MB --baud 115200
 
-# Run all host-based unit tests (no hardware needed)
-pio test -e sim-host
+# === Tests (no hardware needed) ===
+pio test -e sim-host                          # 13 PlatformIO tests
+pio test -e sim-host -f test_protection       # single suite
+pio test -e sim-host -vv                      # verbose
+cd firmware-idf/test && make all              # 13 ESP-IDF host tests (Unity, g++)
+cd firmware-idf/test && make test_protection  # single ESP-IDF test suite
 
-# Run a single test suite
-pio test -e sim-host -f test_protection
-pio test -e sim-host -f test_web_route_security
+# === Rust firmware (firmware-rs/) ===
+cd firmware-rs && cargo build
+cargo test                                    # unit tests (no hardware)
 
-# Verbose test output
-pio test -e sim-host -vv
+# === ML / LLM tests ===
+uv run python -m pytest tests/llm/
 
-# Memory budget check (required before large changes)
+# === Memory budget (required before large changes) ===
 scripts/check_memory_budget.sh --env kxkm-s3-16MB --ram-max 75 --flash-max 85
 
-# ESP-IDF track (firmware-idf/, when editing that tree)
-cd firmware-idf && idf.py build
+# === Cloud stack (kxkm-api/) ===
+cd kxkm-api && cp .env.example .env && docker compose up -d
 
-# Legacy build (deprecated)
-pio run -e kxkm-v3-16MB
+# === SOH services (services/) ===
+cd services/soh-scoring && uv run uvicorn soh_api:app  # scoring API
+cd services/soh-llm && uv run uvicorn app:app          # LLM diagnostic
+
+# === ML pipeline (scripts/ml/) ===
+uv run python scripts/ml/extract_features.py
+uv run python scripts/ml/train_fpnn.py
+uv run python scripts/ml/quantize_tflite.py
 ```
 
 **PlatformIO gotchas:**
@@ -45,89 +56,84 @@ pio run -e kxkm-v3-16MB
 
 ## Architecture
 
-### Execution Flow
+### Three Firmware Tracks
+
+| Track | Directory | Framework | Status |
+|-------|-----------|-----------|--------|
+| ESP-IDF | `firmware-idf/` | ESP-IDF 5.4, 25 components | **Production** (ESP32-S3-BOX-3) |
+| Arduino | `firmware/` | PlatformIO/Arduino | Legacy (sim-host tests still active) |
+| Rust | `firmware-rs/` | Cargo workspace, 5 crates | Experimental (FFI bridge to ESP-IDF) |
+
+### ESP-IDF Execution Flow (firmware-idf/)
+Boot sequence (14 stages): NVS → SPIFFS → Display → WiFi → BLE → FAT → SNTP → I2C scan → topology → protection → cloud → web → VE.Direct → OTA
+
+Key components: `bmu_protection` (state machine), `bmu_balancer` (duty-cycling), `bmu_ble` (NimBLE 4 GATT services), `bmu_display` (LVGL), `bmu_influx` + `bmu_influx_store` (offline persistence), `bmu_web` + `bmu_web_security`. See component READMEs and Kconfig files for details.
+
+### Arduino Execution Flow (firmware/)
 1. `main.cpp` setup: Serial → Wire (SDA=32, SCL=33, 50kHz) → i2cMutexInit → INAHandler.begin → TCAHandler.begin → topology check → BattParallelator config
 2. `main.cpp` loop (500ms): iterates all INAs via `BattParallelator.check_battery_connected_status(i)`. If topology invalid, forces all batteries OFF (fail-safe).
 
-### Core Modules
-- **BatteryParallelator** — protection state machine: 5 criteria (under/over-voltage, over-current, voltage imbalance, reconnect logic with switch counting). Reconnect: immediate if nb_switch<5, 10s delay at 5, permanent lock >5.
-- **BatteryManager** — aggregate battery state, energy accounting (Ah via FreeRTOS task), min/max/avg voltage.
-- **INAHandler** — manages up to 16 INA237 sensors (I2C 0x40–0x4F). `read_voltage_current()` is the atomic dual-read method.
-- **TCAHandler** — manages up to 8 TCA9535 GPIO expanders (I2C 0x20–0x27). Pin mapping per TCA: pins 0–3 = battery MOSFET switches, pins 8–15 = LED pairs (red/green).
-- **I2CMutex.h** — global FreeRTOS semaphore + RAII `I2CLockGuard`. ALL I2C access must go through this. `i2cBusRecovery()` on 5+ consecutive failures.
-- **WebServerHandler** — AsyncWebServer on port 80 + WebSocket on 81. Mutation routes (`/api/battery/:id/switch_on|off`) require auth token + rate limiting (10 reqs/10s per IP).
-- **WebRouteSecurity** — Auth token validation and security headers for web routes.
-- **WebMutationRateLimit** — Per-IP rate limiter (10 reqs/10s) for mutation endpoints.
-- **BatteryRouteValidation** — Input validation for battery control routes (index bounds, state checks).
+### Rust Firmware (firmware-rs/)
+Cargo workspace with 5 crates: `bmu-i2c` (bus abstraction), `bmu-ina237` (sensor driver), `bmu-tca9535` (GPIO expander), `bmu-protection` (state machine), `bmu-ffi` (C FFI bridge with cbindgen). Hybrid C/Rust: I2C initialized by ESP-IDF C, passed to Rust via FFI. `no_std` compatible.
+
+### Protection Thresholds (configurable via Kconfig + NVS)
+
+| Threshold | Default |
+|-----------|---------|
+| Min voltage | 24,000 mV |
+| Max voltage | 30,000 mV |
+| Max current | 10,000 mA |
+| Imbalance | 1,000 mV |
+| Reconnect delay | 10,000 ms |
+| Switch limit | 5 (>5 = permanent lock until reboot) |
 
 ### Topology Constraint
 Hard validation: `Nb_TCA * 4 == Nb_INA`. Mismatch → fail-safe (all batteries OFF). Typical: 4 TCA + 16 INA.
 
-### I2C Scaling (planned)
-
-Current: single bus I2C_NUM_1 (GPIO40/41 DOCK), 16 bat max.
-Planned: TCA9548A mux on DOCK bus, 32+ batteries.
-Each mux channel repeats INA237+TCA9535 address space.
-Bit-bang I2C alert bus on GPIO38/39 (50kHz, 100ms poll).
-VE.Direct on GPIO21 RX-only (TEXT protocol is TX→RX).
-
 ### Thread Safety
-- `I2CLockGuard` wraps all I2C operations (INAHandler, TCAHandler, WebServerHandler)
-- `stateMutex` in BatteryParallelator and BatteryManager for shared state access across FreeRTOS tasks
+- `I2CLockGuard` (RAII) wraps ALL I2C operations — INAHandler, TCAHandler, WebServerHandler
+- `stateMutex` in BatteryParallelator and BatteryManager for shared state across FreeRTOS tasks
 - `reconnect_time[]` access is mutex-protected
-
-### ESP-IDF Architecture (firmware-idf/)
-25 components, ESP32-S3-BOX-3 target, LVGL display.
-- **Boot** (14 stages): NVS → SPIFFS → Display → WiFi → BLE → FAT → SNTP → I2C scan → topology → protection → cloud → web → VE.Direct → OTA
-- **bmu_protection** — state machine (CONNECTED/DISCONNECTED/RECONNECTING/ERROR/LOCKED), 5 reconnect limit, LED blink on ERROR
-- **bmu_balancer** — soft-balancing duty-cycling (3 ON / 2 OFF) with R_int opportuniste during OFF windows
-- **bmu_rint** — internal resistance measurement (pulse method), periodic task (Kconfig: stack/priority)
-- **bmu_vedirect** — Victron VE.Direct UART parser (solar charger), periodic task (Kconfig: stack/priority)
-- **bmu_display** — LVGL tabview (Batteries/SOH/System/Alerts/Config), pack info line (Vmin/Vmoy/Vmax/T°C), SOH R_int column, swipe detail navigation
-- **bmu_web** + **bmu_web_security** — HTTP + WebSocket, constant-time token auth, LRU rate limiter
-- **bmu_influx** + **bmu_influx_store** — InfluxDB line-protocol with offline persistence (FAT/SD fallback, 2-file rotation 512KB)
-- **bmu_mqtt** — ESP-MQTT with auth (user/password via Kconfig + NVS)
-- **bmu_ble** — NimBLE 4 GATT services (battery/system/control + Victron SmartShunt), dynamic nb_ina after I2C scan
-- **bmu_ble_victron** — Victron Instant Readout advertising (AES-CTR, PID SmartShunt 0xA389)
-- **bmu_ble_victron_gatt** — GATT SmartShunt emulation (9 chars: V, I, SOC, Ah, TTG, T, alarm, model, serial)
-- **bmu_ble_victron_scan** — BLE central scanner for Victron devices (passive, AES decrypt, 8 device cache)
-- **bmu_storage** — NVS, FAT (/fatfs), SPIFFS (/spiffs), SD card (/sdcard) with SPI on PMOD2
+- `i2cBusRecovery()` triggered on 5+ consecutive I2C failures
 
 ### Offline Data Persistence
-When WiFi/InfluxDB is unreachable, telemetry is persisted to FAT internal flash:
-- Primary: `/fatfs/influx/current.lp` (line-protocol)
-- Rotation: `current.lp` → `rotated.lp` at 512 KB (max 1 MB total)
-- Fallback: `/sdcard/influx/` if SD card present and FAT unavailable
+When WiFi/InfluxDB is unreachable, telemetry persists to FAT internal flash:
+- Primary: `/fatfs/influx/current.lp` → rotates to `rotated.lp` at 512 KB (max 1 MB)
+- Fallback: `/sdcard/influx/` if SD card present
 - Replay: automatic on WiFi reconnection (cloud_telemetry_task, every 10s)
 
-## Structure
-- `specs/` — Kill_LIFE gates: intake (S0), spec (S1), arch (S2), plan (S3)
-- `firmware/src/` — firmware Arduino/PlatformIO (main.cpp + headers)
-- `firmware/test/` — Unity native tests (sim-host): test_protection, test_battery_route_validation, test_influx_buffer_codec, test_web_mutation_rate_limit, test_web_route_security, test_ws_auth_flow, test_mqtt_influx_codec, test_emulation_bench
-- `firmware-idf/` — ESP-IDF 5.4 firmware (22 components, LVGL display, BLE, MQTT)
-- `firmware/lib/INA237/` — local INA237 driver fork
-- `firmware/data/` — web UI assets (served via embedded headers: WebServerFilesHtml.h, etc.)
-- `hardware/PCB/` — BMU v1 (manufactured, legacy)
-- `hardware/pcb-bmu-v2/` — BMU v2 (KiCad 8.0, ERC 0 violations, BOM 107 components)
-- `kxkm-bmu-app/` — KMP smartphone app (shared Kotlin + SwiftUI iOS + Compose Android)
-- `kxkm-api/` — Docker stack on kxkm-ai (Mosquitto + InfluxDB + Telegraf + FastAPI + Grafana)
+## ML Pipeline
 
-## Hardware (KiCad)
+SOH (State of Health) prediction deployed on ESP32 as TFLite INT8 (12.2 KB):
+- **Pipeline**: `train_fpnn.py` → `quantize_tflite.py` → INT8 model (MAPE ~10%)
+- **Models**: `models/` (`.pt`, `.onnx`, `.tflite`), features in `.parquet`
+- **Remote training**: `scripts/ml/remote_kxkm_ai_pipeline.sh` on kxkm-ai (RTX 4090)
+- **Services**: `services/soh-scoring/` (PyTorch API) + `services/soh-llm/` (Qwen2.5-7B diagnostics, port 8401)
 
-KiCad-cli via Docker (repo is outside Kill_LIFE root, use direct Docker):
-```bash
-docker run --rm --user $(id -u):$(id -g) -e HOME=/tmp \
-  -v "$(pwd):/project" \
-  -w /project kicad/kicad:10.0 kicad-cli sch erc \
-  --format json --output "/project/hardware/pcb-bmu-v2/erc_report.json" \
-  "/project/hardware/pcb-bmu-v2/BMU v2.kicad_sch"
-```
+## Test Suites (26 total, no hardware needed)
 
-### ICs clés
-- INA237 (VSSOP-10) — mesure V/I/P via I²C @ 0x40–0x4F (16 max)
-- TCA9535PWR (TSSOP-24) — GPIO expander relais via I²C @ 0x20–0x27 (8 max)
-- ISO1540 (SOIC-8) — isolateur I²C galvanique
-- Adressage via solder jumpers JP2–JP20
+### PlatformIO sim-host (`pio test -e sim-host`)
+| Suite | Covers |
+|-------|--------|
+| `test_protection` (10) | V/I/imbalance/lock state machine |
+| `test_battery_route_validation` | Index bounds + state checks |
+| `test_influx_buffer_codec` | InfluxDB line-protocol encoding |
+| `test_web_mutation_rate_limit` (3) | Sliding window + multi-IP |
+| `test_web_route_security` (9) | Constant-time token + Bearer |
+| `test_ws_auth_flow` (7) | Combined auth + rate limit |
+| `test_mqtt_influx_codec` (3) | JSON MQTT + topic parsing |
+
+### ESP-IDF host (`cd firmware-idf/test && make all`)
+| Suite | Covers |
+|-------|--------|
+| `test_protection` (13) | Full state machine (ESP-IDF) |
+| `test_victron_gatt` (8) | GATT encoding (V, SOC, alarm, TTG, T) |
+| `test_victron_scan` (5) | Payload parsing, expiry, MAC, CID |
+| `test_ble_victron` | Battery/solar payload encoding |
+| `test_vedirect_parser` | VE.Direct frame parsing |
+| `test_rint` | R_int calculation |
+| `test_config_labels` | Battery label management |
+| `test_vrm_topics` | VRM topic generation |
 
 ## Safety-Critical Rules
 - **Never** weaken voltage/current thresholds, reconnect delays, or topology guards
@@ -145,22 +151,40 @@ docker run --rm --user $(id -u):$(id -g) -e HOME=/tmp \
 - CSV logging uses `;` separator — keep unchanged
 - Config thresholds in `firmware/src/config.h` (values in mV/mA)
 - WiFi/MQTT secrets go in `firmware/src/credentials.h` (template: `credentials.h.example`)
+- Python projects use `uv` (not pip/venv)
+
+## iOS App (iosApp/)
+
+See `iosApp/CLAUDE.md` for full details. Key points:
+- SwiftUI + CoreBluetooth, no external dependencies
+- BLE polls every 2s (firmware notification bug workaround)
+- Custom 128-bit UUID GATT protocol (battery/system/control/Victron services)
+- 3 roles: Admin, Technician, Viewer (PIN + Face ID)
+- Source of truth: `project.yml` → regenerate after target changes: `xcodegen generate`
+- **Never** edit `project.pbxproj` manually
+- Build: `xcodebuild build -scheme KXKMBmu -destination "platform=iOS,id=<DEVICE_ID>"`
+
+## KMP Shared (kxkm-bmu-app/shared/)
+
+Kotlin Multiplatform module — compiles for iOS arm64.
+- Build requires JDK 17: `export JAVA_HOME=/opt/homebrew/opt/openjdk@17`
+- Build framework: `./gradlew :shared:linkDebugFrameworkIosArm64`
+- Gradle wrapper: 8.5 (not 9.x — AGP 8.2.0 incompatible)
+- SKIE disabled (Gradle 9.x incompatible) — use manual callback bridges
 
 ## CI/CD
 
-- `ci.yml`: PlatformIO `pio test -e native` on push/PR
-- `sim-host-tests.yml`: sim-host + S3 build + memory budget
-- `esp-idf-ci.yml`: 80 host tests (5 suites) + ESP-IDF
-  v5.4 build + memory gate (flash ≤85% of 2MB OTA)
-- Grafana dashboards in `grafana/dashboards/` (JSON)
+- `ci.yml`: PlatformIO `pio test -e sim-host` on push/PR (13 tests)
+- `sim-host-tests.yml`: sim-host + S3 build + memory budget (RAM ≤75%, Flash ≤85%)
+- Current flash usage: 81% (19% headroom on 2MB OTA)
 
 ## Gates Kill_LIFE
 - S0 ✅ intake + specs
-- S1 ✅ tests natifs 10/10 + bug fix `find_max_voltage`
+- S1 ✅ tests natifs 13/13 + bug fix `find_max_voltage`
 - S2 ✅ KiCad BMU v2 review (ERC 0 violations)
 - S3 ⬜ validation terrain (batteries réelles)
 
 ## Known Technical Debt
-- MED-010: mV/V unit inconsistency between config.h and documentation — standardize to mV throughout
-- Legacy headers (INA_Func.h, BatterySwitchCtrl.h) contain duplicated logic — refactoring candidates
 - Web UI assets are embedded as string literals in headers — consider SPIFFS/LittleFS migration
+- KMP Shared framework not yet integrated in Xcode project (types prefixed `Shared*` need bridge layer)
+- NVS config overrides sdkconfig defaults — erase NVS partition to reset: `esptool erase_region 0x9000 0x6000`

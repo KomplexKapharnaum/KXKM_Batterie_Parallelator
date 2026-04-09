@@ -44,11 +44,26 @@
 #endif
 #include "esp_log.h"
 #include "esp_spiffs.h"
+#include "bmu_types.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/queue.h"
 #include <cstdio>
 
 static const char *TAG = "MAIN";
+
+// ── Snapshot distribution queues ──
+static QueueHandle_t s_q_balancer = NULL;
+static QueueHandle_t s_q_display  = NULL;
+static QueueHandle_t s_q_cloud    = NULL;
+static QueueHandle_t s_q_ble      = NULL;
+
+// ── Command queue → protection ──
+static QueueHandle_t s_q_cmd      = NULL;
+
+QueueHandle_t bmu_get_cmd_queue(void) {
+    return s_q_cmd;
+}
 
 static bool bitbang_bus_conflicts_with_vedirect(void)
 {
@@ -69,6 +84,7 @@ typedef struct {
     bmu_protection_ctx_t  *prot;
     bmu_battery_manager_t *mgr;
     uint8_t               *nb_ina;   /* pointer — follows hotplug changes */
+    QueueHandle_t          q_snapshot;
 } cloud_task_ctx_t;
 
 static void cloud_telemetry_task(void *pv)
@@ -80,6 +96,12 @@ static void cloud_telemetry_task(void *pv)
 
     for (;;) {
         vTaskDelay(period);
+
+        // Peek latest snapshot
+        bmu_snapshot_t snap;
+        if (xQueuePeek(ctx->q_snapshot, &snap, 0) == pdTRUE) {
+            // Snapshot available — will use for telemetry in future refactor
+        }
 
 #if CONFIG_BMU_SOH_ENABLED
         bmu_soh_update_all(ctx->mgr, ctx->prot, *ctx->nb_ina);
@@ -200,6 +222,18 @@ extern "C" void app_main(void)
     bmu_nvs_init();
     bmu_config_load();
     bmu_config_log();
+
+    /* ── 1b. Create RTOS queues ─────────────────────────────────────── */
+    s_q_balancer = xQueueCreate(1, sizeof(bmu_snapshot_t));
+    s_q_display  = xQueueCreate(1, sizeof(bmu_snapshot_t));
+    s_q_cloud    = xQueueCreate(2, sizeof(bmu_snapshot_t));
+    s_q_ble      = xQueueCreate(1, sizeof(bmu_snapshot_t));
+    s_q_cmd      = xQueueCreate(8, sizeof(bmu_cmd_t));
+    if (!s_q_balancer || !s_q_display || !s_q_cloud || !s_q_ble || !s_q_cmd) {
+        ESP_LOGE(TAG, "Failed to create RTOS queues");
+        return;
+    }
+    ESP_LOGI(TAG, "RTOS queues created (snapshot + cmd)");
 
     /* ── 2. SPIFFS (web assets) ────────────────────────────────────── */
     init_spiffs();
@@ -379,6 +413,17 @@ extern "C" void app_main(void)
 
     /* ── 9. Protection + Battery Manager ───────────────────────────── */
     ESP_ERROR_CHECK(bmu_protection_init(&prot, ina, nb_ina, tca, nb_tca));
+
+    // Wire RTOS queues to protection
+    bmu_protection_queues_t prot_queues = {
+        .q_balancer = s_q_balancer,
+        .q_display  = s_q_display,
+        .q_cloud    = s_q_cloud,
+        .q_ble      = s_q_ble,
+        .q_cmd      = s_q_cmd,
+    };
+    bmu_protection_set_queues(&prot, &prot_queues);
+
     bmu_battery_manager_init(&mgr, ina, nb_ina);
     bmu_ble_set_nb_ina(nb_ina); /* Update BLE after I2C scan */
     if (nb_ina > 0) {
@@ -401,6 +446,7 @@ extern "C" void app_main(void)
 
     /* Update display context avec nb_ina reel */
     disp_ctx.nb_ina = total_ina;
+    disp_ctx.q_snapshot = s_q_display;
     bmu_display_request_update();
 
     /* ── 9c. I2C Hotplug (si bus ok ET devices trouves au boot) ─────── */
@@ -415,6 +461,7 @@ extern "C" void app_main(void)
             .topology_ok = &topology_ok,
             .prot = &prot,
             .mgr = &mgr,
+            .q_cmd = s_q_cmd,
         };
         if (bmu_hotplug_init(&hp_cfg) == ESP_OK) {
             bmu_hotplug_start();
@@ -437,7 +484,14 @@ extern "C" void app_main(void)
 
     /* ── 10. Cloud (si WiFi) ───────────────────────────────────────── */
     bmu_influx_store_init(); /* Toujours init — persiste quand WiFi tombe */
-    bmu_balancer_init(&prot);
+    {
+        bmu_balancer_config_t bal_cfg = {
+            .q_snapshot = s_q_balancer,
+            .q_cmd      = s_q_cmd,
+        };
+        bmu_balancer_init(&bal_cfg);
+        bmu_balancer_start_task(3, 3072);
+    }
     if (bmu_wifi_is_connected()) {
         bmu_mqtt_init();
         bmu_influx_init();
@@ -447,6 +501,7 @@ extern "C" void app_main(void)
         cloud_ctx.prot = &prot;
         cloud_ctx.mgr = &mgr;
         cloud_ctx.nb_ina = &nb_ina;
+        cloud_ctx.q_snapshot = s_q_cloud;
         xTaskCreate(cloud_telemetry_task, "cloud", 4096, &cloud_ctx, 2, NULL);
 
         /* VRM — publish to Victron cloud */
@@ -471,61 +526,17 @@ extern "C" void app_main(void)
     ESP_LOGI(TAG, "Init complete — heap: %lu — loop %dms",
              (unsigned long)esp_get_free_heap_size(), BMU_LOOP_PERIOD_MS);
 
-    /* ── Warm-up: laisser les INA237 se stabiliser avant la protection ── */
-    if (topology_ok && nb_ina > 0) {
-        ESP_LOGI(TAG, "Warm-up: stabilisation INA237 (%d batteries)...", nb_ina);
-
-        /* Lire quelques cycles pour remplir le cache de tension */
-        for (int warmup = 0; warmup < 5; warmup++) {
-            for (int i = 0; i < nb_ina; i++) {
-                float v = 0, a = 0;
-                bmu_ina237_read_voltage_current(&prot.ina_devices[i], &v, &a);
-                if (xSemaphoreTake(prot.state_mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
-                    prot.battery_voltages[i] = v;
-                    xSemaphoreGive(prot.state_mutex);
-                }
-            }
-            vTaskDelay(pdMS_TO_TICKS(200));
-        }
-
-        /* Log des tensions apres warm-up */
-        for (int i = 0; i < nb_ina; i++) {
-            ESP_LOGI(TAG, "  BAT[%d] V=%.0f mV", i + 1, prot.battery_voltages[i]);
-        }
-        ESP_LOGI(TAG, "Warm-up OK — demarrage protection");
+    /* ── 14. Start protection as autonomous FreeRTOS task ───────────── */
+    if (i2c_ok && topology_ok && nb_ina > 0) {
+        bmu_protection_start_task(&prot, BMU_LOOP_PERIOD_MS, 8, 8192);
+        ESP_LOGI(TAG, "Protection task launched (period=%dms, prio=8)", BMU_LOOP_PERIOD_MS);
+    } else if (i2c_ok && !topology_ok) {
+        ESP_LOGW(TAG, "Topology invalid — fail-safe all OFF");
+        bmu_protection_all_off(&prot);
     }
 
-    /* ── Main loop ─────────────────────────────────────────────────── */
-    bool topology_fail_safe_applied = false;
+    /* Main task: idle loop (protection runs in its own task now) */
     while (true) {
-        if (i2c_ok) {
-            if (!topology_ok) {
-                if (!topology_fail_safe_applied) {
-                    ESP_LOGW(TAG, "Topology invalid — fail-safe all OFF applied once");
-                    bmu_protection_all_off(&prot);
-                    topology_fail_safe_applied = true;
-                }
-            } else {
-                topology_fail_safe_applied = false;
-                /* Snapshot atomique + fleet_max pre-calcule (1× au lieu de N×) */
-                uint8_t snap_ina = nb_ina;
-                float fleet_max = bmu_protection_compute_fleet_max(&prot);
-                for (int i = 0; i < snap_ina; i++) {
-                    if (bmu_balancer_is_off((uint8_t)i)) continue;
-                    bmu_protection_check_battery_ex(&prot, i, fleet_max);
-                }
-                int balancing = bmu_balancer_tick();
-                if (balancing > 0) {
-                    ESP_LOGD("MAIN", "%d batterie(s) en equilibrage", balancing);
-                }
-                if (disp_ctx.nb_ina != snap_ina) {
-                    disp_ctx.nb_ina = snap_ina;
-                    bmu_display_request_update();
-                }
-            }
-        }
-        /* SOH disabled */
-
-        vTaskDelay(pdMS_TO_TICKS(BMU_LOOP_PERIOD_MS));
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }

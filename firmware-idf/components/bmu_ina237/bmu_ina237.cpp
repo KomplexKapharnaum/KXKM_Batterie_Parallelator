@@ -445,15 +445,27 @@ esp_err_t bmu_ina237_scan_init(i2c_master_bus_handle_t bus,
     for (uint8_t addr = INA237_ADDR_MIN; addr <= INA237_ADDR_MAX; addr++) {
         if (*count >= INA237_MAX_DEVICES) break;
 
-        /* Init directe sans probe prealable.
-         * i2c_master_probe() en ESP-IDF v5.4 cree un device handle
-         * interne qui entre en conflit avec add_device() dans init(). */
+        /* Quick check : ajouter le device, lire MFR_ID, retirer si absent.
+         * Plus rapide que bmu_ina237_init() complet pour les adresses vides.
+         * N'utilise PAS bmu_i2c_probe() qui pollue le driver ESP-IDF v5.4. */
+        i2c_master_dev_handle_t tmp_dev = NULL;
+        if (bmu_i2c_add_device(bus, addr, &tmp_dev) != ESP_OK) continue;
+        uint8_t reg = INA237_REG_MANUFACTURER_ID;
+        uint8_t rx[2] = {0};
+        esp_err_t probe_ret = i2c_master_transmit_receive(tmp_dev, &reg, 1, rx, 2,
+                                                           pdMS_TO_TICKS(20));
+        i2c_master_bus_rm_device(tmp_dev);
+        if (probe_ret != ESP_OK) continue; /* Adresse absente — pas de log */
+
+        uint16_t mfr = ((uint16_t)rx[0] << 8) | rx[1];
+        if (mfr != INA237_MANUFACTURER_ID) continue; /* Pas un INA237 */
+
+        /* Device confirme — init complete */
         esp_err_t ret = bmu_ina237_init(bus, addr, r_shunt_uohm, max_current_a,
                                         &devices[*count]);
         if (ret == ESP_OK) {
             (*count)++;
         }
-        /* Pas de log pour les adresses absentes — c'est normal */
     }
 
     ESP_LOGI(TAG, "Scan termine: %u INA237 initialise(s)", (unsigned)*count);
