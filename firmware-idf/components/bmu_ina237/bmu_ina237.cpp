@@ -19,7 +19,7 @@ static const char *TAG = "INA237";
 
 /* Timeout I2C en ticks FreeRTOS (50 ms, adapte au bus 50 kHz) */
 #define I2C_TIMEOUT_MS  50
-#define INA237_IO_RETRY_COUNT 3
+#define INA237_IO_RETRY_COUNT 1
 #define INA237_IO_RETRY_DELAY_MS 2
 #define INA237_RESET_DELAY_MS 5
 
@@ -166,21 +166,22 @@ esp_err_t bmu_ina237_init(i2c_master_bus_handle_t bus, uint8_t addr,
 
     ESP_LOGI(TAG, "[0x%02X] INA237 detecte (MFR=0x%04X DEV=0x%04X)", addr, mfr_id, dev_id);
 
-    /* 2. Reset device (CONFIG bit 15) — soft-fail: le device demarre
-     *    en etat connu apres power-on, le reset n'est pas critique.
-     *    Apres un scan diagnostic, le bus peut etre instable temporairement. */
-    ret = ina237_write_reg16_retry(ctx->dev, INA237_REG_CONFIG, INA237_CONFIG_RST);
+    /* 2. Reset device (CONFIG bit 15) — fail-fast si SCL stuck.
+     *    1 tentative : si echec, bus_recover + 1 retry, sinon abort immediat.
+     *    Evite le spin i2c_ll_is_bus_busy ~15s du bug ESP-IDF 5.4. */
+    ret = ina237_write_reg16_raw(ctx->dev, INA237_REG_CONFIG, INA237_CONFIG_RST);
     if (ret != ESP_OK) {
-        ESP_LOGW(TAG, "[0x%02X] Reset skip (bus instable): %s — retry apres delai",
+        ESP_LOGW(TAG, "[0x%02X] Reset fail (bus potentiellement stuck): %s — bus_recover",
                  addr, esp_err_to_name(ret));
-        /* Bus instable apres scan — attendre et retenter */
         bmu_i2c_unlock();
-        vTaskDelay(pdMS_TO_TICKS(50));
+        bmu_i2c_bus_recover();
+        vTaskDelay(pdMS_TO_TICKS(INA237_RESET_DELAY_MS));
         if (bmu_i2c_lock() != ESP_OK) goto fail_remove_device_no_unlock;
-        ret = ina237_write_reg16_retry(ctx->dev, INA237_REG_CONFIG, INA237_CONFIG_RST);
+        ret = ina237_write_reg16_raw(ctx->dev, INA237_REG_CONFIG, INA237_CONFIG_RST);
         if (ret != ESP_OK) {
-            ESP_LOGW(TAG, "[0x%02X] Reset skip definitif — config sans reset", addr);
-            /* Continue sans reset — le device est en etat power-on */
+            ESP_LOGE(TAG, "[0x%02X] Reset definitif echec — device marque init_failed: %s",
+                     addr, esp_err_to_name(ret));
+            goto fail_remove_device;
         }
     }
     /* Attente post-reset (datasheet : typique 1 ms) */
@@ -189,15 +190,8 @@ esp_err_t bmu_ina237_init(i2c_master_bus_handle_t bus, uint8_t addr,
     /* 3. CONFIG : ADCRANGE=0 (+-163.84 mV), pas de delai de conversion */
     ret = ina237_write_reg16_retry(ctx->dev, INA237_REG_CONFIG, INA237_CONFIG_ADCRANGE_0);
     if (ret != ESP_OK) {
-        ESP_LOGW(TAG, "[0x%02X] CONFIG write echec — retry", addr);
-        bmu_i2c_unlock();
-        vTaskDelay(pdMS_TO_TICKS(50));
-        if (bmu_i2c_lock() != ESP_OK) goto fail_remove_device_no_unlock;
-        ret = ina237_write_reg16_retry(ctx->dev, INA237_REG_CONFIG, INA237_CONFIG_ADCRANGE_0);
-        if (ret != ESP_OK) {
-            ESP_LOGE(TAG, "[0x%02X] Echec ecriture CONFIG definitif: %s", addr, esp_err_to_name(ret));
-            goto fail_remove_device;
-        }
+        ESP_LOGE(TAG, "[0x%02X] Echec ecriture CONFIG: %s", addr, esp_err_to_name(ret));
+        goto fail_remove_device;
     }
 
     /* 4. Calcul et ecriture SHUNT_CAL (datasheet SBOS945 section 8.1.2)
@@ -461,11 +455,15 @@ esp_err_t bmu_ina237_scan_init(i2c_master_bus_handle_t bus,
         uint16_t mfr = ((uint16_t)rx[0] << 8) | rx[1];
         if (mfr != INA237_MANUFACTURER_ID) continue; /* Pas un INA237 */
 
-        /* Device confirme — init complete */
+        /* Device confirme — init complete.
+         * Si init echoue (ex: SCL stuck), logger et passer au suivant
+         * sans incrementer nb_ina (evite le WDT spin). */
         esp_err_t ret = bmu_ina237_init(bus, addr, r_shunt_uohm, max_current_a,
                                         &devices[*count]);
         if (ret == ESP_OK) {
             (*count)++;
+        } else {
+            ESP_LOGW(TAG, "[0x%02X] Init echec (%s) — device ignore", addr, esp_err_to_name(ret));
         }
     }
 
