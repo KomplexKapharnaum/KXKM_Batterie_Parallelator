@@ -36,9 +36,9 @@ static bool s_update_req = false;
 static bool s_ui_ready = false;
 static esp_timer_handle_t s_periodic_timer = NULL;
 
-/* Compteur pour le push chart (500ms = toutes les 5 iterations @ 100ms refresh) */
+/* Compteur pour le push chart (500ms = toutes les 1 iteration @ 500ms refresh) */
 static int s_chart_push_counter = 0;
-#define CHART_PUSH_INTERVAL  5  // 5 * 100ms = 500ms
+#define CHART_PUSH_INTERVAL  1  // 1 * 500ms = 500ms
 
 /* ── Runtime UI context sync ───────────────────────────────────────── */
 

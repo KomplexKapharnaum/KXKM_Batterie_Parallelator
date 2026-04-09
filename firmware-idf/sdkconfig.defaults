@@ -1,3 +1,6 @@
 # LVGL heap — 64KB required to avoid crash when creating widgets
 # for 8 batteries with RTOS queues + tasks allocated
 CONFIG_LV_MEM_SIZE_KILOBYTES=64
+
+# WDT elargi pour display LVGL + bus I2C sous charge
+CONFIG_ESP_TASK_WDT_TIMEOUT_S=15

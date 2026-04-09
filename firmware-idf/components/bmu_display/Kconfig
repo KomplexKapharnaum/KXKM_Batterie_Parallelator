@@ -7,7 +7,7 @@ menu "BMU Display"
         default 30
     config BMU_DISPLAY_REFRESH_MS
         int "UI refresh period (ms)"
-        default 100
+        default 500
     config BMU_CHART_HISTORY_POINTS
         int "Chart history ring buffer size (points per battery)"
         default 600

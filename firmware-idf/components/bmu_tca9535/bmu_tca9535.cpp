@@ -294,17 +294,18 @@ esp_err_t bmu_tca9535_set_led(bmu_tca9535_handle_t *handle,
     }
 
     if (desired_p1 == handle->out_p1) {
-        return ESP_OK;
+        return ESP_OK;  /* no-op : LED deja dans cet etat */
     }
-
-    handle->out_p1 = desired_p1;
 
     esp_err_t ret = tca9535_write_reg8(handle->dev,
                                        TCA9535_REG_OUTPUT_PORT1,
-                                       handle->out_p1);
+                                       desired_p1);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Erreur LED ch%u @ 0x%02X : %s",
                  channel, handle->addr, esp_err_to_name(ret));
+    } else {
+        /* Mettre a jour le cache seulement apres ecriture reussie */
+        handle->out_p1 = desired_p1;
     }
     return ret;
 }
