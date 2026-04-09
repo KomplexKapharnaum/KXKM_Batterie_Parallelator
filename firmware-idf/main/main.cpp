@@ -48,6 +48,7 @@
 #include "freertos/task.h"
 #include "freertos/queue.h"
 #include <cstdio>
+#include <math.h>
 
 static const char *TAG = "MAIN";
 
@@ -140,17 +141,84 @@ static void cloud_telemetry_task(void *pv)
             }
 
             float i_a = bmu_battery_manager_get_last_current_a(ctx->mgr, i);
-            bmu_influx_write_battery(i, v_mv, i_a, ah_d, ah_c, state_str);
 
-            char payload[192];
-            snprintf(payload, sizeof(payload),
-                     "{\"bat\":%d,\"v_mv\":%.0f,\"i_a\":%.3f,"
-                     "\"ah_d\":%.3f,\"ah_c\":%.3f,\"state\":\"%s\"}",
-                     i + 1, v_mv, i_a, ah_d, ah_c, state_str);
+            /* Build full payload with health metrics */
+            bmu_influx_battery_full_t full = {
+                .battery_id    = i,
+                .voltage_mv    = v_mv,
+                .current_a     = i_a,
+                .ah_discharge  = ah_d,
+                .ah_charge     = ah_c,
+                .state         = state_str,
+                .r_ohmic_mohm  = NAN,
+                .r_total_mohm  = NAN,
+                .soh_percent   = NAN,
+                .balancer_duty = -1,
+            };
+
+#if CONFIG_BMU_RINT_ENABLED
+            bmu_rint_result_t rint = bmu_rint_get_cached((uint8_t)i);
+            if (rint.valid) {
+                full.r_ohmic_mohm = rint.r_ohmic_mohm;
+                full.r_total_mohm = rint.r_total_mohm;
+            }
+#endif
+
+#if CONFIG_BMU_SOH_ENABLED
+            float soh = bmu_soh_get_cached(i);
+            if (soh >= 0) full.soh_percent = soh * 100.0f;
+#endif
+
+            if (bmu_balancer_is_off((uint8_t)i)) {
+                full.balancer_duty = 0; /* Currently in OFF phase */
+            } else {
+                int duty = bmu_balancer_get_duty_pct((uint8_t)i);
+                if (duty < 100) full.balancer_duty = duty;
+            }
+
+            bmu_influx_write_battery_full(&full);
+
+            /* MQTT — 0-indexed, V en volts, champs optionnels */
+            char payload[384];
+            int plen = snprintf(payload, sizeof(payload),
+                "{\"bat\":%d,\"v\":%.3f,\"i\":%.3f,"
+                "\"ah_d\":%.3f,\"ah_c\":%.3f,\"state\":\"%s\"",
+                i, v_mv / 1000.0f, i_a, ah_d, ah_c, state_str);
+
+            if (!isnan(full.r_ohmic_mohm)) {
+                plen += snprintf(payload + plen, sizeof(payload) - plen,
+                    ",\"r_ohm\":%.1f,\"r_tot\":%.1f",
+                    full.r_ohmic_mohm, full.r_total_mohm);
+            }
+            if (!isnan(full.soh_percent)) {
+                plen += snprintf(payload + plen, sizeof(payload) - plen,
+                    ",\"soh\":%.1f", full.soh_percent);
+            }
+            if (full.balancer_duty >= 0) {
+                plen += snprintf(payload + plen, sizeof(payload) - plen,
+                    ",\"bal_duty\":%d", full.balancer_duty);
+            }
+            snprintf(payload + plen, sizeof(payload) - plen, "}");
+
             char topic[64];
             snprintf(topic, sizeof(topic), "bmu/%s/battery/%d",
-                     bmu_config_get_device_name(), i + 1);
+                     bmu_config_get_device_name(), i);  /* 0-indexed */
             bmu_mqtt_publish(topic, payload, 0, 0, false);
+        }
+
+        /* ── Climate (AHT30) ── */
+        if (bmu_climate_is_available()) {
+            float t_c = bmu_climate_get_temperature();
+            float h_pct = bmu_climate_get_humidity();
+            bmu_influx_write_climate(t_c, h_pct);
+
+            char clim_payload[96];
+            snprintf(clim_payload, sizeof(clim_payload),
+                "{\"temp_c\":%.2f,\"humidity\":%.1f}", t_c, h_pct);
+            char clim_topic[64];
+            snprintf(clim_topic, sizeof(clim_topic), "bmu/%s/climate",
+                     bmu_config_get_device_name());
+            bmu_mqtt_publish(clim_topic, clim_payload, 0, 0, false);
         }
 
         bmu_influx_flush();
