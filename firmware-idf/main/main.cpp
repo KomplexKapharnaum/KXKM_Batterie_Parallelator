@@ -404,6 +404,15 @@ extern "C" void app_main(void)
             i2c_master_bus_reset(i2c_bus);
             vTaskDelay(pdMS_TO_TICKS(50));
 
+            /* Si le scan diagnostic a trouve tres peu de devices (< 9 = 8 INA + 1 TCA min),
+             * le bus est probablement en mauvais etat. On saute les scan_init qui
+             * spinent lourdement sur un bus degrade et laisse le hotplug task
+             * reessayer en background plus tard (il est plus tolerant). */
+            if (dev_count < 9) {
+                ESP_LOGW(TAG, "I2C bus degrade (%d/10 devices) — skip scan_init, hotplug prendra le relais", dev_count);
+                break;
+            }
+
             bmu_ina237_scan_init(i2c_bus, 2000, 10.0f, ina, &nb_ina);
             ESP_LOGI(TAG, "INA237: %d", nb_ina);
 
