@@ -245,22 +245,31 @@ esp_err_t bmu_display_init(bmu_display_ctx_t *ctx)
         }, LV_EVENT_PRESSING, NULL);
     }
 
-    /* ── Periodic timer for updates ───────────────────────────────── */
-    if (s_periodic_timer == NULL) {
-        const esp_timer_create_args_t timer_args = {
-            .callback = display_periodic_cb,
-            .arg = NULL,
-            .dispatch_method = ESP_TIMER_TASK,
-            .name = "disp_periodic",
-            .skip_unhandled_events = true,
-        };
-        ESP_ERROR_CHECK(esp_timer_create(&timer_args, &s_periodic_timer));
-        ESP_ERROR_CHECK(esp_timer_start_periodic(
-            s_periodic_timer,
-            CONFIG_BMU_DISPLAY_REFRESH_MS * 1000ULL));
-    }
+    /* Periodic timer NOT started yet — call bmu_display_start_updates()
+     * AFTER protection task is running so the first callback sees
+     * nb_ina != 0 and creates the battery rows immediately. */
 
-    ESP_LOGI(TAG, "=== Affichage BMU pret (refresh=%dms, dim=%ds, chart=%d pts) ===",
+    ESP_LOGI(TAG, "=== Affichage BMU pret (HW + UI crees, updates en attente) ===");
+    return ESP_OK;
+}
+
+esp_err_t bmu_display_start_updates(void)
+{
+    if (s_periodic_timer != NULL) return ESP_OK;  /* already started */
+
+    const esp_timer_create_args_t timer_args = {
+        .callback = display_periodic_cb,
+        .arg = NULL,
+        .dispatch_method = ESP_TIMER_TASK,
+        .name = "disp_periodic",
+        .skip_unhandled_events = true,
+    };
+    ESP_ERROR_CHECK(esp_timer_create(&timer_args, &s_periodic_timer));
+    ESP_ERROR_CHECK(esp_timer_start_periodic(
+        s_periodic_timer,
+        CONFIG_BMU_DISPLAY_REFRESH_MS * 1000ULL));
+
+    ESP_LOGI(TAG, "=== Display updates started (refresh=%dms, dim=%ds, chart=%d pts) ===",
              CONFIG_BMU_DISPLAY_REFRESH_MS,
              CONFIG_BMU_DISPLAY_BL_DIM_TIMEOUT_S,
              CONFIG_BMU_CHART_HISTORY_POINTS);

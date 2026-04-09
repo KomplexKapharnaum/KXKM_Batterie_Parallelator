@@ -19,10 +19,17 @@ typedef struct {
 } bmu_display_ctx_t;
 
 /**
- * @brief Initialize display hardware (SPI + ILI9342C + touch + LVGL).
- * Creates a FreeRTOS task for LVGL tick + rendering.
+ * @brief Initialize display hardware (SPI + ILI9342C + touch + LVGL) and
+ * create the LVGL UI (tabs, screens, widgets). Does NOT start the periodic
+ * update callback — call bmu_display_start_updates() after protection init.
  */
 esp_err_t bmu_display_init(bmu_display_ctx_t *ctx);
+
+/**
+ * @brief Start the periodic UI update callback (100 ms). Must be called
+ * AFTER bmu_protection_init() so the first tick sees the real battery count.
+ */
+esp_err_t bmu_display_start_updates(void);
 
 /**
  * @brief Force display update (called from main loop or event).

@@ -534,10 +534,17 @@ extern "C" void app_main(void)
         bmu_protection_start_task(&prot, prot_period_ms, 8, 8192);
         ESP_LOGI(TAG, "Protection task launched (period=%lums, prio=8)",
                  (unsigned long)prot_period_ms);
+
+        /* Small delay to let protection task do its warm-up (5 * 200ms = 1s)
+         * before display starts reading battery values. */
+        vTaskDelay(pdMS_TO_TICKS(1100));
     } else if (i2c_ok && !topology_ok) {
         ESP_LOGW(TAG, "Topology invalid — fail-safe all OFF");
         bmu_protection_all_off(&prot);
     }
+
+    /* ── 15. Start display updates (AFTER protection is running) ──── */
+    bmu_display_start_updates();
 
     /* Main task: idle loop (protection runs in its own task now) */
     while (true) {
