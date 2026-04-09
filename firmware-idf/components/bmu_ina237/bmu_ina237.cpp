@@ -168,8 +168,20 @@ esp_err_t bmu_ina237_init(i2c_master_bus_handle_t bus, uint8_t addr,
         goto fail_remove_device;
     }
 
-    /* Verification DEVICE_ID — famille 0x23xx (INA237 = 0x2370, INA237A = 0x2381) */
-    ret = ina237_read_reg16_retry(ctx->dev, INA237_REG_DEVICE_ID, &dev_id);
+    /* Verification DEVICE_ID — famille 0x23xx (INA237 = 0x2370, INA237A = 0x2381).
+     * Retry jusqu'a 3 lectures en cas de glitch I2C (bit flip observe en
+     * production: DEV_ID=0x0000 sur lecture corrompue). */
+    for (int dev_attempt = 0; dev_attempt < 3; dev_attempt++) {
+        ret = ina237_read_reg16_retry(ctx->dev, INA237_REG_DEVICE_ID, &dev_id);
+        if (ret == ESP_OK && (dev_id & INA237_DEVICE_ID_MASK) == INA237_DEVICE_ID_FAMILY) {
+            break;
+        }
+        if (dev_attempt < 2) {
+            ESP_LOGW(TAG, "[0x%02X] DEV_ID read glitch: 0x%04X — retry %d/3",
+                     addr, dev_id, dev_attempt + 2);
+            vTaskDelay(pdMS_TO_TICKS(5));
+        }
+    }
     if (ret != ESP_OK || (dev_id & INA237_DEVICE_ID_MASK) != INA237_DEVICE_ID_FAMILY) {
         ESP_LOGE(TAG, "[0x%02X] Device ID invalide: 0x%04X (attendu 0x23xx)",
                  addr, dev_id);
