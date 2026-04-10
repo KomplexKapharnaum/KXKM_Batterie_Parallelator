@@ -1,0 +1,11 @@
+[package]
+name = "bmu-test-fixtures"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+bmu-i2c = { path = "../bmu-i2c" }
+
+[lints]
+workspace = true

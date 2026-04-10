@@ -1,0 +1,23 @@
+[package]
+name = "bmu-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "bmu_core"
+crate-type = ["staticlib", "rlib"]
+
+[dependencies]
+bmu-types = { path = "../bmu-types" }
+bmu-i2c = { path = "../bmu-i2c" }
+bmu-drivers = { path = "../bmu-drivers" }
+bmu-protection = { path = "../bmu-protection" }
+bmu-rint = { path = "../bmu-rint" }
+bmu-balancer = { path = "../bmu-balancer" }
+
+[build-dependencies]
+cbindgen = "0.27"
+
+[lints]
+workspace = true
