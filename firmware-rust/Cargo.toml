@@ -1,0 +1,53 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/bmu-types",
+    "crates/bmu-i2c",
+    "crates/bmu-drivers",
+    "crates/bmu-protection",
+    "crates/bmu-rint",
+    "crates/bmu-balancer",
+    "crates/bmu-core",
+    "crates/bmu-test-fixtures",
+    "xtask",
+]
+
+[workspace.package]
+edition = "2021"
+license = "Proprietary"
+version = "2.0.0"
+
+[workspace.lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+unused = "warn"
+missing_docs = "allow"
+
+[workspace.lints.clippy]
+all = "deny"
+pedantic = "warn"
+panic = "deny"
+unwrap_used = "deny"
+expect_used = "deny"
+indexing_slicing = "warn"
+arithmetic_side_effects = "warn"
+
+[profile.release]
+opt-level = "z"
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = "symbols"
+overflow-checks = false
+
+[profile.dev]
+opt-level = 1
+overflow-checks = true
+
+[workspace.dependencies]
+heapless = "0.8"
+nb = "1.1"
+bitflags = "2.6"
+libm = "0.2"
+proptest = "1.4"
+serde = { version = "1.0", default-features = false, features = ["derive"] }
+postcard = { version = "1.0", default-features = false, features = ["use-std"] }

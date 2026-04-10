@@ -1,0 +1,10 @@
+# Important: PAS de [build] target global — sinon cargo test host casse.
+# Le target xtensa est forcé uniquement depuis le build ESP-IDF (variable CARGO_BUILD_TARGET
+# injectée par corrosion côté firmware-idf-v2/components/bmu_core_rs/).
+
+[alias]
+xcheck = "check --target xtensa-esp32s3-none-elf -p bmu-core"
+xbuild = "build --target xtensa-esp32s3-none-elf --release -p bmu-core"
+
+[unstable]
+build-std = ["core", "alloc"]
