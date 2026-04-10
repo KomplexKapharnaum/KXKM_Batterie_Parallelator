@@ -328,7 +328,8 @@ bitflags = "2.6"
 libm = "0.2"
 proptest = "1.4"
 serde = { version = "1.0", default-features = false, features = ["derive"] }
-postcard = { version = "1.0", default-features = false, features = ["use-std"] }
+# postcard: no_std-friendly by default; dev-deps may enable "use-std" locally.
+postcard = { version = "1.0", default-features = false }
 ```
 
 - [ ] **Step 3: Créer firmware-rust/rust-toolchain.toml**
