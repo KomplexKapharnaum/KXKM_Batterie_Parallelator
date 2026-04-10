@@ -33,6 +33,56 @@
 
 ---
 
+## Execution Notes & Known Deviations (mise à jour 2026-04-10)
+
+**Progress so far:** Phase 1 ✅ + Phase 2 ✅ (43 tests, commits `99d7161` → `70ff766` sur `feat/rust-hybrid-v2`).
+
+Les workers subagents qui exécutent ce plan DOIVENT tenir compte des déviations suivantes, apprises à l'exécution avec Rust nightly "esp" 1.93 + clippy 1.94 :
+
+1. **`[unstable] build-std` déplacé dans les aliases.** Le plan original (Task 1.1) mettait `[unstable] build-std = ["core", "alloc"]` au niveau racine de `.cargo/config.toml`, ce qui provoque un conflict lang-item (`core` rebuilt vs `std` système) lors de `cargo test` host avec la toolchain esp. Fix appliqué commit `9bd9902` : `-Zbuild-std=core,alloc` est passé uniquement via les aliases `xcheck`/`xbuild`. Le contenu final du fichier est :
+   ```toml
+   [alias]
+   xcheck = "check -Zbuild-std=core,alloc --target xtensa-esp32s3-none-elf -p bmu-core"
+   xbuild = "build -Zbuild-std=core,alloc --target xtensa-esp32s3-none-elf --release -p bmu-core"
+   ```
+
+2. **Lint groups workspace doivent avoir `priority = -1`.** Rust ≥1.94 déclenche `clippy::lint_groups_priority` quand un groupe (`unused`, `all`, `pedantic`) cohabite avec des lints individuels dans `[workspace.lints.*]`. Le workspace `Cargo.toml` a été corrigé commit `ecfa9a4` :
+   ```toml
+   [workspace.lints.rust]
+   unsafe_op_in_unsafe_fn = "deny"
+   unused = { level = "warn", priority = -1 }
+   missing_docs = "allow"
+
+   [workspace.lints.clippy]
+   all = { level = "deny", priority = -1 }
+   pedantic = { level = "warn", priority = -1 }
+   panic = "deny"
+   unwrap_used = "deny"
+   expect_used = "deny"
+   indexing_slicing = "warn"
+   arithmetic_side_effects = "warn"
+   ```
+
+3. **`#[must_use]` obligatoire sur toutes les méthodes `pub` retournant une valeur.** `clippy::pedantic -D warnings` refuse toute méthode `pub fn` ou `pub const fn` qui retourne `Self`/`bool`/`u32`/etc. sans `#[must_use]`. Règle à appliquer systématiquement dans Tasks 3.1+ : chaque getter, constructor, et helper qui retourne une valeur doit porter `#[must_use]`. Les setters-only (`&mut self -> ()`) sont exempts.
+
+4. **`clippy::doc_markdown` exige des backticks** autour de tous les identifiants de type, fonction, constante et sigle mentionnés dans les doc comments. Exemples rencontrés : `` `I2cBus` ``, `` `MockBus` ``, `` `Kill_LIFE` ``, `` `u32::MAX` ``, `` `Millivolts` ``, `` `TCA9535` ``, `` `INA237` ``, `` `bmu-types` ``. Règle : **toute chaîne contenant une majuscule interne ou un underscore doit être backtickée dans la doc.**
+
+5. **`clippy::field_reassign_with_default`** se déclenche pour le pattern `let mut x = X::default(); x.foo = bar;` utilisé massivement dans les tests Config/Action/Command. Ajouter `#[allow(clippy::field_reassign_with_default)]` sur le `mod tests` concerné.
+
+6. **`clippy::panic` (workspace `deny`) bloque `panic!()` dans les tests.** Les tests qui veulent rejeter une mauvaise variante d'enum doivent ajouter `#[allow(clippy::panic)]` au module tests (ou préférer `matches!` + `assert!`).
+
+7. **Enums `#[repr(u8)]` avec data-variants ne peuvent pas être cast en `u8`.** Le compilateur interdit `Command::None as u8` dès qu'un variant a un payload (`ForceOff { idx: u8 }`). Remplacer les assertions de discriminant par `matches!(cmd, Command::None)` ou par une méthode `const fn discriminant(&self) -> u8`.
+
+8. **`clippy::cast_possible_truncation`** se déclenche sur `i as u8` dans `Snapshot::default()`. Ajouter le block `#[allow(clippy::cast_possible_truncation)]` localement (pas au module), c'est sûr car `i < MAX_BATTERIES = 16`.
+
+9. **Slicing `&self.batteries[..n]` déclenche `clippy::indexing_slicing`.** Préférer `self.batteries.iter().take(n)` dans les itérations fleet.
+
+10. **Toolchain esp installée localement** (`espup install --targets esp32s3`). Chaque nouvelle session doit sourcer `~/export-esp.sh` avant d'exécuter `cargo test/clippy/fmt`. `bmu-core` (staticlib `no_std` sans panic handler) ne compile toujours pas en host — c'est attendu, la façade FFI Task 9 ajoutera le panic handler. Pour les vérifications intermédiaires des Phases 3-8, utiliser `cargo <cmd> --workspace --exclude bmu-core`.
+
+11. **Commit hooks** : subject line max 50 chars, body lines max 72 chars. Hooks vérifient au `git commit`. Prévoir des messages courts et utiliser des heredocs pour préserver le formatage multi-lignes.
+
+---
+
 ## File Structure Overview
 
 ### Nouveau workspace Rust — `firmware-rust/`
