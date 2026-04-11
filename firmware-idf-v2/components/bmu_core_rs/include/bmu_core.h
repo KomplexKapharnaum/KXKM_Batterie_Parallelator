@@ -8,6 +8,16 @@
 #include <stddef.h>
 
 /**
+ * Nombre maximum de batteries supporté (miroir de `bmu_types::MAX_BATTERIES`).
+ *
+ * **Littéral explicite obligatoire** pour que `cbindgen` émette un
+ * `#define MAX_BATTERIES 16` dans `bmu_core.h` — il n'évalue pas les
+ * expressions const (il ne suivrait pas `= bmu_types::MAX_BATTERIES`).
+ * Une assertion statique vérifie la cohérence avec la source authoritative.
+ */
+#define MAX_BATTERIES 16
+
+/**
  * Codes de retour C-friendly exposés par la façade `extern "C"`.
  */
 #define BMU_OK 0

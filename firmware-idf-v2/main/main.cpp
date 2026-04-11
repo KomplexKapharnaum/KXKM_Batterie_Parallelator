@@ -1,9 +1,8 @@
 // firmware-idf-v2/main/main.cpp
 //
-// Boot minimal Phase 11 : init NVS, init BSP BOX-3, init LVGL port, affiche
-// un splash "BMU v2 -- Rust Hybrid core" pendant le boot.
-//
-// Aucun appel au core Rust a ce stade (Phase 12).
+// Boot Phase 12 : init NVS, init BSP BOX-3, init LVGL port, affiche un
+// splash, puis initialise le core Rust via `bmu_core_init` et tourne un
+// fake tick loop 1 Hz qui feed un `BmuRawInputs` vide.
 
 #include <stdio.h>
 #include <string.h>
@@ -21,7 +20,13 @@
 #include "esp_lvgl_port.h"
 #include "lvgl.h"
 
+extern "C" {
+#include "bmu_core.h"
+}
+
 static const char *TAG = "bmu-v2";
+
+static BmuCore *s_core = nullptr;
 
 static void init_nvs(void) {
     esp_err_t ret = nvs_flash_init();
@@ -59,12 +64,62 @@ static void init_display_and_splash(void) {
     lv_obj_align(title, LV_ALIGN_CENTER, 0, -20);
 
     lv_obj_t *subtitle = lv_label_create(scr);
-    lv_label_set_text(subtitle, "Rust Hybrid Core -- phase 11");
+    lv_label_set_text(subtitle, "Rust Hybrid Core -- phase 12");
     lv_obj_set_style_text_color(subtitle, lv_color_hex(0xcccccc), LV_PART_MAIN);
     lv_obj_align(subtitle, LV_ALIGN_CENTER, 0, 20);
 
     lvgl_port_unlock();
     ESP_LOGI(TAG, "Splash displayed");
+}
+
+static void init_bmu_core(void) {
+    BmuConfigC cfg = {};
+    cfg.umin_mv             = 24000;
+    cfg.umax_mv             = 30000;
+    cfg.imax_ma             = 1000;
+    cfg.vdiff_imbalance_mv  = 1000;
+    cfg.nb_switch_max       = 5;
+    cfg.reconnect_delay_ms  = 10000;
+    cfg.tick_period_ms      = 200;
+
+    s_core = bmu_core_init(&cfg);
+    if (s_core == nullptr) {
+        ESP_LOGE(TAG, "bmu_core_init returned NULL -- check cfg validation");
+        return;
+    }
+    ESP_LOGI(TAG, "bmu_core_init OK, handle=%p", (void *)s_core);
+}
+
+// Statique : `BmuSnapshotC` fait plus de 600 bytes (16 batteries) ce qui
+// depasse le stack par defaut de main_task. On garde un seul exemplaire
+// en .bss pour la fake loop Phase 12.
+static BmuRawInputs s_raw;
+static BmuSnapshotC s_snap;
+static BmuActionsC s_actions;
+
+static void tick_loop_fake(void) {
+    memset(&s_raw, 0, sizeof(s_raw));
+    memset(&s_snap, 0, sizeof(s_snap));
+    memset(&s_actions, 0, sizeof(s_actions));
+    s_raw.n_ina = 0;  // topology vide -> fleet fail-safe all OFF
+    s_raw.n_tca = 0;
+    s_raw.climate_temp_c10 = 230;  // 23.0 C
+    s_raw.climate_rh_pct10 = 450;  // 45.0 %
+    s_raw.monotonic_us = 0;
+
+    while (true) {
+        s_raw.monotonic_us = (uint64_t)esp_timer_get_time();
+        int32_t rc = bmu_core_tick(s_core, &s_raw, &s_snap, &s_actions);
+        if (rc != 0) {
+            ESP_LOGW(TAG, "bmu_core_tick rc=%ld", (long)rc);
+        } else {
+            ESP_LOGI(TAG, "tick OK n_bat=%u topo=%u heap=%u kB",
+                     (unsigned)s_snap.n_bat,
+                     (unsigned)s_snap.system.topology_ok,
+                     (unsigned)(esp_get_free_heap_size() / 1024));
+        }
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
 }
 
 extern "C" void app_main(void) {
@@ -74,12 +129,13 @@ extern "C" void app_main(void) {
 
     init_nvs();
     init_display_and_splash();
+    init_bmu_core();
 
-    ESP_LOGI(TAG, "Boot complete -- entering idle loop");
-    while (true) {
-        vTaskDelay(pdMS_TO_TICKS(1000));
-        ESP_LOGI(TAG, "heap free=%lu kB uptime=%llu s",
-                 (unsigned long)(esp_get_free_heap_size() / 1024),
-                 (unsigned long long)(esp_timer_get_time() / 1000000ULL));
+    if (s_core == nullptr) {
+        ESP_LOGE(TAG, "Core init failed, halting");
+        while (true) vTaskDelay(pdMS_TO_TICKS(1000));
     }
+
+    ESP_LOGI(TAG, "Boot complete -- entering fake tick loop 1Hz");
+    tick_loop_fake();
 }

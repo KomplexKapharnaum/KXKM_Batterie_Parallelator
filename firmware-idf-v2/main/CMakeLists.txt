@@ -8,7 +8,8 @@ idf_component_register(
         nvs_flash
         esp_lvgl_port
         esp-box-3
+        bmu_core_rs
 )
 
 # Version projet injectée comme macro
-add_compile_definitions(CONFIG_APP_PROJECT_VER="2.0.0-phase11")
+add_compile_definitions(CONFIG_APP_PROJECT_VER="2.0.0-phase12")

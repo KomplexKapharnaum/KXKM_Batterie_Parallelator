@@ -40,3 +40,7 @@ CONFIG_LOG_MAXIMUM_LEVEL_DEBUG=y
 # === Pro/App CPU -- FreeRTOS Unicore NON, on veut les 2 cores ===
 CONFIG_FREERTOS_UNICORE=n
 CONFIG_FREERTOS_HZ=1000
+
+# === main_task stack -- Rust BmuCore::new() construit sur stack avant Box ===
+# BmuCore + sub-engines font plusieurs KiB, le default 3.5 KiB deborde.
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
