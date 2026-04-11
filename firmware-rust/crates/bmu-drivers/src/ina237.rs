@@ -5,7 +5,7 @@
 
 #![allow(clippy::module_name_repetitions)]
 
-use bmu_i2c::I2cError;
+use bmu_i2c::{I2cBus, I2cError};
 use bmu_types::{Milliamps, Millivolts};
 
 pub const INA237_ADDR_BASE: u8 = 0x40;
@@ -136,7 +136,100 @@ pub fn check_manufacturer_id(raw: [u8; 2]) -> Result<(), Ina237Error> {
     }
 }
 
+/// Wrapper bus-aware stateful. `current_lsb_na` est caché après init.
+///
+/// Ce wrapper est utilisé par les tests host et les outils de diagnostic
+/// (ex. `cargo xtask probe-bus`). Le cœur Rust opérationnel (§4.3 spec)
+/// utilise les fonctions pures ci-dessus sur les bytes déjà lus par la
+/// couche C.
+#[derive(Debug, Clone, Copy)]
+pub struct Ina237 {
+    addr: u8,
+    current_lsb_na: u32,
+}
+
+impl Ina237 {
+    /// Séquence d'init : verify `MANUFACTURER_ID`, reset, `ADC_CONFIG`,
+    /// `SHUNT_CAL`. Retourne une instance prête à lire.
+    ///
+    /// # Errors
+    /// - `I2c` si le bus échoue
+    /// - `UnexpectedManufacturerId` si le device ne répond pas "TI" (0x5449)
+    /// - `CalibrationInvalid` si `max_current_ma` est trop petit pour
+    ///   produire un `CURRENT_LSB` non nul
+    pub fn init<B: I2cBus>(
+        bus: &mut B,
+        addr: u8,
+        shunt_micro_ohms: u32,
+        max_current_ma: u32,
+    ) -> Result<Self, Ina237Error> {
+        // 1. Verify MANUFACTURER_ID (seul ID fiable sur INA237)
+        let mut buf = [0u8; 2];
+        bus.write_read(addr, &[Reg::ManufId as u8], &mut buf)?;
+        check_manufacturer_id(buf)?;
+
+        // 2. Precheck calibration AVANT toute écriture hardware pour éviter
+        //    de laisser le chip à moitié configuré (SHUNT_CAL=0) en cas d'erreur.
+        let lsb = current_lsb_na(max_current_ma);
+        if lsb == 0 {
+            return Err(Ina237Error::CalibrationInvalid);
+        }
+
+        // 3. Reset (CONFIG bit 15 = 1)
+        bus.write(addr, &[Reg::Config as u8, 0x80, 0x00])?;
+        // 4. Clear CONFIG (ADCRANGE=0 for ±163.84 mV full scale)
+        bus.write(addr, &[Reg::Config as u8, 0x00, 0x00])?;
+        // 5. ADC_CONFIG : continuous bus+shunt, 540 µs, avg 64
+        bus.write(addr, &[Reg::AdcConfig as u8, 0xB9, 0x03])?;
+        // 6. SHUNT_CAL
+        let cal = encode_shunt_cal(shunt_micro_ohms, max_current_ma);
+        bus.write(addr, &[Reg::ShuntCal as u8, cal[0], cal[1]])?;
+
+        Ok(Self {
+            addr,
+            current_lsb_na: lsb,
+        })
+    }
+
+    /// Adresse I²C configurée.
+    #[must_use]
+    pub const fn addr(&self) -> u8 {
+        self.addr
+    }
+
+    /// Lit `VBUS` et parse en `Millivolts`.
+    ///
+    /// # Errors
+    /// Propage `I2c` si la transaction bus échoue.
+    pub fn read_vbus<B: I2cBus>(&self, bus: &mut B) -> Result<Millivolts, Ina237Error> {
+        let mut buf = [0u8; 2];
+        bus.write_read(self.addr, &[Reg::VBus as u8], &mut buf)?;
+        Ok(parse_vbus(buf))
+    }
+
+    /// Lit `CURRENT` et parse en `Milliamps`.
+    ///
+    /// # Errors
+    /// Propage `I2c` si la transaction bus échoue.
+    pub fn read_current<B: I2cBus>(&self, bus: &mut B) -> Result<Milliamps, Ina237Error> {
+        let mut buf = [0u8; 2];
+        bus.write_read(self.addr, &[Reg::Current as u8], &mut buf)?;
+        Ok(parse_current(buf, self.current_lsb_na))
+    }
+
+    /// Lit `DIETEMP` et parse en dixièmes de °C (c10).
+    ///
+    /// # Errors
+    /// Propage `I2c` si la transaction bus échoue.
+    pub fn read_dietemp_c10<B: I2cBus>(&self, bus: &mut B) -> Result<i16, Ina237Error> {
+        let mut buf = [0u8; 2];
+        bus.write_read(self.addr, &[Reg::DieTemp as u8], &mut buf)?;
+        Ok(parse_dietemp_c10(buf))
+    }
+}
+
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::panic)]
 mod tests {
     use super::*;
 
@@ -246,5 +339,68 @@ mod tests {
             check_manufacturer_id([0x00, 0x00]),
             Err(Ina237Error::UnexpectedManufacturerId(0x0000))
         );
+    }
+
+    // ---------- Ina237 wrapper ----------
+
+    extern crate std;
+    use bmu_test_fixtures::MockBus;
+    use std::vec;
+
+    fn setup_mock_init(addr: u8) -> MockBus {
+        let mut bus = MockBus::new();
+        // 1. read MANUFACTURER_ID → "TI" (seul ID fiable sur INA237)
+        bus.expect_write_read(addr, vec![Reg::ManufId as u8], vec![0x54, 0x49]);
+        // 2. write CONFIG reset bit (0x8000)
+        bus.expect_write(addr, vec![Reg::Config as u8, 0x80, 0x00]);
+        // 3. write CONFIG clear (0x0000, ADCRANGE=0)
+        bus.expect_write(addr, vec![Reg::Config as u8, 0x00, 0x00]);
+        // 4. write ADC_CONFIG (cont bus+shunt, 540us, avg 64)
+        //    MODE=1011, VBUSCT=100, VSHCT=100, VTCT=000, AVG=011 = 0xB903
+        bus.expect_write(addr, vec![Reg::AdcConfig as u8, 0xB9, 0x03]);
+        // 5. write SHUNT_CAL
+        let cal = encode_shunt_cal(2_000, 1_000);
+        bus.expect_write(addr, vec![Reg::ShuntCal as u8, cal[0], cal[1]]);
+        bus
+    }
+
+    #[test]
+    fn ina237_init_success() {
+        let mut bus = setup_mock_init(0x40);
+        let result = Ina237::init(&mut bus, 0x40, 2_000, 1_000);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn ina237_init_rejects_bad_manuf() {
+        let mut bus = MockBus::new();
+        bus.expect_write_read(0x40, vec![Reg::ManufId as u8], vec![0x00, 0x00]);
+        assert_eq!(
+            Ina237::init(&mut bus, 0x40, 2_000, 1_000).err(),
+            Some(Ina237Error::UnexpectedManufacturerId(0x0000))
+        );
+    }
+
+    #[test]
+    fn ina237_read_vbus_after_init() {
+        let mut bus = setup_mock_init(0x40);
+        // raw 0x1E00 = 7680 → 24000 mV (cf parse_vbus_24v)
+        bus.expect_write_read(0x40, vec![Reg::VBus as u8], vec![0x1E, 0x00]);
+        let ina = Ina237::init(&mut bus, 0x40, 2_000, 1_000).unwrap();
+        assert_eq!(
+            ina.read_vbus(&mut bus).unwrap(),
+            Millivolts::from_raw(24000)
+        );
+    }
+
+    #[test]
+    fn ina237_read_current_after_init() {
+        let mut bus = setup_mock_init(0x40);
+        bus.expect_write_read(0x40, vec![Reg::Current as u8], vec![0x04, 0x00]);
+        let ina = Ina237::init(&mut bus, 0x40, 2_000, 1_000).unwrap();
+        // current_lsb_na for 1000 mA = 30517
+        // raw 0x0400 = 1024 → 31 mA
+        let ma = ina.read_current(&mut bus).unwrap();
+        assert_eq!(ma, Milliamps::from_raw(31));
     }
 }

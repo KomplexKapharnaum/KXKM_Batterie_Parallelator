@@ -9,5 +9,8 @@ bmu-types = { path = "../bmu-types" }
 bmu-i2c = { path = "../bmu-i2c" }
 bitflags = { workspace = true }
 
+[dev-dependencies]
+bmu-test-fixtures = { path = "../bmu-test-fixtures" }
+
 [lints]
 workspace = true
