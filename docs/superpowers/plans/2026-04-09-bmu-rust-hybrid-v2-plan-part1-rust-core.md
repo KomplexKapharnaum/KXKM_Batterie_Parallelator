@@ -2743,19 +2743,17 @@ Append to `firmware-rust/crates/bmu-drivers/src/ina237.rs` inside `#[cfg(test)] 
 
     fn setup_mock_init(addr: u8) -> MockBus {
         let mut bus = MockBus::new();
-        // 1. read MANUFACTURER_ID → "TI"
+        // 1. read MANUFACTURER_ID → "TI" (seul ID fiable sur INA237)
         bus.expect_write_read(addr, vec![Reg::ManufId as u8], vec![0x54, 0x49]);
-        // 2. read DEVICE_ID → 0x2370
-        bus.expect_write_read(addr, vec![Reg::DeviceId as u8], vec![0x23, 0x70]);
-        // 3. write CONFIG reset bit (0x8000)
+        // 2. write CONFIG reset bit (0x8000)
         bus.expect_write(addr, vec![Reg::Config as u8, 0x80, 0x00]);
-        // 4. write CONFIG clear (0x0000, ADCRANGE=0)
+        // 3. write CONFIG clear (0x0000, ADCRANGE=0)
         bus.expect_write(addr, vec![Reg::Config as u8, 0x00, 0x00]);
-        // 5. write ADC_CONFIG (cont bus+shunt, 540us, avg 64)
+        // 4. write ADC_CONFIG (cont bus+shunt, 540us, avg 64)
         //    MODE=1011, VBUSCT=100, VSHCT=100, VTCT=000, AVG=011
         //    = 0xB << 12 | 0x4 << 9 | 0x4 << 6 | 0 | 0x3 = 0xB903
         bus.expect_write(addr, vec![Reg::AdcConfig as u8, 0xB9, 0x03]);
-        // 6. write SHUNT_CAL
+        // 5. write SHUNT_CAL
         let cal = encode_shunt_cal(2_000, 1_000);
         bus.expect_write(addr, vec![Reg::ShuntCal as u8, cal[0], cal[1]]);
         bus
@@ -2778,22 +2776,14 @@ Append to `firmware-rust/crates/bmu-drivers/src/ina237.rs` inside `#[cfg(test)] 
         );
     }
 
-    #[test]
-    fn ina237_init_rejects_bad_device_id() {
-        let mut bus = MockBus::new();
-        bus.expect_write_read(0x40, vec![Reg::ManufId as u8], vec![0x54, 0x49]);
-        bus.expect_write_read(0x40, vec![Reg::DeviceId as u8], vec![0xDE, 0xAD]);
-        assert_eq!(
-            Ina237::init(&mut bus, 0x40, 2_000, 1_000).err(),
-            Some(Ina237Error::UnexpectedDeviceId(0xDEAD))
-        );
-    }
+    // NOTE: pas de test `ina237_init_rejects_bad_device_id` — l'INA237 n'a PAS
+    // de registre DEVICE_ID (0x3F absent du register map). Cf deviation #12.
 
     #[test]
     fn ina237_read_vbus_after_init() {
         let mut bus = setup_mock_init(0x40);
-        // After init: read VBUS
-        bus.expect_write_read(0x40, vec![Reg::VBus as u8], vec![0xF0, 0x00]);
+        // After init: read VBUS. raw 0x1E00 = 7680 → 24000 mV (cf test parse_vbus_24v)
+        bus.expect_write_read(0x40, vec![Reg::VBus as u8], vec![0x1E, 0x00]);
         let mut ina = Ina237::init(&mut bus, 0x40, 2_000, 1_000).unwrap();
         assert_eq!(ina.read_vbus(&mut bus).unwrap(), Millivolts::from_raw(24000));
     }
@@ -2837,22 +2827,18 @@ impl Ina237 {
         shunt_micro_ohms: u32,
         max_current_ma: u32,
     ) -> Result<Self, Ina237Error> {
-        // 1. Verify MANUFACTURER_ID
+        // 1. Verify MANUFACTURER_ID (seul ID fiable sur INA237, cf deviation #12)
         let mut buf = [0u8; 2];
         bus.write_read(addr, &[Reg::ManufId as u8], &mut buf)?;
         check_manufacturer_id(buf)?;
 
-        // 2. Verify DEVICE_ID
-        bus.write_read(addr, &[Reg::DeviceId as u8], &mut buf)?;
-        check_device_id(buf)?;
-
-        // 3. Reset (CONFIG bit 15 = 1)
+        // 2. Reset (CONFIG bit 15 = 1)
         bus.write(addr, &[Reg::Config as u8, 0x80, 0x00])?;
-        // 4. Clear CONFIG (ADCRANGE=0 for ±163.84 mV full scale)
+        // 3. Clear CONFIG (ADCRANGE=0 for ±163.84 mV full scale)
         bus.write(addr, &[Reg::Config as u8, 0x00, 0x00])?;
-        // 5. ADC_CONFIG : continuous bus+shunt, 540 µs, avg 64
+        // 4. ADC_CONFIG : continuous bus+shunt, 540 µs, avg 64
         bus.write(addr, &[Reg::AdcConfig as u8, 0xB9, 0x03])?;
-        // 6. SHUNT_CAL
+        // 5. SHUNT_CAL
         let cal = encode_shunt_cal(shunt_micro_ohms, max_current_ma);
         bus.write(addr, &[Reg::ShuntCal as u8, cal[0], cal[1]])?;
 
@@ -2892,21 +2878,25 @@ impl Ina237 {
 
 - [ ] **Step 5: Run — verify green**
 
-Run: `cd firmware-rust && cargo test -p bmu-drivers 2>&1 | tail -15`
-Expected: `test result: ok. 22 passed; 0 failed`.
+Run: `. ~/export-esp.sh && cd firmware-rust && cargo test -p bmu-drivers 2>&1 | tail -15`
+Expected: `test result: ok. 22 passed; 0 failed` (18 baseline + 4 wrapper tests).
 
 - [ ] **Step 6: Commit**
 
-```bash
-cd ..
-git add firmware-rust/crates/bmu-drivers
-git commit -m "feat(bmu-drivers): add Ina237 bus-aware wrapper with init sequence
+From repo root using heredoc (subject ≤50 chars, body lines ≤72) :
 
-- init() verifies MFR + DEV_ID, resets, configures ADC + SHUNT_CAL
-- read_vbus/read_current/read_dietemp_c10 delegate to pure parsers
-- Stateful only on addr + current_lsb_na cached from init
-- 5 wrapper tests using MockBus (init ok, bad mfr, bad dev, read vbus, read current)
-- Used by host diagnostics only — operational core uses pure parsers"
+```bash
+git add firmware-rust/crates/bmu-drivers
+git commit -m "$(cat <<'EOF'
+feat(bmu-drivers): add Ina237 bus-aware wrapper
+
+- init() verifies MFR_ID, resets, configures ADC + SHUNT_CAL
+- read_vbus/read_current/read_dietemp_c10 via pure parsers
+- Stateful on addr + current_lsb_na cached from init
+- 4 wrapper tests via MockBus (ok, bad mfr, vbus, current)
+- Used by host diagnostics (operational core uses pure fns)
+EOF
+)"
 ```
 
 ---
