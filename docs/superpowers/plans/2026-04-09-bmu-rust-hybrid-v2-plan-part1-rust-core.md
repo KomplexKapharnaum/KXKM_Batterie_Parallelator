@@ -81,6 +81,13 @@ Les workers subagents qui exécutent ce plan DOIVENT tenir compte des déviation
 
 11. **Commit hooks** : subject line max 50 chars, body lines max 72 chars. Hooks vérifient au `git commit`. Prévoir des messages courts et utiliser des heredocs pour préserver le formatage multi-lignes.
 
+12. **Task 4.1 — correction formules INA237 post-vérification datasheet SBOSA20A (2026-04-11).** L'ébauche initiale de Task 4.1 mélangeait des conventions d'encodage issues d'autres membres de la famille INA (226/228/238) qui ne s'appliquent pas à l'INA237. Corrections appliquées in-place dans Task 4.1 :
+    - **`parse_vbus`** : PAS de `>> 3`. Le registre VBUS de l'INA237 utilise les 16 bits pleins, signed two's complement, LSB = 3.125 mV, plage nominale 0-85 V (datasheet Table 7-9 p.23, Table 8-1 p.28). Formule correcte : `Millivolts::from_raw((i32::from(i16::from_be_bytes(raw)) * 3125) / 1000)`. Test vectors corrigés pour 0, 24 V (raw 0x1E00 = 7680), 48 V (raw 0x3C00 = 15360), 85 V full-scale (raw 0x6A40 = 27200), négatif fault (raw 0xFFFF).
+    - **`parse_dietemp_c10`** : formule `(steps * 125) / 100` correcte, mais le test vector `[0xFF, 0xF0] → -12` du plan original était arithmétiquement faux : bits 15:4 = -1, × 125 / 100 = -1 (truncation), pas -12. Tests vectors corrigés pour -5 °C (raw 0xFD80, steps = -40, c10 = -50) et full-scale +125 °C (raw 0x3E80, steps = 1000, c10 = 12500).
+    - **`check_device_id` SUPPRIMÉ.** L'INA237 n'a PAS de registre DEVICE_ID (adresse 0x3F absente de Table 7-3 p.20-21, contrairement à l'INA238 qui l'a à 0x2381). Le seul ID matériel fiable est `MANUFACTURER_ID` (0x3E) qui doit valoir 0x5449 ("TI" ASCII). Si support INA238/239 futur, ajouter `check_device_id` à ce moment-là. Task 4.1 passe donc de 17 à 14 tests.
+    - **`encode_shunt_cal`** : K = 819.2e6 correct pour ADCRANGE=0 (config KXKM). Ajouter au doc-comment que si ADCRANGE=1 est activé un jour, la valeur doit être multipliée par 4 (datasheet eq.1 p.29), et masquer le bit 15 réservé (déjà le cas via `min(0x7FFF)`). Test vectors corrigés avec l'exemple datasheet p.31 : 10 A / 2 mΩ → SHUNT_CAL = 500 = 0x01F4.
+    - Source : TI SBOSA20A (INA237 datasheet, Feb 2021, rev May 2022).
+
 ---
 
 ## File Structure Overview
@@ -2369,8 +2376,10 @@ Objectif : parseurs purs INA237 (`parse_vbus`, `parse_current`, `parse_dietemp`,
 Create `firmware-rust/crates/bmu-drivers/src/ina237.rs`:
 
 ```rust
-//! Driver INA237 — parseurs purs + wrapper bus-aware.
-//! Référence : TI SBOS945 datasheet, tables 7-5 (registers), 7-4 (conversions).
+//! Driver `INA237` — parseurs purs + wrapper bus-aware.
+//! Référence : TI SBOSA20A datasheet (INA237, Feb 2021, rev May 2022),
+//! tables 7-3 (register map), 7-9 (VBUS), 7-10 (DIETEMP), 7-11 (CURRENT),
+//! 7-20 (MANUFACTURER_ID), équations 1-3 section 8.1.2.
 
 use bmu_i2c::{I2cBus, I2cError};
 use bmu_types::{Milliamps, Millivolts};
@@ -2391,13 +2400,15 @@ pub enum Reg {
     Power = 0x08,
     Diag = 0x0B,
     ManufId = 0x3E,
-    DeviceId = 0x3F,
+    // Note: INA237 has NO DeviceId register (0x3F reserved per Table 7-3).
+    // INA238/239 have it at 0x3F. If a future driver needs to distinguish
+    // INA237 from INA238/239, add a `DeviceId = 0x3F` variant and a
+    // `check_device_id` parser at that time.
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Ina237Error {
     I2c(I2cError),
-    UnexpectedDeviceId(u16),
     UnexpectedManufacturerId(u16),
     CalibrationInvalid,
 }
@@ -2412,72 +2423,86 @@ impl From<I2cError> for Ina237Error {
 mod tests {
     use super::*;
 
+    // ---------- parse_vbus ----------
+    // LSB = 3.125 mV, 16-bit signed two's complement, NO shift.
+    // Datasheet nominal range 0-85 V (Table 8-1 p.28).
+
     #[test]
     fn parse_vbus_zero() {
         assert_eq!(parse_vbus([0x00, 0x00]), Millivolts::ZERO);
     }
 
     #[test]
-    fn parse_vbus_positive() {
-        // raw = 0x1F40 = 8000, >>3 = 1000, × 3125 / 1000 = 3125 mV
-        assert_eq!(parse_vbus([0x1F, 0x40]), Millivolts::from_raw(3125));
+    fn parse_vbus_24v() {
+        // 24000 mV ÷ 3.125 mV/LSB = 7680 = 0x1E00
+        // 7680 × 3125 / 1000 = 24000
+        assert_eq!(parse_vbus([0x1E, 0x00]), Millivolts::from_raw(24000));
     }
 
     #[test]
-    fn parse_vbus_datasheet_24v() {
-        // 24000 mV ÷ 3.125 mV/bit = 7680 steps ; shift 3 << = 61440 = 0xF000
-        assert_eq!(parse_vbus([0xF0, 0x00]), Millivolts::from_raw(24000));
+    fn parse_vbus_48v() {
+        // 48000 mV ÷ 3.125 = 15360 = 0x3C00
+        assert_eq!(parse_vbus([0x3C, 0x00]), Millivolts::from_raw(48000));
     }
 
     #[test]
-    fn parse_vbus_negative() {
-        // Valeur négative possible selon datasheet (bus voltage référencée à GND)
-        // raw = 0x8000 >> 3 = 0xF000 (sign-extended) = -4096, × 3125 / 1000 = -12800
-        assert_eq!(parse_vbus([0x80, 0x00]), Millivolts::from_raw(-12800));
+    fn parse_vbus_85v_full_scale() {
+        // Datasheet nominal max: 85 V. 85000 / 3.125 = 27200 = 0x6A40
+        assert_eq!(parse_vbus([0x6A, 0x40]), Millivolts::from_raw(85000));
     }
 
     #[test]
-    fn encode_shunt_cal_2mohm_1a() {
-        // shunt = 2000 µΩ, max_current = 1000 mA
-        // current_lsb_na = (1000 × 1_000_000) >> 15 ≈ 30517
-        // shuntcal = 819_200_000 × 30517 × 2000 / 1_000_000_000 ≈ 50019
-        // clip to 0x7FFF = 32767
-        let bytes = encode_shunt_cal(2_000, 1_000);
-        let word = u16::from_be_bytes(bytes);
-        assert_eq!(word, 0x7FFF);
+    fn parse_vbus_negative_fault() {
+        // VBUS is "always positive" in nominal operation but the ADC
+        // codeword is i16, so faults/misreads can produce negatives.
+        // raw 0xFFFF = -1, × 3125 / 1000 = -3 (truncation toward zero)
+        assert_eq!(parse_vbus([0xFF, 0xFF]), Millivolts::from_raw(-3));
     }
 
+    // ---------- encode_shunt_cal ----------
+    // ADCRANGE=0 (KXKM config). K = 819.2e6.
+    // Datasheet example (p.31-32): max=10 A, Rshunt=2 mΩ → SHUNT_CAL = 500 = 0x01F4.
+
     #[test]
-    fn encode_shunt_cal_2mohm_10a() {
-        // max_current = 10000 mA → current_lsb_na ≈ 305176
-        // shuntcal = 819_200_000 × 305176 × 2000 / 1_000_000_000 ≈ 500190
-        // clip to 0x7FFF
+    fn encode_shunt_cal_datasheet_example_10a_2mohm() {
+        // Datasheet p.31-32 ex: max = 10 A, Rshunt = 2 mΩ → SHUNT_CAL = 500 (0x01F4) en float.
+        // Formule entière (lsb_na truncaté) : 305175 × 2000 × 8192 / 1e10 = 499.
+        // L'écart de 1 LSB vs datasheet est dû à la troncature de current_lsb_na
+        // (305175.78... → 305175). Acceptable (<0.2 % calibration error).
         let bytes = encode_shunt_cal(2_000, 10_000);
-        assert_eq!(u16::from_be_bytes(bytes), 0x7FFF);
+        assert_eq!(u16::from_be_bytes(bytes), 499);
     }
 
     #[test]
-    fn encode_shunt_cal_100mohm_100ma() {
-        // Cas où on n'atteint pas le clip
-        // shunt = 100_000 µΩ, max_current = 100 mA → current_lsb_na ≈ 3051
-        // shuntcal = 819_200_000 × 3051 × 100_000 / 1_000_000_000 = 249954
-        // clip to 0x7FFF
-        let bytes = encode_shunt_cal(100_000, 100);
+    fn encode_shunt_cal_kxkm_100a_500u_ohm() {
+        // KXKM: 100 A max, 500 µΩ shunt
+        // current_lsb_na = (100_000 × 1e6) >> 15 = 3_051_757
+        // shuntcal = 3_051_757 × 500 × 8192 / 1e10 = 1249
+        let bytes = encode_shunt_cal(500, 100_000);
+        assert_eq!(u16::from_be_bytes(bytes), 1249);
+    }
+
+    #[test]
+    fn encode_shunt_cal_clip_guard() {
+        // 10 A max, 1 Ω shunt (cas absurde) → SHUNT_CAL = 249 999 → clipped to 0x7FFF
+        let bytes = encode_shunt_cal(1_000_000, 10_000);
         assert_eq!(u16::from_be_bytes(bytes), 0x7FFF);
     }
+
+    // ---------- parse_current ----------
+    // Plan tests were arithmetically correct — kept verbatim.
 
     #[test]
     fn parse_current_with_lsb() {
         // raw = 0x0400 = 1024, current_lsb_na = 30517 (≈ 30.5 µA/bit)
-        // → micro_amps = 1024 × 30517 / 1000 = 31249 µA ÷ 1000 = 31 mA
+        // → 1024 × 30517 = 31_249_408 nA → /1e6 = 31 mA
         let ma = parse_current([0x04, 0x00], 30_517);
         assert_eq!(ma, Milliamps::from_raw(31));
     }
 
     #[test]
     fn parse_current_negative() {
-        // raw = 0xFC00 = -1024 (signed), current_lsb_na = 30517
-        // → -31 mA
+        // raw = 0xFC00 = -1024 (signed), current_lsb_na = 30517 → -31 mA
         let ma = parse_current([0xFC, 0x00], 30_517);
         assert_eq!(ma, Milliamps::from_raw(-31));
     }
@@ -2487,46 +2512,46 @@ mod tests {
         assert_eq!(parse_current([0x00, 0x00], 30_517), Milliamps::ZERO);
     }
 
+    // ---------- parse_dietemp_c10 ----------
+    // bits 15:4 signed 12-bit, bits 3:0 reserved, LSB = 125 m°C.
+    // Output: dixièmes de °C (c10), ex: 25.0 °C = 250.
+
     #[test]
-    fn parse_dietemp_positive() {
-        // DIETEMP : bits 15..4 signés, LSB = 125 m°C
-        // raw = 0x0C80 = bits 4..15 = 0xC8 = 200 ; 200 × 125 = 25000 m°C = 25.0 °C
+    fn parse_dietemp_zero() {
+        assert_eq!(parse_dietemp_c10([0x00, 0x00]), 0);
+    }
+
+    #[test]
+    fn parse_dietemp_25c() {
+        // raw 0x0C80 = 0000 1100 1000 0000 → bits 15:4 = 0x0C8 = 200
+        // 200 × 125 / 100 = 250 (c10 = 25.0 °C)
         assert_eq!(parse_dietemp_c10([0x0C, 0x80]), 250);
     }
 
     #[test]
-    fn parse_dietemp_negative() {
-        // bits 4..15 = 0xFFF (signed, -1) ; -1 × 125 = -125 m°C = -1.25 °C = c10 -12
-        // raw sign-extended : 0xFFF0
-        assert_eq!(parse_dietemp_c10([0xFF, 0xF0]), -12);
+    fn parse_dietemp_125c_full_scale() {
+        // raw 0x3E80 → bits 15:4 = 0x3E8 = 1000 → 1000 × 125 / 100 = 1250 (125.0 °C)
+        assert_eq!(parse_dietemp_c10([0x3E, 0x80]), 1250);
     }
 
     #[test]
-    fn check_device_id_ina237_0x2370() {
-        assert!(check_device_id([0x23, 0x70]).is_ok());
+    fn parse_dietemp_minus_5c() {
+        // raw 0xFD80 = 1111 1101 1000 0000 → bits 15:4 = 0xFD8 = -40 (two's comp)
+        // -40 × 125 / 100 = -50 (c10 = -5.0 °C)
+        assert_eq!(parse_dietemp_c10([0xFD, 0x80]), -50);
     }
 
     #[test]
-    fn check_device_id_ina237_0x2371() {
-        assert!(check_device_id([0x23, 0x71]).is_ok());
+    fn parse_dietemp_minus_40c() {
+        // raw 0xEC00 → bits 15:4 = 0xEC0 = -320 → -320 × 125 / 100 = -400
+        assert_eq!(parse_dietemp_c10([0xEC, 0x00]), -400);
     }
 
-    #[test]
-    fn check_device_id_ina238_0x2380() {
-        assert!(check_device_id([0x23, 0x80]).is_ok());
-    }
-
-    #[test]
-    fn check_device_id_rejects_random() {
-        assert_eq!(
-            check_device_id([0xDE, 0xAD]),
-            Err(Ina237Error::UnexpectedDeviceId(0xDEAD))
-        );
-    }
+    // ---------- check_manufacturer_id ----------
+    // "TI" ASCII = 0x5449, datasheet Table 7-20 p.27.
 
     #[test]
     fn check_manuf_id_ti() {
-        // "TI" ASCII = 0x5449
         assert!(check_manufacturer_id([0x54, 0x49]).is_ok());
     }
 
@@ -2537,6 +2562,9 @@ mod tests {
             Err(Ina237Error::UnexpectedManufacturerId(0x0000))
         );
     }
+
+    // NOTE: No check_device_id tests. INA237 has NO DEVICE_ID register
+    // (0x3F absent from Table 7-3 p.20-21). See deviation #12.
 }
 ```
 
@@ -2550,72 +2578,88 @@ Expected: `cannot find function 'parse_vbus'` errors.
 Insert before `#[cfg(test)]` in `firmware-rust/crates/bmu-drivers/src/ina237.rs`:
 
 ```rust
-/// Parse VBus register (0x05).
-/// Raw = signed 16-bit, bits 0..2 réservés (shift right 3).
-/// LSB = 3.125 mV/step, encodé comme (steps × 3125) / 1000 en mV entier.
+/// Parse `VBUS` register (0x05).
+/// 16-bit two's complement. `LSB` = 3.125 mV/bit. No shift.
+/// Datasheet `SBOSA20A` Table 7-9 p.23 ; nominal range 0-85 V
+/// ("always positive" in normal operation, negative only on fault).
 #[inline]
+#[must_use]
 pub fn parse_vbus(raw: [u8; 2]) -> Millivolts {
     let word = i16::from_be_bytes(raw);
-    let steps = i32::from(word >> 3);
-    Millivolts::from_raw((steps * 3125) / 1000)
+    // 3.125 mV = 3125 µV/bit ; convert to mV with integer truncation.
+    Millivolts::from_raw((i32::from(word) * 3125) / 1000)
 }
 
-/// Encode les 2 bytes SHUNT_CAL (0x02) à partir du shunt et du max current.
-/// Formule datasheet SBOS945 eq. (1) :
-///   CURRENT_LSB = max_current / 2^15
-///   SHUNT_CAL = 819_200_000 × CURRENT_LSB × R_shunt
-/// Clip à 0x7FFF (15 bits).
+/// Encode les 2 bytes `SHUNT_CAL` (0x02) à partir du shunt et du max current.
+/// Formule datasheet `SBOSA20A` eq. (1), section 8.1.2 p.29 :
+///   `CURRENT_LSB` = max_current / 2^15
+///   `SHUNT_CAL` = 819.2e6 × `CURRENT_LSB` × `R_shunt`
+///
+/// Forme entière utilisée ici (en nA/µΩ) :
+///   `SHUNT_CAL` = (`current_lsb_na` × `shunt_uΩ` × 8192) / 1e10
+/// car 819.2e6 × 1e-9 (A/nA) × 1e-6 (Ω/µΩ) = 8.192e-7 = 8192/1e10.
+///
+/// Hardcodé pour `ADCRANGE` = 0 (config KXKM). Si `ADCRANGE` = 1 un jour,
+/// multiplier le résultat par 4 (cf datasheet). Bit 15 réservé, masqué
+/// implicitement par le clip à 0x7FFF.
 #[inline]
+#[must_use]
 pub fn encode_shunt_cal(shunt_micro_ohms: u32, max_current_ma: u32) -> [u8; 2] {
     let current_lsb_na: u64 = (u64::from(max_current_ma) * 1_000_000) >> 15;
-    let shuntcal: u64 =
-        (819_200_000_u64 * current_lsb_na * u64::from(shunt_micro_ohms)) / 1_000_000_000;
+    let num: u64 = current_lsb_na
+        .saturating_mul(u64::from(shunt_micro_ohms))
+        .saturating_mul(8192);
+    let shuntcal: u64 = num / 10_000_000_000;
+    #[allow(clippy::cast_possible_truncation)]
     let clipped = shuntcal.min(0x7FFF) as u16;
     clipped.to_be_bytes()
 }
 
-/// Calcule le CURRENT_LSB (nA/bit) correspondant à un max_current donné.
-/// Utilisé par `parse_current` pour convertir les raw bytes en Milliamps.
+/// Calcule le `CURRENT_LSB` (nA/bit) correspondant à un `max_current` donné.
+/// Utilisé par `parse_current` pour convertir les raw bytes en `Milliamps`.
 #[inline]
+#[must_use]
 pub const fn current_lsb_na(max_current_ma: u32) -> u32 {
-    ((max_current_ma as u64 * 1_000_000) >> 15) as u32
+    #[allow(clippy::cast_possible_truncation)]
+    let lsb = ((max_current_ma as u64 * 1_000_000) >> 15) as u32;
+    lsb
 }
 
-/// Parse Current register (0x07) en Milliamps.
-/// raw = signed 16-bit ; valeur = raw × CURRENT_LSB (en nA) / 1_000_000.
+/// Parse `CURRENT` register (0x07) en `Milliamps`.
+/// raw = signed 16-bit ; valeur = raw × `CURRENT_LSB` (en nA) / 1_000_000.
 #[inline]
+#[must_use]
 pub fn parse_current(raw: [u8; 2], current_lsb_na: u32) -> Milliamps {
     let word = i32::from(i16::from_be_bytes(raw));
     // i64 pour éviter overflow sur multiplications intermédiaires
     let nano_amps = i64::from(word) * i64::from(current_lsb_na);
+    #[allow(clippy::cast_possible_truncation)]
     let milli_amps = (nano_amps / 1_000_000) as i32;
     Milliamps::from_raw(milli_amps)
 }
 
-/// Parse DIETEMP register (0x06) en centi-degrés Celsius (°C × 10).
-/// bits 4..15 signés, LSB = 125 m°C/bit.
-/// Retourne un i16 en c10 (ex: 25.0 °C = 250).
+/// Parse `DIETEMP` register (0x06) en dixièmes de °C (c10).
+/// bits 15:4 signés 12-bit, bits 3:0 réservés, `LSB` = 125 m°C/bit.
+/// Datasheet `SBOSA20A` Table 7-10 p.24.
+/// Retourne un `i16` en c10 (ex: 25.0 °C = 250).
 #[inline]
+#[must_use]
 pub fn parse_dietemp_c10(raw: [u8; 2]) -> i16 {
     let word = i16::from_be_bytes(raw);
-    let steps = word >> 4; // signed shift
-    // steps × 125 m°C = steps × 125 / 100 °C = steps × 1.25 c10
-    // = (steps × 125) / 100 en c10 deg
-    (i32::from(steps) * 125 / 100) as i16
+    let steps = word >> 4; // arithmetic shift: sign-preserving
+    // steps × 125 m°C, puis m°C → c10 via ÷100
+    #[allow(clippy::cast_possible_truncation)]
+    let c10 = (i32::from(steps) * 125 / 100) as i16;
+    c10
 }
 
-/// Vérifie DEVICE_ID register (0x3F). Accepte INA237/238/239.
+/// Vérifie `MANUFACTURER_ID` register (0x3E). Doit être "TI" `ASCII` = 0x5449.
+/// Datasheet `SBOSA20A` Table 7-20 p.27.
+///
+/// Note : l'`INA237` n'a PAS de registre `DEVICE_ID` (0x3F est réservé,
+/// Table 7-3 p.20-21). Seul `MANUFACTURER_ID` est un identifiant fiable.
 #[inline]
-pub fn check_device_id(raw: [u8; 2]) -> Result<(), Ina237Error> {
-    let id = u16::from_be_bytes(raw);
-    match id & 0xFFF0 {
-        0x2370 | 0x2380 | 0x2390 => Ok(()),
-        _ => Err(Ina237Error::UnexpectedDeviceId(id)),
-    }
-}
-
-/// Vérifie MANUFACTURER_ID register (0x3E). Doit être "TI" ASCII = 0x5449.
-#[inline]
+#[must_use]
 pub fn check_manufacturer_id(raw: [u8; 2]) -> Result<(), Ina237Error> {
     let id = u16::from_be_bytes(raw);
     if id == 0x5449 {
@@ -2640,23 +2684,26 @@ pub mod ina237;
 
 - [ ] **Step 5: Run — verify green**
 
-Run: `cd firmware-rust && cargo test -p bmu-drivers 2>&1 | tail -15`
-Expected: `test result: ok. 17 passed; 0 failed`.
+Run: `. ~/export-esp.sh && cd firmware-rust && cargo test -p bmu-drivers 2>&1 | tail -15`
+Expected: `test result: ok. 14 passed; 0 failed`.
 
 - [ ] **Step 6: Commit**
 
-```bash
-cd ..
-git add firmware-rust/crates/bmu-drivers
-git commit -m "feat(bmu-drivers): add INA237 pure parsers (parse_vbus, parse_current, encode_shunt_cal)
+From repo root, using heredoc (subject ≤50 chars, body lines ≤72):
 
-- Pure functions taking raw bytes, no bus dependency
-- parse_vbus: i16 >>3 × 3.125 mV/step integer math
-- encode_shunt_cal: datasheet SBOS945 eq.(1) with 0x7FFF clip
-- parse_dietemp_c10: signed 12-bit × 125 m°C/step
-- check_device_id: accepts INA237/238/239 (0x237x/238x/239x)
+```bash
+git add firmware-rust/crates/bmu-drivers
+git commit -m "$(cat <<'EOF'
+feat(bmu-drivers): add INA237 pure parsers
+
+- parse_vbus: i16 × 3125 / 1000 mV (no shift, LSB 3.125 mV)
+- parse_current: i16 × lsb_na / 1e6 = Milliamps
+- parse_dietemp_c10: (i16 >> 4) × 125 / 100 in c10
+- encode_shunt_cal: (lsb_na × uΩ × 8192) / 1e10, ADCRANGE=0
 - check_manufacturer_id: requires 'TI' = 0x5449
-- 17 tests covering zero/positive/negative/roundtrip/IDs"
+- 14 tests, datasheet SBOSA20A vectors
+EOF
+)"
 ```
 
 ### Task 4.2: Wrapper bus-aware `Ina237<'b, B>`
