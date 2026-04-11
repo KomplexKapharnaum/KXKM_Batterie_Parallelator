@@ -101,12 +101,11 @@ fn abi_check() -> Result<(), String> {
         return Err(format!("header not found at {}", header.display()));
     }
 
-    // Note : `MAX_BATTERIES` est référencé dans `bmu_core.h` mais n'est pas
-    // émis par `cbindgen` (constante Rust non-FFI). On fournit la valeur ici
-    // pour que le header compile côté C. Source : `bmu-types` = 16.
+    // Depuis le re-export `pub const MAX_BATTERIES: usize = 16` dans
+    // `bmu-core::ffi_types`, `cbindgen` émet `#define MAX_BATTERIES 16`
+    // directement dans `bmu_core.h`, donc le header est self-contained.
     let c_prog = r#"
 #include <stdio.h>
-#define MAX_BATTERIES 16
 #include "bmu_core.h"
 int main(void) {
     printf("sizeof(BmuConfigC) = %zu\n", sizeof(struct BmuConfigC));

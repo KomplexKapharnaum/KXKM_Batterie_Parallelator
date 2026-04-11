@@ -6,7 +6,7 @@
 
 #![allow(clippy::module_name_repetitions)]
 
-use bmu_types::{Battery, Config, Milliamps, Millivolts, Snapshot, System, MAX_BATTERIES};
+use bmu_types::{Battery, Config, Milliamps, Millivolts, Snapshot, System};
 
 /// Mirror `C` de `Config`.
 #[repr(C)]
@@ -197,6 +197,16 @@ pub struct BmuCommandC {
     /// - `TopologyChanged` : `payload[0]` = `n_ina`, `payload[1]` = `n_tca`
     pub payload: [u8; 32],
 }
+
+/// Nombre maximum de batteries supporté (miroir de `bmu_types::MAX_BATTERIES`).
+///
+/// **Littéral explicite obligatoire** pour que `cbindgen` émette un
+/// `#define MAX_BATTERIES 16` dans `bmu_core.h` — il n'évalue pas les
+/// expressions const (il ne suivrait pas `= bmu_types::MAX_BATTERIES`).
+/// Une assertion statique vérifie la cohérence avec la source authoritative.
+pub const MAX_BATTERIES: usize = 16;
+
+const _: () = assert!(MAX_BATTERIES == bmu_types::MAX_BATTERIES);
 
 /// Codes de retour C-friendly exposés par la façade `extern "C"`.
 pub const BMU_OK: i32 = 0;
