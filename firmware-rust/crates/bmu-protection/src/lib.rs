@@ -3,3 +3,6 @@
 
 pub mod checks;
 pub mod latch;
+pub mod state;
+
+pub use state::{transition, Measurement, Transition, TransitionContext};
