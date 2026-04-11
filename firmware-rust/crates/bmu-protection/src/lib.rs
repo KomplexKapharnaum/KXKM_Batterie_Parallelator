@@ -3,6 +3,8 @@
 
 pub mod checks;
 pub mod latch;
+pub mod manager;
 pub mod state;
 
+pub use manager::{integrate_charge, topology_ok, BatteryManager};
 pub use state::{transition, Measurement, Transition, TransitionContext};
