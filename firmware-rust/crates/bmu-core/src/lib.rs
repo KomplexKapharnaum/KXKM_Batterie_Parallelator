@@ -1,2 +1,10 @@
-//! Façade FFI C exposée comme staticlib libbmu_core.a + bmu_core.h.
-#![no_std]
+//! Façade FFI C exposée comme `staticlib` `libbmu_core.a` + `rlib`.
+//! Cf spec §3.4.
+//!
+//! Task 9.1 : types `#[repr(C)]` avec conversions `From`.
+//! Task 9.2 : runtime `BmuCore` avec `tick`, `command`, `get_cached_snapshot`.
+//! Task 9.3 : façade `extern "C"` + `panic_handler` + `build.rs` `cbindgen`.
+
+#![cfg_attr(all(not(test), target_os = "none"), no_std)]
+
+pub mod ffi_types;
