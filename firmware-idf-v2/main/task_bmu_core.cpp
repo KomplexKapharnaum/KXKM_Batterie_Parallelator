@@ -18,6 +18,7 @@
 extern "C" {
 #include "bmu_core.h"
 #include "bmu_i2c_glue.h"
+#include "bmu_climate.h"
 }
 
 static const char *TAG = "task-core";
@@ -141,6 +142,9 @@ static void task_body(void *arg) {
             continue;
         }
         s_fail_streak = 0;
+
+        // Phase 15 : feed climate aggregator (no-op si capteur absent)
+        bmu_climate_sample(s_raw.climate_temp_c10, s_raw.climate_rh_pct10);
 
         int32_t rc = bmu_core_tick(core, &s_raw, &s_snap, &s_actions);
 

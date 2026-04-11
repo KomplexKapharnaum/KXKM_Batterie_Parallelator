@@ -23,7 +23,10 @@
 extern "C" {
 #include "bmu_core.h"
 #include "bmu_i2c_glue.h"
+#include "bmu_climate.h"
+#include "bmu_sd_log.h"
 }
+#include "bmu_soh.h"
 
 #include "task_bmu_core.h"
 
@@ -128,8 +131,35 @@ extern "C" void app_main(void) {
 
     init_i2c_glue();
 
+    // Phase 15 -- aggregator climate (no FreeRTOS task, lazy stats)
+    ESP_LOGI(TAG, "init bmu_climate (heap=%u kB)",
+             (unsigned)(esp_get_free_heap_size() / 1024));
+    bmu_climate_init();
+
+    // Phase 15 -- TFLite Micro SOH
+    ESP_LOGI(TAG, "init bmu_soh (heap=%u kB)",
+             (unsigned)(esp_get_free_heap_size() / 1024));
+    esp_err_t soh_err = bmu_soh_init();
+    if (soh_err != ESP_OK) {
+        ESP_LOGW(TAG, "bmu_soh_init failed: %s -- task_soh will be no-op",
+                 esp_err_to_name(soh_err));
+    }
+
+    // Phase 15 -- SD log writer (FAT partition fatfs, NOSYNC files)
+    ESP_LOGI(TAG, "init bmu_sd_log (heap=%u kB)",
+             (unsigned)(esp_get_free_heap_size() / 1024));
+    esp_err_t sd_err = bmu_sd_log_init();
+    if (sd_err != ESP_OK) {
+        ESP_LOGW(TAG, "bmu_sd_log_init failed: %s -- task_sd_log will be no-op",
+                 esp_err_to_name(sd_err));
+    }
+
     ESP_LOGI(TAG, "Boot complete -- starting task_bmu_core (PRO_CPU, 5 Hz)");
     task_bmu_core_start(s_core);
+
+    // Phase 15 -- secondary tasks on APP_CPU
+    task_soh_start(s_core);
+    task_sd_log_start(s_core);
 
     // app_main reste en idle et log la heap toutes les 10 s
     while (true) {
