@@ -2,3 +2,4 @@
 #![no_std]
 
 pub mod ina237;
+pub mod tca9535;
