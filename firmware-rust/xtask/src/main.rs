@@ -156,18 +156,22 @@ int main(void) {
 }
 
 /// Cross-compile `bmu-core` pour `xtensa-esp32s3-none-elf` release et
-/// vérifie que `libbmu_core.a` < 500 KB.
+/// vérifie que la somme des sections `.text` + `.data` < 500 KB.
 ///
-/// NOTE Task 10.1 : cette commande est implémentée mais ÉCHOUERA tant
-/// que Task 10.2 n'a pas ajouté le bump allocator (link error sur
-/// `alloc::boxed::Box` sans `#[global_allocator]` côté xtensa).
+/// Utilise le toolchain `+esp` (installé par `espup`) et `-Zbuild-std`
+/// pour rebuild `core`/`alloc` sur target no_std. La taille mesurée est
+/// la somme `text+data` rapportée par `xtensa-esp32s3-elf-size` sur
+/// l'archive — la taille brute du `.a` inclut debug/reloc et n'est pas
+/// représentative du binaire final lié.
 fn size() -> Result<(), String> {
     let root = workspace_root()?;
 
     let status = Command::new("cargo")
         .current_dir(&root)
         .args([
+            "+esp",
             "build",
+            "-Zbuild-std=core,alloc",
             "--target",
             "xtensa-esp32s3-none-elf",
             "--release",
@@ -189,9 +193,47 @@ fn size() -> Result<(), String> {
         return Err(format!("libbmu_core.a not found at {}", lib.display()));
     }
 
-    let meta = std::fs::metadata(&lib).map_err(|e| format!("stat: {e}"))?;
-    let size_kb = meta.len() / 1024;
-    println!("libbmu_core.a size: {size_kb} KB");
+    // `xtensa-esp32s3-elf-size` est installé par `espup` dans le `PATH`
+    // après `. ~/export-esp.sh`. Si indisponible, on retombe sur la
+    // taille brute du fichier (moins représentative).
+    let Some(lib_str) = lib.to_str() else {
+        return Err("non-UTF8 lib path".to_string());
+    };
+    let output = Command::new("xtensa-esp32s3-elf-size")
+        .args(["-t", lib_str])
+        .output();
+
+    let (text_bytes, mode) = match output {
+        Ok(out) if out.status.success() => {
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            // Cherche la ligne `(TOTALS)` en bas : `text data bss dec hex`
+            let total_line = stdout
+                .lines()
+                .find(|l| l.contains("(TOTALS)"))
+                .ok_or_else(|| "no (TOTALS) line in size output".to_string())?;
+            let mut cols = total_line.split_whitespace();
+            let text: u64 = cols
+                .next()
+                .ok_or_else(|| "no text col".to_string())?
+                .parse()
+                .map_err(|e| format!("parse text: {e}"))?;
+            let data: u64 = cols
+                .next()
+                .ok_or_else(|| "no data col".to_string())?
+                .parse()
+                .map_err(|e| format!("parse data: {e}"))?;
+            #[allow(clippy::arithmetic_side_effects)]
+            let sum = text + data;
+            (sum, "text+data")
+        }
+        _ => {
+            let meta = std::fs::metadata(&lib).map_err(|e| format!("stat: {e}"))?;
+            (meta.len(), "raw archive")
+        }
+    };
+
+    let size_kb = text_bytes / 1024;
+    println!("libbmu_core.a size ({mode}): {size_kb} KB");
     if size_kb > 500 {
         return Err(format!("Size {size_kb} KB exceeds 500 KB budget"));
     }

@@ -18,6 +18,75 @@ pub mod ffi_types;
 
 pub use core_impl::{BmuCore, CoreError, ParsedInputs};
 
+/// Allocateur bump minimal pour la cross-compile `xtensa` standalone en Part 1.
+///
+/// **Temporaire** : Part 2 le remplacera par un allocateur basé sur
+/// `esp_idf_sys::heap_caps_malloc`. Cet allocateur n'est compilé QUE pour
+/// target `xtensa-esp32s3-none-elf` (`cfg(target_os = "none")` hors tests) ;
+/// sur host les tests utilisent le `std` allocator natif.
+///
+/// Caractéristiques :
+/// - 16 `KiB` de heap statique (suffit largement pour 1 `BmuCore` ≈ 1 `KiB`).
+/// - `compare_exchange` atomique pour la thread-safety (bien que `BmuCore`
+///   soit utilisé single-threaded dans le runtime `ESP-IDF`).
+/// - Aucun `dealloc` : la seule allocation est le `BmuCore` via
+///   `Box::into_raw` au boot, et `bmu_core_destroy` ne devrait jamais être
+///   appelé sur un système embarqué à instance unique.
+#[cfg(all(not(test), target_os = "none"))]
+#[allow(clippy::arithmetic_side_effects)]
+mod bump_alloc {
+    use core::alloc::{GlobalAlloc, Layout};
+    use core::cell::UnsafeCell;
+    use core::sync::atomic::{AtomicUsize, Ordering};
+
+    const HEAP_SIZE: usize = 16 * 1024;
+
+    struct Heap {
+        data: UnsafeCell<[u8; HEAP_SIZE]>,
+        offset: AtomicUsize,
+    }
+
+    // SAFETY: accès concurrent protégé par `compare_exchange` atomique
+    // sur `offset`. Le tableau `data` n'est lu qu'après que son offset
+    // ait été réservé par un seul thread.
+    unsafe impl Sync for Heap {}
+
+    unsafe impl GlobalAlloc for Heap {
+        unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+            let align = layout.align();
+            let size = layout.size();
+            loop {
+                let current = self.offset.load(Ordering::Relaxed);
+                let aligned = (current + align - 1) & !(align - 1);
+                let new_offset = aligned + size;
+                if new_offset > HEAP_SIZE {
+                    return core::ptr::null_mut();
+                }
+                if self
+                    .offset
+                    .compare_exchange(current, new_offset, Ordering::AcqRel, Ordering::Relaxed)
+                    .is_ok()
+                {
+                    // SAFETY: `aligned < HEAP_SIZE` garanti par la check plus haut ;
+                    // `data` est un `UnsafeCell<[u8; HEAP_SIZE]>` donc `add(aligned)`
+                    // est dans les bornes du tableau.
+                    return unsafe { (*self.data.get()).as_mut_ptr().add(aligned) };
+                }
+            }
+        }
+
+        unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {
+            // Bump allocator ne libère rien — OK pour Part 1 (instance unique).
+        }
+    }
+
+    #[global_allocator]
+    static HEAP: Heap = Heap {
+        data: UnsafeCell::new([0u8; HEAP_SIZE]),
+        offset: AtomicUsize::new(0),
+    };
+}
+
 use crate::ffi_types::{
     BmuActionsC, BmuCommandC, BmuConfigC, BmuRawInputs, BmuSnapshotC, BMU_ERR_BUSY,
     BMU_ERR_INVALID_CONFIG, BMU_ERR_INVALID_INDEX, BMU_ERR_NULL, BMU_ERR_UNSUPPORTED, BMU_OK,
