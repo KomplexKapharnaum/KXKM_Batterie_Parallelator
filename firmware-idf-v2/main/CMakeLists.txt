@@ -1,5 +1,5 @@
 idf_component_register(
-    SRCS "main.cpp"
+    SRCS "main.cpp" "task_bmu_core.cpp"
     INCLUDE_DIRS "."
     REQUIRES
         driver
@@ -10,7 +10,8 @@ idf_component_register(
         esp-box-3
         bmu_core_rs
         bmu_i2c_glue
+        esp_hw_support
 )
 
 # Version projet injectée comme macro
-add_compile_definitions(CONFIG_APP_PROJECT_VER="2.0.0-phase13")
+add_compile_definitions(CONFIG_APP_PROJECT_VER="2.0.0-phase14")

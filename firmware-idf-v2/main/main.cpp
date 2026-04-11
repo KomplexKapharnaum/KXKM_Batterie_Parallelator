@@ -25,6 +25,8 @@ extern "C" {
 #include "bmu_i2c_glue.h"
 }
 
+#include "task_bmu_core.h"
+
 static const char *TAG = "bmu-v2";
 
 static BmuCore *s_core = nullptr;
@@ -91,13 +93,6 @@ static void init_bmu_core(void) {
     ESP_LOGI(TAG, "bmu_core_init OK, handle=%p", (void *)s_core);
 }
 
-// Statique : `BmuSnapshotC` fait plus de 600 bytes (16 batteries) ce qui
-// depasse le stack par defaut de main_task. On garde un seul exemplaire
-// en .bss pour la fake loop Phase 12.
-static BmuRawInputs s_raw;
-static BmuSnapshotC s_snap;
-static BmuActionsC s_actions;
-
 static void init_i2c_glue(void) {
     esp_err_t err = bmu_i2c_glue_init();
     if (err != ESP_OK) {
@@ -112,50 +107,9 @@ static void init_i2c_glue(void) {
         return;
     }
     ESP_LOGI(TAG, "I2C scan: INA=%u TCA=%u", n_ina, n_tca);
-}
 
-static void tick_loop_real(void) {
-    memset(&s_raw, 0, sizeof(s_raw));
-    memset(&s_snap, 0, sizeof(s_snap));
-    memset(&s_actions, 0, sizeof(s_actions));
-
-    while (true) {
-        esp_err_t err = bmu_i2c_glue_read_inputs(&s_raw);
-        if (err != ESP_OK) {
-            ESP_LOGW(TAG, "read_inputs failed: %s", esp_err_to_name(err));
-            vTaskDelay(pdMS_TO_TICKS(1000));
-            continue;
-        }
-
-        int32_t rc = bmu_core_tick(s_core, &s_raw, &s_snap, &s_actions);
-        if (rc != 0) {
-            ESP_LOGW(TAG, "bmu_core_tick rc=%ld n_bat=%u topo=%u",
-                     (long)rc,
-                     (unsigned)s_snap.n_bat,
-                     (unsigned)s_snap.system.topology_ok);
-        } else if (s_snap.n_bat > 0) {
-            ESP_LOGI(TAG,
-                     "tick OK n_bat=%u topo=%u bat0: V=%ldmv I=%ldma state=%u "
-                     "tca0=0x%02X climate T=%d rh=%u heap=%u kB",
-                     (unsigned)s_snap.n_bat,
-                     (unsigned)s_snap.system.topology_ok,
-                     (long)s_snap.batteries[0].voltage_mv,
-                     (long)s_snap.batteries[0].current_ma,
-                     (unsigned)s_snap.batteries[0].state,
-                     (unsigned)s_raw.tca_inputs[0],
-                     (int)s_raw.climate_temp_c10,
-                     (unsigned)s_raw.climate_rh_pct10,
-                     (unsigned)(esp_get_free_heap_size() / 1024));
-        } else {
-            ESP_LOGI(TAG,
-                     "tick OK n_bat=0 topo=%u climate T=%d rh=%u heap=%u kB",
-                     (unsigned)s_snap.system.topology_ok,
-                     (int)s_raw.climate_temp_c10,
-                     (unsigned)s_raw.climate_rh_pct10,
-                     (unsigned)(esp_get_free_heap_size() / 1024));
-        }
-        vTaskDelay(pdMS_TO_TICKS(1000));
-    }
+    // Programme SHUNT_CAL sur tous les INA237 detectes (Phase 14 Task 14.2)
+    bmu_i2c_glue_program_shunt_cal();
 }
 
 extern "C" void app_main(void) {
@@ -174,6 +128,13 @@ extern "C" void app_main(void) {
 
     init_i2c_glue();
 
-    ESP_LOGI(TAG, "Boot complete -- entering real tick loop 1Hz");
-    tick_loop_real();
+    ESP_LOGI(TAG, "Boot complete -- starting task_bmu_core (PRO_CPU, 5 Hz)");
+    task_bmu_core_start(s_core);
+
+    // app_main reste en idle et log la heap toutes les 10 s
+    while (true) {
+        vTaskDelay(pdMS_TO_TICKS(10000));
+        ESP_LOGI(TAG, "main idle: heap_free=%u kB",
+                 (unsigned)(esp_get_free_heap_size() / 1024));
+    }
 }

@@ -1,0 +1,346 @@
+ESP-ROM:esp32s3-20210327
+Build:Mar 27 2021
+rst:0x15 (USB_UART_CHIP_RESET),boot:0xa (SPI_FAST_FLASH_BOOT)
+Saved PC:0x4037f6ad
+SPIWP:0xee
+mode:DIO, clock div:1
+load:0x3fce2810,len:0x15a0
+load:0x403c8700,len:0x4
+load:0x403c8704,len:0xd20
+load:0x403cb700,len:0x2ee4
+entry 0x403c8928
+I (18) boot: ESP-IDF v5.4 2nd stage bootloader
+I (18) boot: compile time Apr 11 2026 23:34:26
+I (18) boot: Multicore bootloader
+I (19) boot: chip revision: v0.2
+I (21) boot: efuse block revision: v1.3
+I (25) boot.esp32s3: Boot SPI Speed : 80MHz
+I (29) boot.esp32s3: SPI Mode       : DIO
+I (32) boot.esp32s3: SPI Flash Size : 16MB
+I (36) boot: Enabling RNG early entropy source...
+I (41) boot: Partition Table:
+I (43) boot: ## Label            Usage          Type ST Offset   Length
+I (50) boot:  0 nvs              WiFi data        01 02 00009000 00006000
+I (56) boot:  1 otadata          OTA data         01 00 0000f000 00002000
+I (63) boot:  2 phy_init         RF data          01 01 00011000 00001000
+I (69) boot:  3 ota_0            OTA app          00 10 00020000 00200000
+I (76) boot:  4 ota_1            OTA app          00 11 00220000 00200000
+I (82) boot:  5 storage          Unknown data     01 82 00420000 00100000
+I (89) boot:  6 fatfs            Unknown data     01 81 00520000 00ae0000
+I (95) boot: End of partition table
+I (98) esp_image: segment 0: paddr=00020020 vaddr=3c080020 size=1aff0h (110576) map
+I (125) esp_image: segment 1: paddr=0003b018 vaddr=3fc97d00 size=033f0h ( 13296) load
+I (129) esp_image: segment 2: paddr=0003e410 vaddr=40374000 size=01c08h (  7176) load
+I (131) esp_image: segment 3: paddr=00040020 vaddr=42000020 size=707b0h (460720) map
+I (218) esp_image: segment 4: paddr=000b07d8 vaddr=40375c08 size=12008h ( 73736) load
+I (234) esp_image: segment 5: paddr=000c27e8 vaddr=600fe100 size=0001ch (    28) load
+I (242) boot: Loaded app from partition at offset 0x20000
+I (243) boot: Disabling RNG early entropy source...
+I (253) octal_psram: vendor id    : 0x0d (AP)
+I (253) octal_psram: dev id       : 0x03 (generation 4)
+I (253) octal_psram: density      : 0x05 (128 Mbit)
+I (255) octal_psram: good-die     : 0x01 (Pass)
+I (259) octal_psram: Latency      : 0x01 (Fixed)
+I (264) octal_psram: VCC          : 0x00 (1.8V)
+I (268) octal_psram: SRF          : 0x01 (Fast Refresh)
+I (273) octal_psram: BurstType    : 0x01 (Hybrid Wrap)
+I (278) octal_psram: BurstLen     : 0x01 (32 Byte)
+I (282) octal_psram: Readlatency  : 0x02 (10 cycles@Fixed)
+I (288) octal_psram: DriveStrength: 0x00 (1/1)
+I (292) MSPI Timing: PSRAM timing tuning index: 6
+I (296) esp_psram: Found 16MB PSRAM device
+I (300) esp_psram: Speed: 80MHz
+I (303) cpu_start: Multicore app
+I (1158) esp_psram: SPI SRAM memory test OK
+I (1167) cpu_start: Pro cpu start user code
+I (1167) cpu_start: cpu freq: 160000000 Hz
+I (1167) app_init: Application information:
+I (1167) app_init: Project name:     kxkm-bmu-v2
+I (1172) app_init: App version:      v1-final-archive-42-gfa6579d-di
+I (1178) app_init: Compile time:     Apr 12 2026 00:56:14
+I (1183) app_init: ELF file SHA256:  4222bf08b...
+I (1187) app_init: ESP-IDF:          v5.4
+I (1191) efuse_init: Min chip rev:     v0.0
+I (1195) efuse_init: Max chip rev:     v0.99 
+I (1199) efuse_init: Chip rev:         v0.2
+I (1203) heap_init: Initializing. RAM available for dynamic allocation:
+I (1210) heap_init: At 3FCAC6B8 len 0003D058 (244 KiB): RAM
+I (1214) heap_init: At 3FCE9710 len 00005724 (21 KiB): RAM
+I (1220) heap_init: At 3FCF0000 len 00008000 (32 KiB): DRAM
+I (1225) heap_init: At 600FE11C len 00001ECC (7 KiB): RTCRAM
+I (1722) esp_psram: Adding pool of 16384K of PSRAM memory to heap allocator
+I (1723) spi_flash: detected chip: gd
+I (1723) spi_flash: flash io: dio
+I (1724) sleep_gpio: Configure to isolate all GPIO pins in sleep state
+I (1730) sleep_gpio: Enable automatic switching of GPIO sleep configuration
+I (1738) main_task: Started on CPU0
+I (1741) main_task: Calling app_main()
+I (1744) bmu-v2: === BMU v2 boot ===
+I (1747) bmu-v2: FW version: 2.0.0-phase14
+I (1751) bmu-v2: ESP-IDF: v5.4
+I (1761) bmu-v2: NVS initialized
+I (1762) LVGL: Starting LVGL task
+W (1763) ledc: GPIO 47 is not usable, maybe conflict with others
+W (1766) i2c.master: Please check pull-up resistances whether be connected properly. Otherwise unexpected behavior would happen. For more detailed information, please read docs
+W (1781) i2c.master: Please check pull-up resistances whether be connected properly. Otherwise unexpected behavior would happen. For more detailed information, please read docs
+I (1798) gpio: GPIO[4]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 
+I (1805) gpio: GPIO[48]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 
+I (1813) ili9341: LCD panel create success, version: 2.0.2
+W (1938) ili9341: The 36h command has been used and will be overwritten by external initialization sequence
+W (1939) ili9341: The 3Ah command has been used and will be overwritten by external initialization sequence
+I (1989) GT911: I2C address initialization procedure skipped - using default GT9xx setup
+I (1990) gpio: GPIO[3]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:2 
+I (1997) GT911: TouchPad_ID:0x39,0x31,0x31
+I (1999) GT911: TouchPad_Config_Version:65
+I (2003) ESP-BOX-3: Setting LCD backlight: 100%
+I (2054) bmu-v2: Splash displayed
+I (2054) bmu-v2: bmu_core_init OK, handle=0x3fcc6574
+I (2055) i2c-glue: initialized (bus handle=0x3c0a0a5c)
+I (2060) i2c-glue: scan result: INA=1 TCA=0 AHT=no
+I (2060) bmu-v2: I2C scan: INA=1 TCA=0
+E (2064) i2c.master: I2C transaction unexpected nack detected
+E (2069) i2c.master: s_i2c_synchronous_transaction(918): I2C transaction failed
+E (2077) i2c.master: i2c_master_multi_buffer_transmit(1180): I2C transaction failed
+W (2084) i2c-glue: SHUNT_CAL[0x40] failed: ESP_ERR_INVALID_STATE
+I (2089) i2c-glue: SHUNT_CAL programmed on 0/1 INA237
+I (2094) bmu-v2: Boot complete -- starting task_bmu_core (PRO_CPU, 5 Hz)
+I (2101) task-core: task_bmu_core started: core=PRO_CPU prio=5 period=200 ms
+I (2108) task-core: task_bmu_core created handle=0x3fcc8e38 pinned core=0 prio=5
+I (2109) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (7102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (12102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (12102) task-core: latency tick=50 n=51 p50=1212us p99=1559us
+I (12119) bmu-v2: main idle: heap_free=16568 kB
+I (17102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (22102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (22102) task-core: latency tick=100 n=101 p50=1212us p99=1366us
+I (22119) bmu-v2: main idle: heap_free=16568 kB
+I (27102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (32102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (32102) task-core: latency tick=150 n=151 p50=1212us p99=1366us
+I (32119) bmu-v2: main idle: heap_free=16568 kB
+I (37102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (42102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (42103) task-core: latency tick=200 n=201 p50=1212us p99=1366us
+I (42119) bmu-v2: main idle: heap_free=16568 kB
+I (47102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (52102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (52103) task-core: latency tick=250 n=251 p50=1212us p99=1366us
+I (52119) bmu-v2: main idle: heap_free=16568 kB
+I (57102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (62102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (62103) task-core: latency tick=300 n=300 p50=1212us p99=1366us
+I (62119) bmu-v2: main idle: heap_free=16568 kB
+I (67102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (72102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (72103) task-core: latency tick=350 n=300 p50=1212us p99=1366us
+I (72119) bmu-v2: main idle: heap_free=16568 kB
+I (77102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (82102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (82103) task-core: latency tick=400 n=300 p50=1212us p99=1366us
+I (82119) bmu-v2: main idle: heap_free=16568 kB
+I (87102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (92102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (92103) task-core: latency tick=450 n=300 p50=1212us p99=1366us
+I (92119) bmu-v2: main idle: heap_free=16568 kB
+I (97102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (102102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (102103) task-core: latency tick=500 n=300 p50=1212us p99=1366us
+I (102119) bmu-v2: main idle: heap_free=16568 kB
+I (107102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (112102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (112103) task-core: latency tick=550 n=300 p50=1212us p99=1366us
+I (112119) bmu-v2: main idle: heap_free=16568 kB
+I (117102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (122102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (122103) task-core: latency tick=600 n=300 p50=1212us p99=1366us
+I (122119) bmu-v2: main idle: heap_free=16568 kB
+I (127102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (132102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (132103) task-core: latency tick=650 n=300 p50=1212us p99=1366us
+I (132119) bmu-v2: main idle: heap_free=16568 kB
+I (137102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (142102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (142103) task-core: latency tick=700 n=300 p50=1212us p99=1366us
+I (142119) bmu-v2: main idle: heap_free=16568 kB
+I (147102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (152102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (152103) task-core: latency tick=750 n=300 p50=1212us p99=1366us
+I (152119) bmu-v2: main idle: heap_free=16568 kB
+I (157102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (162102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (162103) task-core: latency tick=800 n=300 p50=1212us p99=1361us
+I (162119) bmu-v2: main idle: heap_free=16568 kB
+I (167102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (172102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (172103) task-core: latency tick=850 n=300 p50=1212us p99=1361us
+I (172119) bmu-v2: main idle: heap_free=16568 kB
+I (177102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (182102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (182103) task-core: latency tick=900 n=300 p50=1212us p99=1361us
+I (182119) bmu-v2: main idle: heap_free=16568 kB
+I (187102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (192102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (192103) task-core: latency tick=950 n=300 p50=1212us p99=1361us
+I (192119) bmu-v2: main idle: heap_free=16568 kB
+I (197102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (202102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (202103) task-core: latency tick=1000 n=300 p50=1212us p99=1361us
+I (202119) bmu-v2: main idle: heap_free=16568 kB
+I (207102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (212102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (212103) task-core: latency tick=1050 n=300 p50=1212us p99=1361us
+I (212119) bmu-v2: main idle: heap_free=16568 kB
+I (217102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (222102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (222103) task-core: latency tick=1100 n=300 p50=1212us p99=1361us
+I (222119) bmu-v2: main idle: heap_free=16568 kB
+I (227102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (232102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (232103) task-core: latency tick=1150 n=300 p50=1212us p99=1361us
+I (232119) bmu-v2: main idle: heap_free=16568 kB
+I (237102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (242102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (242103) task-core: latency tick=1200 n=300 p50=1212us p99=1361us
+I (242119) bmu-v2: main idle: heap_free=16568 kB
+I (247102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (252102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (252103) task-core: latency tick=1250 n=300 p50=1212us p99=1361us
+I (252119) bmu-v2: main idle: heap_free=16568 kB
+I (257102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (262102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (262103) task-core: latency tick=1300 n=300 p50=1212us p99=1361us
+I (262119) bmu-v2: main idle: heap_free=16568 kB
+I (267102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (272102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (272103) task-core: latency tick=1350 n=300 p50=1212us p99=1361us
+I (272119) bmu-v2: main idle: heap_free=16568 kB
+I (277102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (282102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (282103) task-core: latency tick=1400 n=300 p50=1212us p99=1361us
+I (282119) bmu-v2: main idle: heap_free=16568 kB
+I (287102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (292102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (292103) task-core: latency tick=1450 n=300 p50=1212us p99=1361us
+I (292119) bmu-v2: main idle: heap_free=16568 kB
+I (297102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (302102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (302103) task-core: latency tick=1500 n=300 p50=1212us p99=1366us
+I (302119) bmu-v2: main idle: heap_free=16568 kB
+I (307102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (312102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (312103) task-core: latency tick=1550 n=300 p50=1212us p99=1366us
+I (312119) bmu-v2: main idle: heap_free=16568 kB
+I (317102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (322102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (322103) task-core: latency tick=1600 n=300 p50=1212us p99=1366us
+I (322119) bmu-v2: main idle: heap_free=16568 kB
+I (327102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (332102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (332103) task-core: latency tick=1650 n=300 p50=1212us p99=1366us
+I (332119) bmu-v2: main idle: heap_free=16568 kB
+I (337102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (342102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (342103) task-core: latency tick=1700 n=300 p50=1212us p99=1366us
+I (342119) bmu-v2: main idle: heap_free=16568 kB
+I (347102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (352102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (352103) task-core: latency tick=1750 n=300 p50=1212us p99=1366us
+I (352119) bmu-v2: main idle: heap_free=16568 kB
+I (357102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (362102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (362103) task-core: latency tick=1800 n=300 p50=1212us p99=1366us
+I (362119) bmu-v2: main idle: heap_free=16568 kB
+I (367102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (372102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (372103) task-core: latency tick=1850 n=300 p50=1212us p99=1366us
+I (372119) bmu-v2: main idle: heap_free=16568 kB
+I (377102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (382102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (382103) task-core: latency tick=1900 n=300 p50=1212us p99=1366us
+I (382119) bmu-v2: main idle: heap_free=16568 kB
+I (387102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (392102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (392103) task-core: latency tick=1950 n=300 p50=1212us p99=1366us
+I (392119) bmu-v2: main idle: heap_free=16568 kB
+I (397102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (402102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (402103) task-core: latency tick=2000 n=300 p50=1212us p99=1366us
+I (402119) bmu-v2: main idle: heap_free=16568 kB
+I (407102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (412102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (412103) task-core: latency tick=2050 n=300 p50=1212us p99=1361us
+I (412119) bmu-v2: main idle: heap_free=16568 kB
+I (417102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (422102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (422103) task-core: latency tick=2100 n=300 p50=1212us p99=1361us
+I (422119) bmu-v2: main idle: heap_free=16568 kB
+I (427102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (432102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (432103) task-core: latency tick=2150 n=300 p50=1212us p99=1361us
+I (432119) bmu-v2: main idle: heap_free=16568 kB
+I (437102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (442102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (442103) task-core: latency tick=2200 n=300 p50=1212us p99=1361us
+I (442119) bmu-v2: main idle: heap_free=16568 kB
+I (447102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (452102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (452103) task-core: latency tick=2250 n=300 p50=1212us p99=1361us
+I (452119) bmu-v2: main idle: heap_free=16568 kB
+I (457102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (462102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (462103) task-core: latency tick=2300 n=300 p50=1212us p99=1361us
+I (462119) bmu-v2: main idle: heap_free=16568 kB
+I (467102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (472102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (472103) task-core: latency tick=2350 n=300 p50=1212us p99=1361us
+I (472119) bmu-v2: main idle: heap_free=16568 kB
+I (477102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (482102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (482103) task-core: latency tick=2400 n=300 p50=1212us p99=1361us
+I (482119) bmu-v2: main idle: heap_free=16568 kB
+I (487102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (492102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (492103) task-core: latency tick=2450 n=300 p50=1212us p99=1361us
+I (492119) bmu-v2: main idle: heap_free=16568 kB
+I (497102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (502102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (502103) task-core: latency tick=2500 n=300 p50=1212us p99=1361us
+I (502119) bmu-v2: main idle: heap_free=16568 kB
+I (507102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (512102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (512103) task-core: latency tick=2550 n=300 p50=1212us p99=1361us
+I (512119) bmu-v2: main idle: heap_free=16568 kB
+I (517102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (522102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (522103) task-core: latency tick=2600 n=300 p50=1212us p99=1361us
+I (522119) bmu-v2: main idle: heap_free=16568 kB
+I (527102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (532102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (532103) task-core: latency tick=2650 n=300 p50=1212us p99=1361us
+I (532119) bmu-v2: main idle: heap_free=16568 kB
+I (537102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (542102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (542103) task-core: latency tick=2700 n=300 p50=1212us p99=1361us
+I (542119) bmu-v2: main idle: heap_free=16568 kB
+I (547102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (552102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (552103) task-core: latency tick=2750 n=300 p50=1212us p99=1366us
+I (552119) bmu-v2: main idle: heap_free=16568 kB
+I (557102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (562102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (562103) task-core: latency tick=2800 n=300 p50=1212us p99=1366us
+I (562119) bmu-v2: main idle: heap_free=16568 kB
+I (567102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (572102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (572103) task-core: latency tick=2850 n=300 p50=1212us p99=1366us
+I (572119) bmu-v2: main idle: heap_free=16568 kB
+I (577102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (582102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (582103) task-core: latency tick=2900 n=300 p50=1212us p99=1366us
+I (582119) bmu-v2: main idle: heap_free=16568 kB
+I (587102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (592102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB
+I (592103) task-core: latency tick=2950 n=300 p50=1212us p99=1366us
+I (592119) bmu-v2: main idle: heap_free=16568 kB
+I (597102) task-core: tick OK n_bat=0 topo=0 heap=16568 kB

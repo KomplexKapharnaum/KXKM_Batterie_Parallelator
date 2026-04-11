@@ -81,9 +81,29 @@ esp_err_t bmu_i2c_glue_scan(uint8_t *out_n_ina, uint8_t *out_n_tca);
 esp_err_t bmu_i2c_glue_read_inputs(struct BmuRawInputs *out);
 
 /**
- * Bus recovery sequence stub — real implementation in Phase 14 Task 14.3.
+ * Programme le registre SHUNT_CAL (0x02 = 0x04E1 = 1249 dec) sur tous les
+ * INA237 detectes. A appeler apres `bmu_i2c_glue_scan` au boot, et apres
+ * recovery bus.
  *
- * @return ESP_OK on success
+ * Log : `SHUNT_CAL programmed on K/N INA237`. Ne retourne pas d'erreur si
+ * le compte est plus bas que prevu (bench partiellement peuple).
+ *
+ * @return ESP_OK si au moins un device a ete programme avec succes ou si
+ *         aucun n'est detecte; ESP_FAIL si tous les devices detectes echouent.
+ */
+esp_err_t bmu_i2c_glue_program_shunt_cal(void);
+
+/**
+ * Sequence de recuperation du bus I2C (Phase 14 Task 14.3).
+ *
+ * Procedure :
+ *   1. Supprime tous les handles de devices caches (`i2c_master_bus_rm_device`)
+ *   2. Bit-bang 9 impulsions SCL (GPIO 40), SDA (GPIO 41) en input pull-up
+ *   3. Genere une STOP condition (SDA low->high pendant SCL high)
+ *   4. Re-scan les devices (`bmu_i2c_glue_scan`)
+ *   5. Re-programme SHUNT_CAL (`bmu_i2c_glue_program_shunt_cal`)
+ *
+ * @return ESP_OK si la sequence bit-bang + re-scan reussit.
  */
 esp_err_t bmu_i2c_glue_recover_bus(void);
 

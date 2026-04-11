@@ -10,8 +10,10 @@
 
 #include <string.h>
 #include "driver/i2c_master.h"
+#include "driver/gpio.h"
 #include "esp_log.h"
 #include "esp_timer.h"
+#include "esp_rom_sys.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
@@ -243,7 +245,120 @@ esp_err_t bmu_i2c_glue_read_inputs(struct BmuRawInputs *out) {
     return ESP_OK;
 }
 
+esp_err_t bmu_i2c_glue_program_shunt_cal(void) {
+    if (s_bus == NULL) return ESP_ERR_INVALID_STATE;
+
+    // SHUNT_CAL = reg 0x02, big-endian 0x04E1 (= 1249 dec)
+    // Trame : [reg_addr, msb, lsb]
+    static const uint8_t CMD_SHUNT_CAL[3] = {0x02, 0x04, 0xE1};
+
+    xSemaphoreTake(s_lock, portMAX_DELAY);
+
+    uint8_t ok = 0;
+    for (uint8_t i = 0; i < s_n_ina && i < 16; i++) {
+        if (s_ina_handles[i] == NULL) continue;
+        esp_err_t err = i2c_master_transmit(s_ina_handles[i], CMD_SHUNT_CAL,
+                                            sizeof(CMD_SHUNT_CAL),
+                                            BMU_I2C_DEVICE_TIMEOUT_MS);
+        if (err == ESP_OK) {
+            ok++;
+        } else {
+            ESP_LOGW(TAG, "SHUNT_CAL[0x%02X] failed: %s",
+                     BMU_INA237_ADDR_BASE + i, esp_err_to_name(err));
+        }
+    }
+
+    xSemaphoreGive(s_lock);
+
+    ESP_LOGI(TAG, "SHUNT_CAL programmed on %u/%u INA237", ok, s_n_ina);
+    // Sur banc partiel : pas d'erreur si s_n_ina == 0, ou si au moins 1 ok
+    if (s_n_ina == 0) return ESP_OK;
+    return (ok > 0) ? ESP_OK : ESP_FAIL;
+}
+
 esp_err_t bmu_i2c_glue_recover_bus(void) {
-    ESP_LOGW(TAG, "recover_bus stub -- implemented in Phase 14 Task 14.3");
+    if (s_bus == NULL) return ESP_ERR_INVALID_STATE;
+
+    ESP_LOGW(TAG, "recover_bus: starting bit-bang sequence");
+
+    xSemaphoreTake(s_lock, portMAX_DELAY);
+
+    // 1. Libere tous les handles caches afin de pouvoir re-probe/re-creer
+    for (uint8_t i = 0; i < 16; i++) {
+        if (s_ina_handles[i] != NULL) {
+            i2c_master_bus_rm_device(s_ina_handles[i]);
+            s_ina_handles[i] = NULL;
+        }
+    }
+    for (uint8_t i = 0; i < 4; i++) {
+        if (s_tca_handles[i] != NULL) {
+            i2c_master_bus_rm_device(s_tca_handles[i]);
+            s_tca_handles[i] = NULL;
+        }
+    }
+    if (s_aht_handle != NULL) {
+        i2c_master_bus_rm_device(s_aht_handle);
+        s_aht_handle = NULL;
+    }
+    s_n_ina = 0;
+    s_n_tca = 0;
+
+    // 2. Bit-bang 9 impulsions SCL : SDA en input pull-up, SCL piloté manuellement
+    //    Les pins sont temporairement reconfigurees en GPIO; `i2c_master_get_bus_handle`
+    //    retournera le même bus ensuite mais les transactions suivantes re-initialiseront
+    //    le muxing via i2c_master_bus_add_device.
+    gpio_config_t sda_cfg = {
+        .pin_bit_mask = (1ULL << BMU_I2C_SDA_GPIO),
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = GPIO_PULLUP_ENABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+    gpio_config(&sda_cfg);
+
+    gpio_config_t scl_cfg = {
+        .pin_bit_mask = (1ULL << BMU_I2C_SCL_GPIO),
+        .mode = GPIO_MODE_OUTPUT_OD,
+        .pull_up_en = GPIO_PULLUP_ENABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+    gpio_config(&scl_cfg);
+
+    // 9 clock pulses (assure qu'un slave bloque libere le bus)
+    for (int i = 0; i < 9; i++) {
+        gpio_set_level(BMU_I2C_SCL_GPIO, 0);
+        esp_rom_delay_us(5);
+        gpio_set_level(BMU_I2C_SCL_GPIO, 1);
+        esp_rom_delay_us(5);
+    }
+
+    // 3. STOP condition : SDA low -> high pendant SCL high
+    gpio_set_direction(BMU_I2C_SDA_GPIO, GPIO_MODE_OUTPUT_OD);
+    gpio_set_level(BMU_I2C_SDA_GPIO, 0);
+    esp_rom_delay_us(5);
+    gpio_set_level(BMU_I2C_SCL_GPIO, 1);
+    esp_rom_delay_us(5);
+    gpio_set_level(BMU_I2C_SDA_GPIO, 1);
+    esp_rom_delay_us(5);
+
+    // Release SDA back to input so the i2c peripheral can reclaim it
+    gpio_set_direction(BMU_I2C_SDA_GPIO, GPIO_MODE_INPUT);
+
+    xSemaphoreGive(s_lock);
+
+    // 4. Re-scan devices (creera de nouveaux handles pour les addresses qui
+    //    repondent encore). On sort du lock car bmu_i2c_glue_scan le prend.
+    uint8_t n_ina = 0, n_tca = 0;
+    esp_err_t err = bmu_i2c_glue_scan(&n_ina, &n_tca);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "recover_bus: re-scan failed: %s", esp_err_to_name(err));
+        return err;
+    }
+
+    // 5. Re-programme SHUNT_CAL sur les INA237 ressuscites
+    bmu_i2c_glue_program_shunt_cal();
+
+    ESP_LOGW(TAG, "recover_bus: done (INA=%u TCA=%u)", n_ina, n_tca);
     return ESP_OK;
 }
