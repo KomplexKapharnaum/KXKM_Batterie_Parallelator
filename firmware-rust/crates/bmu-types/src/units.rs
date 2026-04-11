@@ -24,10 +24,13 @@ impl Millivolts {
     }
 
     /// Différence absolue entre deux `Millivolts`, en mV non signé.
+    /// Symétrique et correct sur tout le domaine `i32` (utilise
+    /// `i32::abs_diff` qui retourne `u32`, évitant la troncature à
+    /// `i32::MAX` de l'ancienne implémentation `saturating_sub`).
     #[inline]
     #[must_use]
     pub const fn abs_diff(self, other: Self) -> u32 {
-        self.0.saturating_sub(other.0).unsigned_abs()
+        self.0.abs_diff(other.0)
     }
 }
 
@@ -162,6 +165,23 @@ mod tests {
         let a = Millivolts::from_raw(-100);
         let b = Millivolts::from_raw(200);
         assert_eq!(a.abs_diff(b), 300);
+    }
+
+    /// Régression : l'ancienne impl `saturating_sub(other).unsigned_abs()`
+    /// tronquait à `i32::MAX` quand le calcul traversait 0 sur des valeurs
+    /// extrêmes, donnant `2^31 - 1` au lieu de `2^31` et cassant la symétrie.
+    /// `i32::abs_diff` retourne `u32` et ne souffre pas de ce bug.
+    #[test]
+    fn millivolts_abs_diff_symmetric_at_i32_extremes() {
+        let min = Millivolts::from_raw(i32::MIN);
+        let zero = Millivolts::ZERO;
+        // |0 - i32::MIN| = 2^31 = 2_147_483_648
+        assert_eq!(zero.abs_diff(min), 2_147_483_648_u32);
+        assert_eq!(min.abs_diff(zero), 2_147_483_648_u32);
+        // Symétrie aussi sur le haut
+        let max = Millivolts::from_raw(i32::MAX);
+        assert_eq!(max.abs_diff(min), u32::MAX);
+        assert_eq!(min.abs_diff(max), u32::MAX);
     }
 
     #[test]
