@@ -193,14 +193,14 @@ extern "C" void app_main(void) {
     task_soh_start(s_core);
     task_sd_log_start(s_core);
 
+    // Phase 18 -- BLE must init before Wi-Fi (controller coexistence)
+    task_ble_start(s_core);
+
     // Phase 16 -- Wi-Fi STA + MQTT telemetry + SD replay
     task_wifi_mqtt_start(s_core);
 
     // Phase 17 -- LVGL 5 tabs display
     task_ui_start(s_core);
-
-    // Phase 18 -- BLE read-only GATT (Battery/System/Config)
-    task_ble_start(s_core);
 
     // app_main reste en idle et log la heap toutes les 10 s
     while (true) {
