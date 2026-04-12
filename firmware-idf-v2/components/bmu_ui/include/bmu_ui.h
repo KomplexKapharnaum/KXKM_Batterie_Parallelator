@@ -20,6 +20,12 @@ esp_err_t bmu_ui_init(void);
 // Appeler periodiquement depuis task_ui (5 Hz).
 void bmu_ui_update_data(struct BmuCore *core);
 
+// Phase 19 : overlay passkey BLE SC pairing (6 chiffres).
+// show_passkey cree un msgbox LVGL, hide_passkey le ferme.
+// Thread-safe : doit etre appele depuis le contexte LVGL (ou via lv_async_call).
+void bmu_ui_show_passkey(uint32_t passkey);
+void bmu_ui_hide_passkey(void);
+
 #ifdef __cplusplus
 }
 #endif

@@ -1,6 +1,7 @@
 // firmware-idf-v2/components/bmu_ble/src/bmu_ble.c
 //
 // Phase 18 : NimBLE init + GAP advertising pour BMU BLE read-only.
+// Phase 19 : SC pairing + passkey display + encrypted command channel.
 
 #include "bmu_ble.h"
 
@@ -9,13 +10,20 @@
 
 #include "esp_log.h"
 #include "esp_mac.h"
+#include "esp_random.h"
 #include "nimble/nimble_port.h"
 #include "nimble/nimble_port_freertos.h"
 #include "host/ble_hs.h"
 #include "host/ble_uuid.h"
 #include "host/ble_gap.h"
+#include "host/ble_sm.h"
 #include "services/gap/ble_svc_gap.h"
 #include "services/gatt/ble_svc_gatt.h"
+
+#include "bmu_ble_control.h"
+#include "bmu_ble_hmac.h"
+#include "bmu_ble_audit.h"
+#include "bmu_ui.h"
 
 static const char *TAG = "bmu-ble";
 
@@ -92,6 +100,9 @@ static int ble_gap_event_handler(struct ble_gap_event *event, void *arg) {
         ESP_LOGI(TAG, "BLE peer disconnected: conn_handle=%u reason=%d",
                  event->disconnect.conn.conn_handle,
                  event->disconnect.reason);
+        /* Phase 19: cleanup control + HMAC state */
+        bmu_ble_control_on_disconnect(event->disconnect.conn.conn_handle);
+        bmu_ble_hmac_invalidate_conn(event->disconnect.conn.conn_handle);
         /* Remove peer from list */
         {
             uint16_t h = event->disconnect.conn.conn_handle;
@@ -109,6 +120,31 @@ static int ble_gap_event_handler(struct ble_gap_event *event, void *arg) {
     case BLE_GAP_EVENT_ADV_COMPLETE:
         ESP_LOGI(TAG, "BLE adv complete, restarting");
         start_advertising();
+        break;
+
+    /* Phase 19: SC pairing — passkey display */
+    case BLE_GAP_EVENT_PASSKEY_ACTION: {
+        if (event->passkey.params.action == BLE_SM_IOACT_DISP) {
+            struct ble_sm_io pkey = {.action = BLE_SM_IOACT_DISP};
+            pkey.passkey = esp_random() % 1000000;
+            ESP_LOGI(TAG, "passkey: %06lu", (unsigned long)pkey.passkey);
+            bmu_ui_show_passkey(pkey.passkey);
+            ble_sm_inject_io(event->passkey.conn_handle, &pkey);
+        }
+        break;
+    }
+
+    /* Phase 19: SC pairing — encryption established */
+    case BLE_GAP_EVENT_ENC_CHANGE:
+        if (event->enc_change.status == 0) {
+            ESP_LOGI(TAG, "encryption established for conn %u",
+                     event->enc_change.conn_handle);
+            bmu_ui_hide_passkey();
+            bmu_ble_hmac_derive_for_conn(event->enc_change.conn_handle);
+        } else {
+            ESP_LOGW(TAG, "encryption change failed: status=%d",
+                     event->enc_change.status);
+        }
         break;
 
     default:
@@ -150,6 +186,17 @@ esp_err_t bmu_ble_init(void) {
     ble_hs_cfg.sync_cb         = ble_on_sync;
     ble_hs_cfg.reset_cb        = ble_on_reset;
     ble_hs_cfg.store_status_cb = ble_store_util_status_rr;
+
+    /* Phase 19: Secure Connections pairing — display-only passkey */
+    ble_hs_cfg.sm_bonding       = 1;
+    ble_hs_cfg.sm_mitm          = 1;
+    ble_hs_cfg.sm_sc            = 1;
+    ble_hs_cfg.sm_our_key_dist  = BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID;
+    ble_hs_cfg.sm_their_key_dist = BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID;
+    ble_hs_cfg.sm_io_cap        = BLE_HS_IO_DISPLAY_ONLY;
+
+    /* Phase 19: audit log init */
+    bmu_ble_audit_init();
 
     /* GAP + GATT mandatory services */
     ble_svc_gap_init();

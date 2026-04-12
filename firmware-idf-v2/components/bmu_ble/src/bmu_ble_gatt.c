@@ -1,6 +1,7 @@
 // firmware-idf-v2/components/bmu_ble/src/bmu_ble_gatt.c
 //
 // Phase 18 : GATT services — Battery (F00D0001), System (F00D0002), Config (F00D0004).
+// Phase 19 : Control Service (F00D0003) — write-only, encrypted+authenticated.
 // All characteristics are read-only + notify (Battery/System).
 
 #include <string.h>
@@ -13,6 +14,7 @@
 #include "os/os_mbuf.h"
 
 #include "bmu_core.h"
+#include "bmu_ble_control.h"
 
 static const char *TAG = "bmu-ble-gatt";
 
@@ -21,6 +23,10 @@ static struct BmuCore *s_core = NULL;
 
 void bmu_ble_gatt_set_core(struct BmuCore *core) {
     s_core = core;
+}
+
+struct BmuCore *bmu_ble_gatt_get_core(void) {
+    return s_core;
 }
 
 /* ---- Extern peer tracking from bmu_ble.c ---- */
@@ -38,6 +44,7 @@ extern const uint16_t *bmu_ble_get_peer_handles(void);
 /* Service UUIDs */
 static const ble_uuid128_t svc_battery_uuid = BMU_UUID128(0x00, 0x01);  /* F00D0001 */
 static const ble_uuid128_t svc_system_uuid  = BMU_UUID128(0x00, 0x02);  /* F00D0002 */
+static const ble_uuid128_t svc_control_uuid = BMU_UUID128(0x00, 0x03);  /* F00D0003 */
 static const ble_uuid128_t svc_config_uuid  = BMU_UUID128(0x00, 0x04);  /* F00D0004 */
 
 /* Battery characteristic UUIDs: F00D0010..F00D001F */
@@ -54,6 +61,9 @@ static const ble_uuid128_t chr_bat_uuid[MAX_BATTERIES] = {
 
 /* System characteristic UUID: F00D0020 */
 static const ble_uuid128_t chr_sys_uuid = BMU_UUID128(0x00, 0x20);
+
+/* Control characteristic UUID: F00D0030 */
+static const ble_uuid128_t chr_ctrl_uuid = BMU_UUID128(0x00, 0x30);
 
 /* Config characteristic UUID: F00D0040 */
 static const ble_uuid128_t chr_cfg_uuid = BMU_UUID128(0x00, 0x40);
@@ -152,6 +162,18 @@ static const struct ble_gatt_chr_def system_chars[] = {
     { 0 }
 };
 
+static const struct ble_gatt_chr_def control_chars[] = {
+    {
+        .uuid = &chr_ctrl_uuid.u,
+        .access_cb = bmu_ble_control_write_cb,
+        .arg = NULL,
+        .val_handle = NULL,
+        .flags = BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_WRITE_ENC
+               | BLE_GATT_CHR_F_WRITE_AUTHEN,
+    },
+    { 0 }
+};
+
 static const struct ble_gatt_chr_def config_chars[] = {
     {
         .uuid = &chr_cfg_uuid.u,
@@ -177,6 +199,11 @@ static const struct ble_gatt_svc_def s_gatt_svcs[] = {
     },
     {
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
+        .uuid = &svc_control_uuid.u,
+        .characteristics = control_chars,
+    },
+    {
+        .type = BLE_GATT_SVC_TYPE_PRIMARY,
         .uuid = &svc_config_uuid.u,
         .characteristics = config_chars,
     },
@@ -198,7 +225,7 @@ void bmu_ble_gatt_init(void) {
         return;
     }
 
-    ESP_LOGI(TAG, "GATT services registered (Battery/System/Config)");
+    ESP_LOGI(TAG, "GATT services registered (Battery/System/Control/Config)");
 }
 
 /* ---- Notify all ---- */
