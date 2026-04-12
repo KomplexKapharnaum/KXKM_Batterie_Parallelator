@@ -127,7 +127,7 @@ static int ble_gap_event_handler(struct ble_gap_event *event, void *arg) {
         if (event->passkey.params.action == BLE_SM_IOACT_DISP) {
             struct ble_sm_io pkey = {.action = BLE_SM_IOACT_DISP};
             pkey.passkey = esp_random() % 1000000;
-            ESP_LOGI(TAG, "passkey: %06lu", (unsigned long)pkey.passkey);
+            ESP_LOGI(TAG, "passkey displayed on screen for conn %u", event->passkey.conn_handle);
             bmu_ui_show_passkey(pkey.passkey);
             ble_sm_inject_io(event->passkey.conn_handle, &pkey);
         }

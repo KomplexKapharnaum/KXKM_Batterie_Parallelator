@@ -63,7 +63,13 @@ static conn_ctrl_state_t *find_or_alloc_state(uint16_t conn_handle) {
     for (int i = 0; i < CTRL_MAX_CONN; i++) {
         if (!s_conn_states[i].active) {
             s_conn_states[i].conn_handle = conn_handle;
-            s_conn_states[i].last_nonce = 0;
+            /* Load persisted nonce for this peer (anti-replay across reboot) */
+            struct ble_gap_conn_desc _desc;
+            if (ble_gap_conn_find(conn_handle, &_desc) == 0) {
+                s_conn_states[i].last_nonce = bmu_ble_hmac_load_nonce(&_desc.peer_ota_addr);
+            } else {
+                s_conn_states[i].last_nonce = 0;
+            }
             s_conn_states[i].token_bucket = TOKEN_BUCKET_MAX;
             s_conn_states[i].last_refill_us = (uint64_t)esp_timer_get_time();
             s_conn_states[i].active = true;
