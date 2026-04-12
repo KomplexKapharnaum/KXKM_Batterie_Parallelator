@@ -1,5 +1,5 @@
 idf_component_register(
-    SRCS "main.cpp" "task_bmu_core.cpp"
+    SRCS "main.cpp" "task_bmu_core.cpp" "task_wifi_mqtt.cpp"
     INCLUDE_DIRS "."
     REQUIRES
         driver
@@ -14,6 +14,12 @@ idf_component_register(
         bmu_soh
         bmu_sd_log
         esp_hw_support
+        bmu_wifi
+        bmu_mqtt
+        esp_wifi
+        esp_netif
+        esp_event
+        mqtt
 )
 
 # Version projet injectée comme macro

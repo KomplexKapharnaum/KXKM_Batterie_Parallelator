@@ -48,6 +48,22 @@ esp_err_t bmu_sd_log_append(const struct BmuSnapshotC *snap);
 // snapshot du core.
 void task_sd_log_start(struct BmuCore *core);
 
+// --- Replay cursor API (Phase 16) ---
+
+typedef struct {
+    char path[128];
+    size_t file_size;
+} bmu_sd_log_nosync_entry_t;
+
+// List NOSYNC files in log dir. Returns count (max `max_entries`).
+int bmu_sd_log_list_nosync(bmu_sd_log_nosync_entry_t *out, int max_entries);
+
+// Rename file: remove -NOSYNC suffix (marks as synced).
+esp_err_t bmu_sd_log_mark_synced(const char *nosync_path);
+
+// Append a raw string line (used by MQTT to also log to SD).
+esp_err_t bmu_sd_log_append_raw(const char *data, size_t len);
+
 #ifdef __cplusplus
 }
 #endif

@@ -29,6 +29,7 @@ extern "C" {
 #include "bmu_soh.h"
 
 #include "task_bmu_core.h"
+#include "task_wifi_mqtt.h"
 
 static const char *TAG = "bmu-v2";
 
@@ -189,6 +190,9 @@ extern "C" void app_main(void) {
     // Phase 15 -- secondary tasks on APP_CPU
     task_soh_start(s_core);
     task_sd_log_start(s_core);
+
+    // Phase 16 -- Wi-Fi STA + MQTT telemetry + SD replay
+    task_wifi_mqtt_start(s_core);
 
     // app_main reste en idle et log la heap toutes les 10 s
     while (true) {

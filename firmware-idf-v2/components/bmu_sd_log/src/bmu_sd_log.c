@@ -317,3 +317,66 @@ void task_sd_log_start(struct BmuCore *core)
     ESP_LOGI(TAG, "task_sd_log created handle=%p pinned APP_CPU prio=%d",
              (void *)h, TASK_PRIO_VAL);
 }
+
+// --- Replay cursor API (Phase 16) ---
+
+int bmu_sd_log_list_nosync(bmu_sd_log_nosync_entry_t *out, int max_entries)
+{
+    if (!s_ready || out == NULL) return 0;
+    DIR *d = opendir(s_log_dir);
+    if (!d) return 0;
+    int count = 0;
+    struct dirent *e;
+    while ((e = readdir(d)) != NULL && count < max_entries) {
+        if (strstr(e->d_name, "-NOSYNC.lp") == NULL) continue;
+        char tmp[320];
+        snprintf(tmp, sizeof(tmp), "%s/%s", s_log_dir, e->d_name);
+        strncpy(out[count].path, tmp, sizeof(out[count].path) - 1);
+        out[count].path[sizeof(out[count].path) - 1] = '\0';
+        struct stat st;
+        if (stat(out[count].path, &st) == 0) {
+            out[count].file_size = st.st_size;
+        }
+        count++;
+    }
+    closedir(d);
+    return count;
+}
+
+esp_err_t bmu_sd_log_mark_synced(const char *nosync_path)
+{
+    // Replace "-NOSYNC.lp" with ".lp"
+    char synced[128];
+    strncpy(synced, nosync_path, sizeof(synced) - 1);
+    synced[sizeof(synced) - 1] = '\0';
+    char *suffix = strstr(synced, "-NOSYNC.lp");
+    if (!suffix) return ESP_ERR_INVALID_ARG;
+    strcpy(suffix, ".lp");
+    if (rename(nosync_path, synced) != 0) {
+        ESP_LOGE(TAG, "rename %s -> %s failed", nosync_path, synced);
+        return ESP_FAIL;
+    }
+    ESP_LOGI(TAG, "synced: %s", synced);
+    return ESP_OK;
+}
+
+esp_err_t bmu_sd_log_append_raw(const char *data, size_t len)
+{
+    if (!s_ready || s_current_fp == NULL || data == NULL) return ESP_ERR_INVALID_STATE;
+    size_t written = fwrite(data, 1, len, s_current_fp);
+    if (written != len) return ESP_FAIL;
+    // Add newline if not present
+    if (len > 0 && data[len - 1] != '\n') {
+        fputc('\n', s_current_fp);
+        s_current_bytes += 1;
+    }
+    s_current_bytes += written;
+    fflush(s_current_fp);
+    if (s_current_bytes >= BMU_SD_LOG_FILE_BYTES) {
+        fclose(s_current_fp);
+        s_current_fp = NULL;
+        enforce_size_cap();
+        open_new_file();
+    }
+    return ESP_OK;
+}

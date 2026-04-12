@@ -1,0 +1,5 @@
+key,type,encoding,value
+bmu,namespace,,
+wifi_ssid,data,string,KXKM-2.4G
+wifi_psk,data,string,REPLACE_ME
+mqtt_uri,data,string,mqtt://kxkm-ai:1883
