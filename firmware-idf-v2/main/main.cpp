@@ -78,6 +78,31 @@ static void init_display_and_splash(void) {
     ESP_LOGI(TAG, "Splash displayed");
 }
 
+// SoH FPNN v3 normalization constants extracted from models/fpnn_soh.pt
+// (ckpt['feature_means'] and ckpt['feature_stds']).
+// Feature order:
+//   0  V_mean    1  V_std    2  I_mean    3  I_std
+//   4  dV_dt     5  dI_dt    6  ah_cons   7  ah_charge
+//   8  V_min     9  V_max   10  I_max    11  samples   12  R_internal
+//
+// These REPLACE the previously-hardcoded (and incorrect) FEAT_MEANS/STDS in
+// bmu_soh.cpp, which did not match any known checkpoint or training dataset
+// (see docs/superpowers/validation/runs/2026-04-12-phase15-feat-norm-audit.md).
+//
+// If fpnn_soh_v3_int8.tflite is re-trained, re-extract via:
+//   python -c "import torch; c=torch.load('models/fpnn_soh.pt', weights_only=False);
+//              print(c['feature_means']); print(c['feature_stds'])"
+static const float SOH_FEAT_MEANS[13] = {
+    27.3381f,  0.2070f,  0.2388f,  0.3542f,
+    -0.00098f, 0.00118f, 0.00676f, 0.00288f,
+    27.1311f, 27.5451f,  0.9603f, 47.1759f, 0.0585f
+};
+static const float SOH_FEAT_STDS[13] = {
+    1.7098f,   0.7784f,  1.1714f,  1.4683f,
+    0.0525f,   0.0964f,  0.0161f,  0.0892f,
+    1.8728f,   1.8845f,  2.0658f,  1.5550f, 0.0726f
+};
+
 static void init_bmu_core(void) {
     BmuConfigC cfg = {};
     cfg.umin_mv             = 24000;
@@ -87,6 +112,10 @@ static void init_bmu_core(void) {
     cfg.nb_switch_max       = 5;
     cfg.reconnect_delay_ms  = 10000;
     cfg.tick_period_ms      = 200;
+    // Propagate SoH normalization so that bmu_core_get_soh_norm() returns the
+    // real checkpoint values instead of the Rust Config::default() identity.
+    memcpy(cfg.soh_feat_means, SOH_FEAT_MEANS, sizeof(SOH_FEAT_MEANS));
+    memcpy(cfg.soh_feat_stds,  SOH_FEAT_STDS,  sizeof(SOH_FEAT_STDS));
 
     s_core = bmu_core_init(&cfg);
     if (s_core == nullptr) {
@@ -139,7 +168,7 @@ extern "C" void app_main(void) {
     // Phase 15 -- TFLite Micro SOH
     ESP_LOGI(TAG, "init bmu_soh (heap=%u kB)",
              (unsigned)(esp_get_free_heap_size() / 1024));
-    esp_err_t soh_err = bmu_soh_init();
+    esp_err_t soh_err = bmu_soh_init(s_core);
     if (soh_err != ESP_OK) {
         ESP_LOGW(TAG, "bmu_soh_init failed: %s -- task_soh will be no-op",
                  esp_err_to_name(soh_err));

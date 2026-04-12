@@ -6,9 +6,10 @@
 
 #![allow(clippy::module_name_repetitions)]
 
-use bmu_types::{Battery, Config, Milliamps, Millivolts, Snapshot, System};
+use bmu_types::{Battery, Config, Milliamps, Millivolts, Snapshot, System, NUM_SOH_FEATURES};
 
-/// Mirror `C` de `Config`.
+/// Mirror `C` de `Config`. Inclut les normalisations `SoH` pour le modèle
+/// `TFLite` Micro (cf `fpnn_soh_v3_int8.tflite`).
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct BmuConfigC {
@@ -19,6 +20,10 @@ pub struct BmuConfigC {
     pub nb_switch_max: u8,
     pub reconnect_delay_ms: u32,
     pub tick_period_ms: u32,
+    /// Moyennes des 13 features `SoH` (normalisation `TFLite`). Default = 0.0.
+    pub soh_feat_means: [f32; 13],
+    /// Écarts-type des 13 features `SoH` (normalisation `TFLite`). Default = 1.0.
+    pub soh_feat_stds: [f32; 13],
 }
 
 impl From<&BmuConfigC> for Config {
@@ -32,6 +37,8 @@ impl From<&BmuConfigC> for Config {
             nb_switch_max: c.nb_switch_max,
             reconnect_delay_ms: c.reconnect_delay_ms,
             tick_period_ms: c.tick_period_ms,
+            soh_feat_means: c.soh_feat_means,
+            soh_feat_stds: c.soh_feat_stds,
         }
     }
 }
@@ -47,9 +54,14 @@ impl From<&Config> for BmuConfigC {
             nb_switch_max: c.nb_switch_max,
             reconnect_delay_ms: c.reconnect_delay_ms,
             tick_period_ms: c.tick_period_ms,
+            soh_feat_means: c.soh_feat_means,
+            soh_feat_stds: c.soh_feat_stds,
         }
     }
 }
+
+// Compile-time sanity : verify the FFI struct uses 13 features (matches Rust).
+const _: () = assert!(NUM_SOH_FEATURES == 13);
 
 /// Dump brut des registres `INA`/`TCA` lus par la couche C avant d'appeler `tick()`.
 #[repr(C)]
@@ -184,6 +196,11 @@ pub enum BmuCommandKind {
 }
 
 /// Mirror `C` d'une commande entrante (`BLE`, `UI`, auto).
+///
+/// **Note Phase 15.1** : le `payload` est passé de `[u8; 32]` à `[u8; 256]`
+/// pour absorber la nouvelle taille de `BmuConfigC` (qui inclut maintenant
+/// les 26 floats de normalisation `SoH`). Cet élargissement est compatible
+/// car Phase 19 (`BLE` Control `SetConfig`) n'a pas encore shipped.
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct BmuCommandC {
@@ -195,7 +212,7 @@ pub struct BmuCommandC {
     /// - `SetConfig` : `payload[0..size_of::<BmuConfigC>()]` = `BmuConfigC` packed
     ///   (vérification statique dans le test `setconfig_payload_fits`)
     /// - `TopologyChanged` : `payload[0]` = `n_ina`, `payload[1]` = `n_tca`
-    pub payload: [u8; 32],
+    pub payload: [u8; 256],
 }
 
 /// Nombre maximum de batteries supporté (miroir de `bmu_types::MAX_BATTERIES`).
@@ -271,15 +288,47 @@ mod tests {
         assert_ne!(BMU_ERR_INVALID_CONFIG, BMU_ERR_INVALID_INDEX);
     }
 
-    /// Garantit que `BmuConfigC` tient dans `BmuCommandC::payload[u8;32]`.
-    /// Si ce test casse, un champ a été ajouté à `BmuConfigC` et la sérialisation
-    /// via `SetConfig` silencieusement tronquera.
+    /// Garantit que `BmuConfigC` tient dans `BmuCommandC::payload[u8;256]`.
+    /// Si ce test casse, un champ a été ajouté à `BmuConfigC` qui dépasse
+    /// le payload `SetConfig` → soit shrink `BmuConfigC`, soit grow le payload.
     #[test]
     fn setconfig_payload_fits() {
         assert!(
-            core::mem::size_of::<BmuConfigC>() <= 32,
-            "BmuConfigC ({} bytes) ne tient pas dans payload [u8;32]",
+            core::mem::size_of::<BmuConfigC>() <= 256,
+            "BmuConfigC ({} bytes) ne tient pas dans payload [u8;256]",
             core::mem::size_of::<BmuConfigC>()
         );
+    }
+
+    /// Garantit que les arrays `SoH` sont exactement 13 elements de chaque côté.
+    #[test]
+    fn soh_norm_arrays_have_13_elements() {
+        let c = BmuConfigC::from(&Config::default());
+        assert_eq!(c.soh_feat_means.len(), 13);
+        assert_eq!(c.soh_feat_stds.len(), 13);
+        // Default identity : means = 0.0, stds = 1.0
+        for v in &c.soh_feat_means {
+            assert_eq!(v.to_bits(), 0.0_f32.to_bits());
+        }
+        for v in &c.soh_feat_stds {
+            assert_eq!(v.to_bits(), 1.0_f32.to_bits());
+        }
+    }
+
+    /// Roundtrip avec valeurs de `SoH` non-default.
+    #[test]
+    fn config_roundtrip_with_soh_norm() {
+        let mut rust = Config::default();
+        rust.soh_feat_means = [
+            27.3381, 0.2070, 0.2388, 0.3542, -0.00098, 0.00118,
+            0.00676, 0.00288, 27.1311, 27.5451, 0.9603, 47.1759, 0.0585,
+        ];
+        rust.soh_feat_stds = [
+            1.7098, 0.7784, 1.1714, 1.4683, 0.0525, 0.0964,
+            0.0161, 0.0892, 1.8728, 1.8845, 2.0658, 1.5550, 0.0726,
+        ];
+        let c: BmuConfigC = (&rust).into();
+        let back: Config = (&c).into();
+        assert_eq!(back, rust);
     }
 }

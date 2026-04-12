@@ -62,23 +62,31 @@ static uint8_t *s_arena = nullptr;
 static tflite::MicroInterpreter *s_interpreter = nullptr;
 static bool s_ready = false;
 
-// Constantes normalisation reprises de v1 (NUM_FEATURES = 13).
-// Utilisees seulement si le modele expose 13 features int8 quantises.
+// Normalisations SoH (13 features) chargees au runtime depuis bmu_core_get_soh_norm().
+// Initialisees a identite (means=0, stds=1) -- ecrasees par bmu_soh_init(core).
 #define NUM_FEATURES 13
-static const float FEAT_MEANS[NUM_FEATURES] = {
-    27.3286f, 0.3091f, 0.0820f, 0.4863f, -0.0699f, 0.0025f,
-    0.1654f, 0.2979f, 27.0195f, 27.6376f, 0.9870f, 59.7926f, 0.5576f
-};
-static const float FEAT_STDS[NUM_FEATURES] = {
-    1.5719f, 0.6584f, 0.8626f, 1.4825f, 0.5787f, 0.6206f,
-    6.2368f, 5.2352f, 1.6740f, 1.7339f, 1.8827f, 21.1871f, 1.5358f
-};
+static float s_feat_means[NUM_FEATURES] = {0};
+static float s_feat_stds[NUM_FEATURES]  = {1,1,1,1,1,1,1,1,1,1,1,1,1};
 
 bool bmu_soh_is_ready(void) { return s_ready; }
 
-esp_err_t bmu_soh_init(void)
+esp_err_t bmu_soh_init(struct BmuCore *core)
 {
     if (s_ready) return ESP_OK;
+
+    // Charge les normalisations SoH depuis la config Rust du core.
+    if (core != nullptr) {
+        int32_t rc = bmu_core_get_soh_norm(core, s_feat_means, s_feat_stds);
+        if (rc == 0) {
+            ESP_LOGI(TAG, "SoH norms loaded from core: means[0]=%.4f stds[0]=%.4f",
+                     (double)s_feat_means[0], (double)s_feat_stds[0]);
+        } else {
+            ESP_LOGW(TAG, "bmu_core_get_soh_norm failed (%ld), using identity norms",
+                     (long)rc);
+        }
+    } else {
+        ESP_LOGW(TAG, "core==NULL, SoH norms = identity (no normalization)");
+    }
 
     const size_t model_size = (size_t)(fpnn_model_end - fpnn_model_start);
     ESP_LOGI(TAG, "loading TFLite model: %u bytes (fpnn_soh_v3_int8)",
@@ -183,9 +191,9 @@ static int infer_battery(const BmuBatteryC *bat, uint8_t *out_pct, uint32_t *out
     // Normalisation
     float normed[NUM_FEATURES];
     for (int f = 0; f < NUM_FEATURES; f++) {
-        float std = FEAT_STDS[f];
+        float std = s_feat_stds[f];
         if (std < 1e-6f) std = 1.0f;
-        normed[f] = (feats[f] - FEAT_MEANS[f]) / std;
+        normed[f] = (feats[f] - s_feat_means[f]) / std;
     }
 
     if (in->type == kTfLiteInt8) {

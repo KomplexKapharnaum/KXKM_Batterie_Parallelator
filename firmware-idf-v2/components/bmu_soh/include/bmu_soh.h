@@ -26,9 +26,11 @@ extern "C" {
 struct BmuCore;
 
 // Init TFLite Micro : charge le modele embarque, alloue les tenseurs.
+// Charge les normalisations SoH depuis la config du core Rust (13 features).
+// Si core==NULL, les normalisations restent a identite (means=0, stds=1).
 // Idempotent. Si OOM ou modele invalide, log + retourne ESP_FAIL et le
 // task_soh suivant se desactivera (no-op tick).
-esp_err_t bmu_soh_init(void);
+esp_err_t bmu_soh_init(struct BmuCore *core);
 
 // True si bmu_soh_init() a reussi.
 bool bmu_soh_is_ready(void);

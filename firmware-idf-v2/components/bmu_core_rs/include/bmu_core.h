@@ -46,7 +46,8 @@
 struct BmuCore;
 
 /**
- * Mirror `C` de `Config`.
+ * Mirror `C` de `Config`. Inclut les normalisations `SoH` pour le modèle
+ * `TFLite` Micro (cf `fpnn_soh_v3_int8.tflite`).
  */
 struct BmuConfigC {
   uint32_t umin_mv;
@@ -56,6 +57,14 @@ struct BmuConfigC {
   uint8_t nb_switch_max;
   uint32_t reconnect_delay_ms;
   uint32_t tick_period_ms;
+  /**
+   * Moyennes des 13 features `SoH` (normalisation `TFLite`). Default = 0.0.
+   */
+  float soh_feat_means[13];
+  /**
+   * Écarts-type des 13 features `SoH` (normalisation `TFLite`). Default = 1.0.
+   */
+  float soh_feat_stds[13];
 };
 
 /**
@@ -121,6 +130,11 @@ struct BmuActionsC {
 
 /**
  * Mirror `C` d'une commande entrante (`BLE`, `UI`, auto).
+ *
+ * **Note Phase 15.1** : le `payload` est passé de `[u8; 32]` à `[u8; 256]`
+ * pour absorber la nouvelle taille de `BmuConfigC` (qui inclut maintenant
+ * les 26 floats de normalisation `SoH`). Cet élargissement est compatible
+ * car Phase 19 (`BLE` Control `SetConfig`) n'a pas encore shipped.
  */
 struct BmuCommandC {
   /**
@@ -135,7 +149,7 @@ struct BmuCommandC {
    *   (vérification statique dans le test `setconfig_payload_fits`)
    * - `TopologyChanged` : `payload[0]` = `n_ina`, `payload[1]` = `n_tca`
    */
-  uint8_t payload[32];
+  uint8_t payload[256];
 };
 
 #ifdef __cplusplus
@@ -207,6 +221,25 @@ int32_t bmu_core_get_cached_snapshot(const struct BmuCore *core,
  * Les deux pointeurs doivent être valides et non-`NULL`.
  */
 int32_t bmu_core_set_config(struct BmuCore *core, const struct BmuConfigC *cfg);
+
+/**
+ * Lit les normalisations `SoH` (13 means + 13 stds) depuis la config courante
+ * du core. Utilisé par le composant `bmu_soh` C pour pré-normaliser les
+ * features avant l'inférence `TFLite` Micro (`fpnn_soh_v3_int8.tflite`).
+ *
+ * Si le caller n'a jamais setté les valeurs via `bmu_core_set_config` ou
+ * `bmu_core_init`, les valeurs retournées sont celles de `Config::default()`
+ * (means=0.0, stds=1.0 = normalisation identité).
+ *
+ * # Safety
+ * - `core` doit être un handle valide retourné par `bmu_core_init`.
+ * - `out_means` doit pointer sur au moins 13 `f32` writable et alignés.
+ * - `out_stds` idem.
+ *
+ * # Errors
+ * Retourne `BMU_ERR_NULL` si un pointeur est null, `BMU_OK` sinon.
+ */
+int32_t bmu_core_get_soh_norm(const struct BmuCore *core, float *out_means, float *out_stds);
 
 /**
  * Sérialise la batterie `idx` en 24 bytes packed big-endian pour la characteristic `BLE`.

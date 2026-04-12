@@ -5,7 +5,11 @@ use crate::Config;
 
 /// Commande vers le core. Variants correspondent aux commandes BLE (§7.4)
 /// + commandes internes (hotplug, SOH update).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+///
+/// **Note** : `Eq` n'est PAS dérivé parce que le variant `SetConfig(Config)`
+/// contient des `[f32; 13]` (normalisation `SoH`) qui ne sont pas `Eq`. Seul
+/// `PartialEq` est disponible (bit-équivalence des floats).
+#[derive(Debug, Clone, Copy, PartialEq)]
 #[repr(u8)]
 pub enum Command {
     /// Pas de commande (slot vide).

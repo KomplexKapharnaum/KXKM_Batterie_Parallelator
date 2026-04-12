@@ -11,7 +11,7 @@ pub mod units;
 
 pub use action::Actions;
 pub use command::Command;
-pub use config::{Config, ConfigError};
+pub use config::{Config, ConfigError, NUM_SOH_FEATURES};
 pub use snapshot::{Battery, Snapshot, System, MAX_BATTERIES};
 pub use state::{BatteryState, LatchReason, OfflineReason};
 pub use units::{MilliampHours, Milliamps, Milliohms, Millivolts};

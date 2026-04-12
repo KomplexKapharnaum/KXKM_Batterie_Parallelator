@@ -2,6 +2,10 @@
 
 use crate::{Milliamps, Millivolts};
 
+/// Nombre de features en entrée du modèle `SoH` `TFLite` Micro (`FPNN` v3).
+/// Doit rester synchronisé avec `FEATURE_COLS` dans `scripts/ml/train_fpnn.py`.
+pub const NUM_SOH_FEATURES: usize = 13;
+
 /// Erreurs de validation de config. Jamais de texte runtime (`no_std` no alloc).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
@@ -28,7 +32,13 @@ pub enum ConfigError {
 
 /// Config runtime du core BMU. Valeurs défaut = spec `Kill_LIFE`
 /// `01_spec.md` F01-F08.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+///
+/// **Note `PartialEq`** : les arrays `soh_feat_means` / `soh_feat_stds` sont
+/// des `[f32; 13]` ; la comparaison utilise l'égalité bit-à-bit de `f32` (IEEE 754),
+/// pas `Eq` (les floats ne sont pas `Eq`). L'implémentation manuelle
+/// traite `NaN != NaN` mais ce n'est jamais un problème en pratique car la
+/// `Config::default()` et les valeurs runtime sont toujours finies.
+#[derive(Debug, Clone, Copy)]
 pub struct Config {
     /// Seuil de sous-tension (default 24000 mV).
     pub umin: Millivolts,
@@ -44,6 +54,28 @@ pub struct Config {
     pub reconnect_delay_ms: u32,
     /// Période de tick de la boucle protection (default 200 ms = 5 Hz).
     pub tick_period_ms: u32,
+    /// Moyennes des 13 features `SoH` pour normalisation `TFLite` Micro.
+    /// Default = identité (0.0) → pas de normalisation.
+    /// Valeurs réelles doivent correspondre au checkpoint `fpnn_soh_v3.pt`.
+    /// Cf doc `docs/superpowers/validation/runs/2026-04-12-phase15-feat-norm-audit.md`.
+    pub soh_feat_means: [f32; NUM_SOH_FEATURES],
+    /// Écarts-type des 13 features `SoH` pour normalisation `TFLite` Micro.
+    /// Default = identité (1.0) → division par 1 = pas de normalisation.
+    pub soh_feat_stds: [f32; NUM_SOH_FEATURES],
+}
+
+impl PartialEq for Config {
+    fn eq(&self, other: &Self) -> bool {
+        self.umin == other.umin
+            && self.umax == other.umax
+            && self.imax == other.imax
+            && self.vdiff_imbalance == other.vdiff_imbalance
+            && self.nb_switch_max == other.nb_switch_max
+            && self.reconnect_delay_ms == other.reconnect_delay_ms
+            && self.tick_period_ms == other.tick_period_ms
+            && self.soh_feat_means.iter().zip(other.soh_feat_means.iter()).all(|(a, b)| a.to_bits() == b.to_bits())
+            && self.soh_feat_stds.iter().zip(other.soh_feat_stds.iter()).all(|(a, b)| a.to_bits() == b.to_bits())
+    }
 }
 
 impl Default for Config {
@@ -56,6 +88,11 @@ impl Default for Config {
             nb_switch_max: 5,
             reconnect_delay_ms: 10_000,
             tick_period_ms: 200,
+            // Identité : (x - 0) / 1 = x. Pas de normalisation si non configuré
+            // par le caller. Le caller C doit setter des valeurs réelles avant
+            // de démarrer `task_soh` pour obtenir une inférence SoH correcte.
+            soh_feat_means: [0.0_f32; NUM_SOH_FEATURES],
+            soh_feat_stds: [1.0_f32; NUM_SOH_FEATURES],
         }
     }
 }

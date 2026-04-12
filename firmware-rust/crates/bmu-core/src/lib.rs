@@ -252,6 +252,47 @@ pub unsafe extern "C" fn bmu_core_set_config(core: *mut BmuCore, cfg: *const Bmu
     }
 }
 
+/// Lit les normalisations `SoH` (13 means + 13 stds) depuis la config courante
+/// du core. Utilisé par le composant `bmu_soh` C pour pré-normaliser les
+/// features avant l'inférence `TFLite` Micro (`fpnn_soh_v3_int8.tflite`).
+///
+/// Si le caller n'a jamais setté les valeurs via `bmu_core_set_config` ou
+/// `bmu_core_init`, les valeurs retournées sont celles de `Config::default()`
+/// (means=0.0, stds=1.0 = normalisation identité).
+///
+/// # Safety
+/// - `core` doit être un handle valide retourné par `bmu_core_init`.
+/// - `out_means` doit pointer sur au moins 13 `f32` writable et alignés.
+/// - `out_stds` idem.
+///
+/// # Errors
+/// Retourne `BMU_ERR_NULL` si un pointeur est null, `BMU_OK` sinon.
+#[no_mangle]
+pub unsafe extern "C" fn bmu_core_get_soh_norm(
+    core: *const BmuCore,
+    out_means: *mut f32,
+    out_stds: *mut f32,
+) -> i32 {
+    if core.is_null() || out_means.is_null() || out_stds.is_null() {
+        return BMU_ERR_NULL;
+    }
+    // SAFETY: pointeur vérifié non-null, caller garantit validité du handle.
+    let core = unsafe { &*core };
+    let cfg = core.config();
+
+    // SAFETY: caller garantit out_means pointe sur ≥13 f32 writable.
+    let means_slice =
+        unsafe { core::slice::from_raw_parts_mut(out_means, bmu_types::NUM_SOH_FEATURES) };
+    means_slice.copy_from_slice(&cfg.soh_feat_means);
+
+    // SAFETY: idem pour out_stds.
+    let stds_slice =
+        unsafe { core::slice::from_raw_parts_mut(out_stds, bmu_types::NUM_SOH_FEATURES) };
+    stds_slice.copy_from_slice(&cfg.soh_feat_stds);
+
+    BMU_OK
+}
+
 /// Sérialise la batterie `idx` en 24 bytes packed big-endian pour la characteristic `BLE`.
 /// Cf spec §7.2 layout.
 ///
