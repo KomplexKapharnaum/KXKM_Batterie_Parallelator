@@ -23,6 +23,7 @@
 #include "bmu_ble_control.h"
 #include "bmu_ble_hmac.h"
 #include "bmu_ble_audit.h"
+#include "bmu_ble_victron.h"
 #include "bmu_ui.h"
 
 static const char *TAG = "bmu-ble";
@@ -214,6 +215,9 @@ esp_err_t bmu_ble_init(void) {
 
     /* Register application GATT services */
     bmu_ble_gatt_init();
+
+    /* Phase 21: Victron SmartShunt emulation GATT service */
+    bmu_ble_victron_gatt_init();
 
     /* Start NimBLE host task on its own FreeRTOS task */
     nimble_port_freertos_init(nimble_host_task);

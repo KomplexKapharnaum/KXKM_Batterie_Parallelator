@@ -10,6 +10,7 @@
 
 extern "C" {
 #include "bmu_ble.h"
+#include "bmu_ble_victron.h"
 #include "bmu_core.h"
 }
 
@@ -36,8 +37,13 @@ static void task_ble_func(void *param) {
     vTaskDelay(pdMS_TO_TICKS(2000));
 
     ESP_LOGI(TAG, "BLE notify loop started (2 Hz)");
+    static int tick_count = 0;
     while (true) {
         bmu_ble_notify_all(core);
+        /* Phase 21: Victron Instant Readout at 1 Hz (every other tick) */
+        if (++tick_count % 2 == 0) {
+            bmu_ble_victron_adv_tick(core);
+        }
         vTaskDelay(pdMS_TO_TICKS(500));  /* 2 Hz */
     }
 }
