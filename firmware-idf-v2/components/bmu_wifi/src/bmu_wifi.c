@@ -115,3 +115,22 @@ bool bmu_wifi_is_connected(void)
     if (s_wifi_events == NULL) return false;
     return (xEventGroupGetBits(s_wifi_events) & BIT_CONNECTED) != 0;
 }
+
+esp_err_t bmu_wifi_set_creds(const char *ssid, const char *psk)
+{
+    nvs_handle_t h;
+    esp_err_t err = nvs_open("bmu", NVS_READWRITE, &h);
+    if (err != ESP_OK) return err;
+
+    err = nvs_set_str(h, "wifi_ssid", ssid);
+    if (err != ESP_OK) { nvs_close(h); return err; }
+
+    err = nvs_set_str(h, "wifi_psk", psk);
+    if (err != ESP_OK) { nvs_close(h); return err; }
+
+    err = nvs_commit(h);
+    nvs_close(h);
+
+    ESP_LOGI(TAG, "credentials stored in NVS (ssid='%s')", ssid);
+    return err;
+}

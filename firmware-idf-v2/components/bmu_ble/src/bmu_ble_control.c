@@ -25,6 +25,7 @@
 #include "bmu_ble_control.h"
 #include "bmu_ble_hmac.h"
 #include "bmu_ble_audit.h"
+#include "bmu_ble_wifi_prov.h"
 
 static const char *TAG = "bmu-ble-ctrl";
 
@@ -116,6 +117,12 @@ int bmu_ble_control_write_cb(uint16_t conn_handle, uint16_t attr_handle,
                               struct ble_gatt_access_ctxt *ctxt, void *arg) {
     (void)attr_handle;
     (void)arg;
+
+    /* Peek at first byte to detect v2 extended frame (WifiProv) */
+    uint8_t peek_cmd;
+    if (ble_hs_mbuf_to_flat(ctxt->om, &peek_cmd, 1, NULL) == 0 && peek_cmd == 0x08) {
+        return bmu_ble_wifi_prov_handle(conn_handle, ctxt);
+    }
 
     /* 1. Check encrypted + bonded */
     struct ble_gap_conn_desc desc;

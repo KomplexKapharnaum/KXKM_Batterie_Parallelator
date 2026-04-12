@@ -16,6 +16,10 @@ extern "C" {
 esp_err_t bmu_wifi_init(void);
 bool bmu_wifi_is_connected(void);
 
+// Write Wi-Fi credentials to NVS. Does NOT restart Wi-Fi.
+// Caller should reboot for changes to take effect.
+esp_err_t bmu_wifi_set_creds(const char *ssid, const char *psk);
+
 #ifdef __cplusplus
 }
 #endif
