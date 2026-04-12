@@ -1,5 +1,5 @@
 idf_component_register(
-    SRCS "main.cpp" "task_bmu_core.cpp" "task_wifi_mqtt.cpp"
+    SRCS "main.cpp" "task_bmu_core.cpp" "task_wifi_mqtt.cpp" "task_ui.cpp"
     INCLUDE_DIRS "."
     REQUIRES
         driver
@@ -16,6 +16,7 @@ idf_component_register(
         esp_hw_support
         bmu_wifi
         bmu_mqtt
+        bmu_ui
         esp_wifi
         esp_netif
         esp_event

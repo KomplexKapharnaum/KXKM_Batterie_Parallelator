@@ -30,6 +30,7 @@ extern "C" {
 
 #include "task_bmu_core.h"
 #include "task_wifi_mqtt.h"
+#include "task_ui.h"
 
 static const char *TAG = "bmu-v2";
 
@@ -193,6 +194,9 @@ extern "C" void app_main(void) {
 
     // Phase 16 -- Wi-Fi STA + MQTT telemetry + SD replay
     task_wifi_mqtt_start(s_core);
+
+    // Phase 17 -- LVGL 5 tabs display
+    task_ui_start(s_core);
 
     // app_main reste en idle et log la heap toutes les 10 s
     while (true) {
