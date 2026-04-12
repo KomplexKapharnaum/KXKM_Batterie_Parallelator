@@ -10,6 +10,7 @@
 
 #include "esp_log.h"
 #include "esp_mac.h"
+#include "esp_heap_caps.h"
 #include "esp_random.h"
 #include "nimble/nimble_port.h"
 #include "nimble/nimble_port_freertos.h"
@@ -177,9 +178,14 @@ static void ble_on_reset(int reason) {
 /* ---- Public API ---- */
 
 esp_err_t bmu_ble_init(void) {
+    ESP_LOGI(TAG, "heap before nimble: internal=%u total=%u",
+             (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
+             (unsigned)esp_get_free_heap_size());
     esp_err_t ret = nimble_port_init();
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "nimble_port_init failed: %s", esp_err_to_name(ret));
+        ESP_LOGE(TAG, "nimble_port_init failed: %s (internal_heap=%u)",
+                 esp_err_to_name(ret),
+                 (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
         return ret;
     }
 

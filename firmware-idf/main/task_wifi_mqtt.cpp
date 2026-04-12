@@ -23,6 +23,9 @@ static void task_body(void *arg)
     BmuCore *core = (BmuCore *)arg;
     ESP_LOGI(TAG, "task_wifi_mqtt starting");
 
+    // Wait for BLE controller to finish init (avoid HCI race)
+    vTaskDelay(pdMS_TO_TICKS(3000));
+
     esp_err_t err = bmu_wifi_init();
     if (err == ESP_ERR_NVS_NOT_FOUND) {
         ESP_LOGW(TAG, "no WiFi creds in NVS, waiting for BLE prov (Phase 20)");
