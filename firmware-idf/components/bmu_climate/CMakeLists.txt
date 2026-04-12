@@ -1,6 +1,5 @@
 idf_component_register(
-    SRCS "bmu_climate.cpp"
+    SRCS "src/bmu_climate.c"
     INCLUDE_DIRS "include"
-    REQUIRES driver esp_timer
-    PRIV_REQUIRES bmu_i2c
+    REQUIRES esp_timer
 )

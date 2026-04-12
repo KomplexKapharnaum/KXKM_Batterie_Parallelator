@@ -1,6 +1,5 @@
 idf_component_register(
-    SRCS "bmu_ble_victron.cpp"
+    SRCS "src/fleet_agg.c" "src/bmu_ble_victron.c" "src/instant_readout.c"
     INCLUDE_DIRS "include"
-    REQUIRES bmu_protection bmu_config bmu_vedirect bt esp_timer
-    PRIV_REQUIRES mbedtls
+    REQUIRES bt mbedtls nvs_flash bmu_core_rs log
 )

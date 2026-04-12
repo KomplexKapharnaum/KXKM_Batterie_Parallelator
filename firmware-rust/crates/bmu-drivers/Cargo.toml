@@ -1,0 +1,16 @@
+[package]
+name = "bmu-drivers"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+bmu-types = { path = "../bmu-types" }
+bmu-i2c = { path = "../bmu-i2c" }
+bitflags = { workspace = true }
+
+[dev-dependencies]
+bmu-test-fixtures = { path = "../bmu-test-fixtures" }
+
+[lints]
+workspace = true

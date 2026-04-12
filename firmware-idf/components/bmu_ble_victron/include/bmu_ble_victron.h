@@ -1,16 +1,21 @@
+// firmware-idf-v2/components/bmu_ble_victron/include/bmu_ble_victron.h
+//
+// Phase 21 : emulation BLE Victron SmartShunt — GATT + Instant Readout.
+
 #pragma once
 #include "esp_err.h"
-#include "bmu_protection.h"
-#include "bmu_battery_manager.h"
-#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-esp_err_t bmu_ble_victron_init(bmu_protection_ctx_t *prot,
-                               bmu_battery_manager_t *mgr,
-                               uint8_t nb_ina);
+struct BmuCore;
+
+// Register Victron GATT service 0x6597. Must be called before NimBLE starts.
+int bmu_ble_victron_gatt_init(void);
+
+// Update Instant Readout advertising data. Called at 1 Hz from task_ble.
+void bmu_ble_victron_adv_tick(struct BmuCore *core);
 
 #ifdef __cplusplus
 }

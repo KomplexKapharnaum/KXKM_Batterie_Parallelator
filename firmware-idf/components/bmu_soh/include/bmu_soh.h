@@ -1,48 +1,43 @@
+// firmware-idf-v2/components/bmu_soh/include/bmu_soh.h
+//
+// Phase 15 -- wrapper TFLite Micro autour de fpnn_soh_v3_int8.tflite.
+//
+// API minimale (boot bench Phase 15) :
+//   - bmu_soh_init() : alloue tensor arena, charge le modele.
+//   - task_soh_start(core) : spawn une tache pinned APP_CPU prio 2 qui
+//     toutes les 60 s lit `bmu_core_get_cached_snapshot()`, infere SOH par
+//     batterie, log le resultat. La push-back via `bmu_core_command(UpdateSoh)`
+//     est differee a Phase 16+ (besoin d'un mutex inter-tache).
+//
+// Sur le bench Phase 15 (1 INA seul, n_bat=0), aucune inference n'est faite
+// par tick mais l'init TFLite est valide via un dry-run sur features zero
+// au boot pour confirmer que la chaine de chargement / arena tient.
+
 #pragma once
 
+#include <stdint.h>
+
 #include "esp_err.h"
-#include "bmu_battery_manager.h"
-#include "bmu_protection.h"
-#include "bmu_config.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/**
- * @brief Initialize TFLite Micro interpreter for SOH prediction.
- * Call once after bmu_battery_manager_start().
- */
-esp_err_t bmu_soh_init(void);
+struct BmuCore;
 
-/**
- * @brief Run SOH inference for one battery channel.
- *
- * Reads V, I, Ah from battery_manager/protection, builds the 13-feature
- * vector, normalises, runs TFLite INT8 inference.
- *
- * @param mgr   Battery manager (for Ah, INA devices)
- * @param prot  Protection context (for cached voltages)
- * @param idx   Battery channel index (0..nb_ina-1)
- * @return SOH value 0.0-1.0, or -1.0 on error
- */
-float bmu_soh_predict(bmu_battery_manager_t *mgr,
-                      bmu_protection_ctx_t *prot,
-                      int idx);
+// Init TFLite Micro : charge le modele embarque, alloue les tenseurs.
+// Charge les normalisations SoH depuis la config du core Rust (13 features).
+// Si core==NULL, les normalisations restent a identite (means=0, stds=1).
+// Idempotent. Si OOM ou modele invalide, log + retourne ESP_FAIL et le
+// task_soh suivant se desactivera (no-op tick).
+esp_err_t bmu_soh_init(struct BmuCore *core);
 
-/**
- * @brief Run SOH inference for all batteries, store in internal cache.
- * Called periodically (e.g. every 10s) from main loop or timer.
- */
-void bmu_soh_update_all(bmu_battery_manager_t *mgr,
-                        bmu_protection_ctx_t *prot,
-                        int nb_ina);
+// True si bmu_soh_init() a reussi.
+bool bmu_soh_is_ready(void);
 
-/**
- * @brief Get cached SOH value for a battery (from last update_all).
- * @return SOH 0.0-1.0, or -1.0 if not yet computed
- */
-float bmu_soh_get_cached(int idx);
+// Spawne la tache periodique 60 s. Lit le snapshot cache du core Rust
+// passe en argument.
+void task_soh_start(struct BmuCore *core);
 
 #ifdef __cplusplus
 }

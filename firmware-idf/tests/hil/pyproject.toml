@@ -1,0 +1,17 @@
+[project]
+name = "kxkm-bmu-hil"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pyserial>=3.5",
+    "paho-mqtt>=2.0",
+    "bleak>=0.22",
+    "reportlab>=4.1",
+    "cryptography>=42.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["."]

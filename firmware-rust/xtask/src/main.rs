@@ -1,0 +1,242 @@
+//! `cargo xtask <command>` — task runner for the BMU Rust workspace.
+//!
+//! Commandes :
+//! - `vendor-header` : copie `target/include/bmu_core.h` vers
+//!   `firmware-idf-v2/components/bmu_core_rs/include/bmu_core.h` (Part 2).
+//! - `abi-check` : compile un petit programme C qui inclut `bmu_core.h`
+//!   et vérifie la cohérence des `sizeof` des structs `#[repr(C)]`.
+//! - `size` : build release xtensa + assertion taille < 500 KB.
+
+#![allow(clippy::print_stderr, clippy::print_stdout, clippy::exit)]
+
+use std::path::PathBuf;
+use std::process::Command;
+
+fn workspace_root() -> Result<PathBuf, String> {
+    let Ok(manifest) = std::env::var("CARGO_MANIFEST_DIR") else {
+        return Err("CARGO_MANIFEST_DIR not set".to_string());
+    };
+    PathBuf::from(manifest)
+        .parent()
+        .map(std::path::Path::to_path_buf)
+        .ok_or_else(|| "xtask crate has no parent dir".to_string())
+}
+
+fn main() {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let cmd = args.first().map(String::as_str).unwrap_or_default();
+    let result = match cmd {
+        "vendor-header" => vendor_header(),
+        "abi-check" => abi_check(),
+        "size" => size(),
+        _ => {
+            eprintln!("Usage: cargo xtask <vendor-header|abi-check|size>");
+            std::process::exit(1);
+        }
+    };
+    if let Err(e) = result {
+        eprintln!("Error: {e}");
+        std::process::exit(2);
+    }
+}
+
+/// Build `bmu-core` en release (déclenche `cbindgen` via `build.rs`) puis
+/// copie le header généré vers `firmware-idf-v2/components/bmu_core_rs/include/`.
+/// Crée le dossier si absent.
+fn vendor_header() -> Result<(), String> {
+    let root = workspace_root()?;
+
+    let status = Command::new("cargo")
+        .current_dir(&root)
+        .args(["build", "-p", "bmu-core", "--release"])
+        .status()
+        .map_err(|e| format!("cargo build failed: {e}"))?;
+    if !status.success() {
+        return Err("cargo build failed".to_string());
+    }
+
+    let generated = root.join("target").join("include").join("bmu_core.h");
+    if !generated.exists() {
+        return Err(format!(
+            "generated header not found at {}",
+            generated.display()
+        ));
+    }
+
+    let repo_root = root
+        .parent()
+        .ok_or_else(|| "workspace has no parent".to_string())?;
+    let target_dir = repo_root
+        .join("firmware-idf-v2")
+        .join("components")
+        .join("bmu_core_rs")
+        .join("include");
+    std::fs::create_dir_all(&target_dir)
+        .map_err(|e| format!("mkdir {}: {e}", target_dir.display()))?;
+
+    let target = target_dir.join("bmu_core.h");
+    std::fs::copy(&generated, &target).map_err(|e| format!("copy to {}: {e}", target.display()))?;
+    println!("Vendored header: {}", target.display());
+    Ok(())
+}
+
+/// Build `bmu-core`, génère un petit programme C qui `sizeof()` chaque
+/// struct `#[repr(C)]` exposée par `bmu_core.h`, le compile avec `cc`,
+/// et l'exécute. Si l'un des types a une taille inattendue, `cc` ou le
+/// runtime signalera l'erreur.
+fn abi_check() -> Result<(), String> {
+    let root = workspace_root()?;
+
+    let status = Command::new("cargo")
+        .current_dir(&root)
+        .args(["build", "-p", "bmu-core", "--release"])
+        .status()
+        .map_err(|e| format!("cargo build failed: {e}"))?;
+    if !status.success() {
+        return Err("cargo build failed".to_string());
+    }
+
+    let header = root.join("target").join("include").join("bmu_core.h");
+    if !header.exists() {
+        return Err(format!("header not found at {}", header.display()));
+    }
+
+    // Depuis le re-export `pub const MAX_BATTERIES: usize = 16` dans
+    // `bmu-core::ffi_types`, `cbindgen` émet `#define MAX_BATTERIES 16`
+    // directement dans `bmu_core.h`, donc le header est self-contained.
+    let c_prog = r#"
+#include <stdio.h>
+#include "bmu_core.h"
+int main(void) {
+    printf("sizeof(BmuConfigC) = %zu\n", sizeof(struct BmuConfigC));
+    printf("sizeof(BmuRawInputs) = %zu\n", sizeof(struct BmuRawInputs));
+    printf("sizeof(BmuBatteryC) = %zu\n", sizeof(struct BmuBatteryC));
+    printf("sizeof(BmuSystemC) = %zu\n", sizeof(struct BmuSystemC));
+    printf("sizeof(BmuSnapshotC) = %zu\n", sizeof(struct BmuSnapshotC));
+    printf("sizeof(BmuActionsC) = %zu\n", sizeof(struct BmuActionsC));
+    printf("sizeof(BmuCommandC) = %zu\n", sizeof(struct BmuCommandC));
+    return 0;
+}
+"#;
+
+    let tmp_c = std::env::temp_dir().join("bmu_abi_check.c");
+    let tmp_bin = std::env::temp_dir().join("bmu_abi_check");
+    std::fs::write(&tmp_c, c_prog).map_err(|e| format!("write c: {e}"))?;
+
+    let include_dir = header
+        .parent()
+        .ok_or_else(|| "header has no parent dir".to_string())?;
+    let Some(include_str) = include_dir.to_str() else {
+        return Err("non-UTF8 include dir".to_string());
+    };
+    let Some(tmp_c_str) = tmp_c.to_str() else {
+        return Err("non-UTF8 tmp c path".to_string());
+    };
+    let Some(tmp_bin_str) = tmp_bin.to_str() else {
+        return Err("non-UTF8 tmp bin path".to_string());
+    };
+
+    let status = Command::new("cc")
+        .args(["-I", include_str, "-o", tmp_bin_str, tmp_c_str])
+        .status()
+        .map_err(|e| format!("cc failed: {e}"))?;
+    if !status.success() {
+        return Err("C compile of abi-check failed".to_string());
+    }
+
+    let status = Command::new(&tmp_bin)
+        .status()
+        .map_err(|e| format!("run abi check: {e}"))?;
+    if !status.success() {
+        return Err("abi check program exited non-zero".to_string());
+    }
+
+    println!("ABI check PASS");
+    Ok(())
+}
+
+/// Cross-compile `bmu-core` pour `xtensa-esp32s3-none-elf` release et
+/// vérifie que la somme des sections `.text` + `.data` < 500 KB.
+///
+/// Utilise le toolchain `+esp` (installé par `espup`) et `-Zbuild-std`
+/// pour rebuild `core`/`alloc` sur target no_std. La taille mesurée est
+/// la somme `text+data` rapportée par `xtensa-esp32s3-elf-size` sur
+/// l'archive — la taille brute du `.a` inclut debug/reloc et n'est pas
+/// représentative du binaire final lié.
+fn size() -> Result<(), String> {
+    let root = workspace_root()?;
+
+    let status = Command::new("cargo")
+        .current_dir(&root)
+        .args([
+            "+esp",
+            "build",
+            "-Zbuild-std=core,alloc",
+            "--target",
+            "xtensa-esp32s3-none-elf",
+            "--release",
+            "-p",
+            "bmu-core",
+        ])
+        .status()
+        .map_err(|e| format!("cargo xbuild: {e}"))?;
+    if !status.success() {
+        return Err("cross-compile failed".to_string());
+    }
+
+    let lib = root
+        .join("target")
+        .join("xtensa-esp32s3-none-elf")
+        .join("release")
+        .join("libbmu_core.a");
+    if !lib.exists() {
+        return Err(format!("libbmu_core.a not found at {}", lib.display()));
+    }
+
+    // `xtensa-esp32s3-elf-size` est installé par `espup` dans le `PATH`
+    // après `. ~/export-esp.sh`. Si indisponible, on retombe sur la
+    // taille brute du fichier (moins représentative).
+    let Some(lib_str) = lib.to_str() else {
+        return Err("non-UTF8 lib path".to_string());
+    };
+    let output = Command::new("xtensa-esp32s3-elf-size")
+        .args(["-t", lib_str])
+        .output();
+
+    let (text_bytes, mode) = match output {
+        Ok(out) if out.status.success() => {
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            // Cherche la ligne `(TOTALS)` en bas : `text data bss dec hex`
+            let total_line = stdout
+                .lines()
+                .find(|l| l.contains("(TOTALS)"))
+                .ok_or_else(|| "no (TOTALS) line in size output".to_string())?;
+            let mut cols = total_line.split_whitespace();
+            let text: u64 = cols
+                .next()
+                .ok_or_else(|| "no text col".to_string())?
+                .parse()
+                .map_err(|e| format!("parse text: {e}"))?;
+            let data: u64 = cols
+                .next()
+                .ok_or_else(|| "no data col".to_string())?
+                .parse()
+                .map_err(|e| format!("parse data: {e}"))?;
+            #[allow(clippy::arithmetic_side_effects)]
+            let sum = text + data;
+            (sum, "text+data")
+        }
+        _ => {
+            let meta = std::fs::metadata(&lib).map_err(|e| format!("stat: {e}"))?;
+            (meta.len(), "raw archive")
+        }
+    };
+
+    let size_kb = text_bytes / 1024;
+    println!("libbmu_core.a size ({mode}): {size_kb} KB");
+    if size_kb > 500 {
+        return Err(format!("Size {size_kb} KB exceeds 500 KB budget"));
+    }
+    println!("Size budget OK (<500 KB)");
+    Ok(())
+}

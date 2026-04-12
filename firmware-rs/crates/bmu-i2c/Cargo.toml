@@ -1,7 +1,0 @@
-[package]
-name = "bmu-i2c"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-embedded-hal = { workspace = true }

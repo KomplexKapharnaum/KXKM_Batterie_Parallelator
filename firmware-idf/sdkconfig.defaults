@@ -1,6 +1,60 @@
-# LVGL heap — 64KB required to avoid crash when creating widgets
-# for 8 batteries with RTOS queues + tasks allocated
-CONFIG_LV_MEM_SIZE_KILOBYTES=64
+# === Partition layout ===
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+CONFIG_PARTITION_TABLE_FILENAME="partitions.csv"
 
-# WDT elargi pour display LVGL + bus I2C sous charge
-CONFIG_ESP_TASK_WDT_TIMEOUT_S=15
+# === Target ESP32-S3 ===
+CONFIG_IDF_TARGET="esp32s3"
+CONFIG_IDF_TARGET_ESP32S3=y
+
+# === Flash 16 MB (ESP32-S3-BOX-3) ===
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_ESPTOOLPY_FLASHSIZE="16MB"
+
+# === PSRAM (ESP32-S3-BOX-3 embed 8MB octal PSRAM) ===
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_OCT=y
+CONFIG_SPIRAM_SPEED_80M=y
+# PSRAM NE sert PAS de heap general -- reserve a LVGL double-buffer en Phase 17
+CONFIG_SPIRAM_USE_MALLOC=n
+CONFIG_SPIRAM_USE_CAPS_ALLOC=y
+
+# === LVGL -- memoire statique 64 KiB (idem v1) ===
+CONFIG_LV_MEM_SIZE_KILOBYTES=64
+CONFIG_LV_FONT_MONTSERRAT_10=y
+
+# === WDT -- tightened vs v1 (15 s -> 3 s) pour detecter pathologies I2C rapidement ===
+CONFIG_ESP_TASK_WDT_TIMEOUT_S=3
+CONFIG_ESP_TASK_WDT_INIT=y
+CONFIG_ESP_TASK_WDT_CHECK_IDLE_TASK_CPU0=y
+CONFIG_ESP_TASK_WDT_CHECK_IDLE_TASK_CPU1=y
+
+# === Heap -- internal SRAM only pour Rust core (deterministic latency) ===
+# `heap_caps_malloc(size, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)` consomme uniquement SRAM
+CONFIG_HEAP_POISONING_COMPREHENSIVE=y
+CONFIG_HEAP_USE_HOOKS=y
+
+# === Logging -- INFO niveau pour monitor serie ===
+CONFIG_LOG_DEFAULT_LEVEL_INFO=y
+CONFIG_LOG_MAXIMUM_LEVEL_DEBUG=y
+
+# === Pro/App CPU -- FreeRTOS Unicore NON, on veut les 2 cores ===
+CONFIG_FREERTOS_UNICORE=n
+CONFIG_FREERTOS_HZ=1000
+
+# === main_task stack -- Rust BmuCore::new() construit sur stack avant Box ===
+# BmuCore + sub-engines font plusieurs KiB, le default 3.5 KiB deborde.
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+
+# === FATFS Long File Name -- Phase 15 SD log files type "bmu-YYYYMMDD-HHMMSS-NOSYNC.lp" ===
+CONFIG_FATFS_LFN_HEAP=y
+CONFIG_FATFS_MAX_LFN=64
+
+# === BLE NimBLE (Phase 18 read-only + Phase 19 SC pairing) ===
+CONFIG_BT_ENABLED=y
+CONFIG_BT_NIMBLE_ENABLED=y
+CONFIG_BT_NIMBLE_MAX_CONNECTIONS=4
+CONFIG_BT_NIMBLE_NVS_PERSIST=y
+CONFIG_BT_NIMBLE_MEM_ALLOC_MODE_EXTERNAL=y
+CONFIG_BT_NIMBLE_SM_SC=y
+CONFIG_BT_NIMBLE_MAX_BONDS=4

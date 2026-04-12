@@ -1,6 +1,7 @@
 idf_component_register(
-    SRCS "bmu_ble.cpp" "bmu_ble_battery_svc.cpp" "bmu_ble_system_svc.cpp" "bmu_ble_control_svc.cpp"
+    SRCS "src/bmu_ble.c" "src/bmu_ble_gatt.c"
+         "src/bmu_ble_control.c" "src/bmu_ble_hmac.c" "src/bmu_ble_audit.c"
+         "src/bmu_ble_wifi_prov.c"
     INCLUDE_DIRS "include"
-    REQUIRES bt bmu_protection bmu_config nvs_flash esp_timer bmu_rint bmu_soh bmu_ble_victron_gatt bmu_balancer
-    PRIV_REQUIRES bmu_vedirect bmu_wifi bmu_storage bmu_ble_victron_scan
+    REQUIRES bt nvs_flash bmu_core_rs log mbedtls bmu_ui bmu_wifi bmu_ble_victron
 )

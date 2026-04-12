@@ -1,0 +1,60 @@
+name: firmware-rust-ci
+
+on:
+  push:
+    branches: [main, 'feat/**']
+    paths:
+      - 'firmware-rust/**'
+      - '.github/workflows/firmware-rust-ci.yml'
+  pull_request:
+    paths:
+      - 'firmware-rust/**'
+
+defaults:
+  run:
+    working-directory: firmware-rust
+
+jobs:
+  host-test:
+    name: Host tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install espup
+        run: cargo install espup --locked
+      - name: Install esp toolchain
+        run: espup install --targets esp32s3
+      - name: Source env
+        run: |
+          if [ -f "$HOME/export-esp.sh" ]; then
+            . "$HOME/export-esp.sh"
+            echo "PATH=$PATH" >> $GITHUB_ENV
+            echo "LIBCLANG_PATH=$LIBCLANG_PATH" >> $GITHUB_ENV
+          fi
+      - name: cargo fmt
+        run: cargo fmt --check
+      - name: cargo clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: cargo test (host)
+        run: cargo test --workspace
+
+  xtensa-build:
+    name: Cross-compile bmu-core for ESP32-S3
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install espup
+        run: cargo install espup --locked
+      - name: Install esp toolchain
+        run: espup install --targets esp32s3
+      - name: Source env
+        run: |
+          . "$HOME/export-esp.sh"
+          echo "PATH=$PATH" >> $GITHUB_ENV
+          echo "LIBCLANG_PATH=$LIBCLANG_PATH" >> $GITHUB_ENV
+      - name: cargo check (xtensa)
+        run: cargo xcheck

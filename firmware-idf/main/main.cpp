@@ -1,639 +1,211 @@
-/**
- * @file main.cpp
- * @brief KXKM BMU — ESP-IDF v5.4 (BOX-3)
- *
- * Init order: NVS → BSP/Display → WiFi → I2C (non-bloquant) → Protection → Cloud → Web
- * I2C hotplug: tache FreeRTOS bmu_i2c_hotplug re-scanne le bus periodiquement.
- * L'absence de sensors I2C ne bloque JAMAIS le boot.
- */
-#include "bmu_i2c.h"
-#include "bmu_ina237.h"
-#include "bmu_tca9535.h"
-#include "bmu_protection.h"
-#include "bmu_battery_manager.h"
-#include "bmu_config.h"
-#include "bmu_wifi.h"
-#include "bmu_storage.h"
-#include "bmu_mqtt.h"
-#include "bmu_influx.h"
-#include "bmu_influx_store.h"
-#include "bmu_balancer.h"
-#include "bmu_ble_victron_gatt.h"
-#include "bmu_ble_victron_scan.h"
-#include "bmu_sntp.h"
-#include "bmu_display.h"
-#include "bmu_ui.h"
-#include "bmu_vedirect.h"
-#include "bmu_climate.h"
-#include "bmu_ota.h"
-#include "bmu_vrm.h"
-#include "bmu_i2c_bitbang.h"
-#if CONFIG_BMU_SOH_ENABLED
-#include "bmu_soh.h"
-#endif
-#include "bmu_rint.h"
-#ifdef CONFIG_BMU_I2C_HOTPLUG_ENABLED
-#include "bmu_i2c_hotplug.h"
-#endif
-#ifdef CONFIG_BMU_BLE_ENABLED
-#include "bmu_ble.h"
-#endif
-#ifdef CONFIG_BMU_VICTRON_BLE_ENABLED
-#include "bmu_ble_victron.h"
-#endif
+// firmware-idf-v2/main/main.cpp
+//
+// Boot Phase 12 : init NVS, init BSP BOX-3, init LVGL port, affiche un
+// splash, puis initialise le core Rust via `bmu_core_init` et tourne un
+// fake tick loop 1 Hz qui feed un `BmuRawInputs` vide.
+
+#include <stdio.h>
+#include <string.h>
+
 #include "esp_log.h"
-#include "esp_spiffs.h"
-#include "bmu_types.h"
+#include "esp_err.h"
+#include "esp_system.h"
+#include "esp_heap_caps.h"
+#include "esp_timer.h"
+#include "nvs_flash.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "freertos/queue.h"
-#include <cstdio>
-#include <math.h>
 
-static const char *TAG = "MAIN";
+#include "bsp/esp-bsp.h"
+#include "esp_lvgl_port.h"
+#include "lvgl.h"
 
-// ── Snapshot distribution queues ──
-static QueueHandle_t s_q_balancer = NULL;
-static QueueHandle_t s_q_display  = NULL;
-static QueueHandle_t s_q_cloud    = NULL;
-static QueueHandle_t s_q_ble      = NULL;
-
-// ── Command queue → protection ──
-static QueueHandle_t s_q_cmd      = NULL;
-
-QueueHandle_t bmu_get_cmd_queue(void) {
-    return s_q_cmd;
+extern "C" {
+#include "bmu_core.h"
+#include "bmu_i2c_glue.h"
+#include "bmu_climate.h"
+#include "bmu_sd_log.h"
 }
+#include "bmu_soh.h"
 
-static bool bitbang_bus_conflicts_with_vedirect(void)
-{
-#if CONFIG_BMU_I2C_BB_ENABLED && defined(CONFIG_BMU_VEDIRECT_ENABLED) && CONFIG_BMU_VEDIRECT_ENABLED
-    const int bb_sda = CONFIG_BMU_I2C_BB_SDA_GPIO;
-    const int bb_scl = CONFIG_BMU_I2C_BB_SCL_GPIO;
-    const int ve_rx = CONFIG_BMU_VEDIRECT_RX_GPIO;
-    const int ve_tx = CONFIG_BMU_VEDIRECT_TX_GPIO;
-    return ve_rx == bb_sda || ve_rx == bb_scl ||
-           (ve_tx >= 0 && (ve_tx == bb_sda || ve_tx == bb_scl));
-#else
-    return false;
-#endif
-}
+#include "task_bmu_core.h"
+#include "task_wifi_mqtt.h"
+#include "task_ui.h"
+#include "task_ble.h"
 
-/* ── Cloud telemetry task ──────────────────────────────────────────── */
-typedef struct {
-    bmu_protection_ctx_t  *prot;
-    bmu_battery_manager_t *mgr;
-    uint8_t               *nb_ina;   /* pointer — follows hotplug changes */
-    QueueHandle_t          q_snapshot;
-    SemaphoreHandle_t      nb_ina_mutex;
-} cloud_task_ctx_t;
+static const char *TAG = "bmu-v2";
 
-static void cloud_telemetry_task(void *pv)
-{
-    cloud_task_ctx_t *ctx = (cloud_task_ctx_t *)pv;
-    const TickType_t period = pdMS_TO_TICKS(10000);
+static BmuCore *s_core = nullptr;
 
-    ESP_LOGI("CLOUD", "Telemetry task started — period 10s");
-
-    for (;;) {
-        vTaskDelay(period);
-
-        // Peek latest snapshot
-        bmu_snapshot_t snap;
-        if (xQueuePeek(ctx->q_snapshot, &snap, 0) == pdTRUE) {
-            // Snapshot available — will use for telemetry in future refactor
-        }
-
-#if CONFIG_BMU_SOH_ENABLED
-        bmu_soh_update_all(ctx->mgr, ctx->prot, *ctx->nb_ina);
-#endif
-
-        if (!bmu_wifi_is_connected()) continue;
-
-        /* Rejouer les données offline si présentes */
-        if (bmu_influx_store_has_pending()) {
-            int replayed = bmu_influx_store_replay();
-            if (replayed > 0) {
-                ESP_LOGI("CLOUD", "Replay offline: %d lignes renvoyées", replayed);
-            }
-        }
-
-        uint8_t snap_ina = 0;
-        if (ctx->nb_ina_mutex && xSemaphoreTake(ctx->nb_ina_mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
-            snap_ina = *ctx->nb_ina;
-            xSemaphoreGive(ctx->nb_ina_mutex);
-        } else {
-            snap_ina = *ctx->nb_ina;
-        }
-        for (int i = 0; i < snap_ina; i++) {
-            float v_mv = bmu_protection_get_voltage(ctx->prot, i);
-            float ah_d = bmu_battery_manager_get_ah_discharge(ctx->mgr, i);
-            float ah_c = bmu_battery_manager_get_ah_charge(ctx->mgr, i);
-            bmu_battery_state_t state = bmu_protection_get_state(ctx->prot, i);
-
-            const char *state_str = "unknown";
-            switch (state) {
-                case BMU_STATE_CONNECTED:    state_str = "connected"; break;
-                case BMU_STATE_DISCONNECTED: state_str = "disconnected"; break;
-                case BMU_STATE_RECONNECTING: state_str = "reconnecting"; break;
-                case BMU_STATE_ERROR:        state_str = "error"; break;
-                case BMU_STATE_LOCKED:       state_str = "locked"; break;
-            }
-
-            float i_a = bmu_battery_manager_get_last_current_a(ctx->mgr, i);
-
-            /* Build full payload with health metrics */
-            bmu_influx_battery_full_t full = {
-                .battery_id    = i,
-                .voltage_mv    = v_mv,
-                .current_a     = i_a,
-                .ah_discharge  = ah_d,
-                .ah_charge     = ah_c,
-                .state         = state_str,
-                .r_ohmic_mohm  = NAN,
-                .r_total_mohm  = NAN,
-                .soh_percent   = NAN,
-                .balancer_duty = -1,
-            };
-
-#if CONFIG_BMU_RINT_ENABLED
-            bmu_rint_result_t rint = bmu_rint_get_cached((uint8_t)i);
-            if (rint.valid) {
-                full.r_ohmic_mohm = rint.r_ohmic_mohm;
-                full.r_total_mohm = rint.r_total_mohm;
-            }
-#endif
-
-#if CONFIG_BMU_SOH_ENABLED
-            float soh = bmu_soh_get_cached(i);
-            if (soh >= 0) full.soh_percent = soh * 100.0f;
-#endif
-
-            if (bmu_balancer_is_off((uint8_t)i)) {
-                full.balancer_duty = 0; /* Currently in OFF phase */
-            } else {
-                int duty = bmu_balancer_get_duty_pct((uint8_t)i);
-                if (duty < 100) full.balancer_duty = duty;
-            }
-
-            bmu_influx_write_battery_full(&full);
-
-            /* MQTT — 0-indexed, V en volts, champs optionnels */
-            char payload[384];
-            int plen = snprintf(payload, sizeof(payload),
-                "{\"bat\":%d,\"v\":%.3f,\"i\":%.3f,"
-                "\"ah_d\":%.3f,\"ah_c\":%.3f,\"state\":\"%s\"",
-                i, v_mv / 1000.0f, i_a, ah_d, ah_c, state_str);
-
-            if (!isnan(full.r_ohmic_mohm)) {
-                plen += snprintf(payload + plen, sizeof(payload) - plen,
-                    ",\"r_ohm\":%.1f,\"r_tot\":%.1f",
-                    full.r_ohmic_mohm, full.r_total_mohm);
-            }
-            if (!isnan(full.soh_percent)) {
-                plen += snprintf(payload + plen, sizeof(payload) - plen,
-                    ",\"soh\":%.1f", full.soh_percent);
-            }
-            if (full.balancer_duty >= 0) {
-                plen += snprintf(payload + plen, sizeof(payload) - plen,
-                    ",\"bal_duty\":%d", full.balancer_duty);
-            }
-            snprintf(payload + plen, sizeof(payload) - plen, "}");
-
-            char topic[64];
-            snprintf(topic, sizeof(topic), "bmu/%s/battery/%d",
-                     bmu_config_get_device_name(), i);  /* 0-indexed */
-            bmu_mqtt_publish(topic, payload, 0, 0, false);
-        }
-
-        /* ── Climate (AHT30) ── */
-        if (bmu_climate_is_available()) {
-            float t_c = bmu_climate_get_temperature();
-            float h_pct = bmu_climate_get_humidity();
-            bmu_influx_write_climate(t_c, h_pct);
-
-            char clim_payload[96];
-            snprintf(clim_payload, sizeof(clim_payload),
-                "{\"temp_c\":%.2f,\"humidity\":%.1f}", t_c, h_pct);
-            char clim_topic[64];
-            snprintf(clim_topic, sizeof(clim_topic), "bmu/%s/climate",
-                     bmu_config_get_device_name());
-            bmu_mqtt_publish(clim_topic, clim_payload, 0, 0, false);
-        }
-
-        bmu_influx_flush();
-
-        /* ── Solar telemetry ── */
-        if (bmu_vedirect_is_connected()) {
-            const bmu_vedirect_data_t *sol = bmu_vedirect_get_data();
-            if (sol && sol->valid) {
-                /* MQTT */
-                char solar_payload[192];
-                snprintf(solar_payload, sizeof(solar_payload),
-                    "{\"vpv\":%.1f,\"ppv\":%u,\"vbat\":%.2f,"
-                    "\"ibat\":%.2f,\"cs\":\"%s\",\"yield\":%lu,\"err\":%u}",
-                    sol->panel_voltage_v,
-                    (unsigned)sol->panel_power_w,
-                    sol->battery_voltage_v,
-                    sol->battery_current_a,
-                    bmu_vedirect_cs_name(sol->charge_state),
-                    (unsigned long)sol->yield_today_wh,
-                    (unsigned)sol->error_code);
-                char solar_topic[64];
-                snprintf(solar_topic, sizeof(solar_topic),
-                    "bmu/%s/solar", bmu_config_get_device_name());
-                bmu_mqtt_publish(solar_topic, solar_payload, 0, 0, false);
-
-                /* InfluxDB */
-                char solar_tags[48];
-                snprintf(solar_tags, sizeof(solar_tags),
-                    "device=%s", bmu_config_get_device_name());
-                char solar_fields[128];
-                snprintf(solar_fields, sizeof(solar_fields),
-                    "vpv=%.1f,ppv=%ui,vbat=%.2f,ibat=%.2f,cs=%ui,yield=%lui",
-                    sol->panel_voltage_v,
-                    (unsigned)sol->panel_power_w,
-                    sol->battery_voltage_v,
-                    sol->battery_current_a,
-                    (unsigned)sol->charge_state,
-                    (unsigned long)sol->yield_today_wh);
-                bmu_influx_write("solar", solar_tags, solar_fields, 0);
-            }
-        }
+static void init_nvs(void) {
+    esp_err_t ret = nvs_flash_init();
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_LOGW(TAG, "NVS erase required");
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        ret = nvs_flash_init();
     }
+    ESP_ERROR_CHECK(ret);
+    ESP_LOGI(TAG, "NVS initialized");
 }
 
-/* ── SPIFFS init ───────────────────────────────────────────────────── */
-static esp_err_t init_spiffs(void)
-{
-    esp_vfs_spiffs_conf_t conf = {
-        .base_path = "/spiffs",
-        .partition_label = "storage",
-        .max_files = 5,
-        .format_if_mount_failed = true
-    };
-    esp_err_t ret = esp_vfs_spiffs_register(&conf);
-    if (ret == ESP_OK) {
-        size_t total = 0, used = 0;
-        esp_spiffs_info("storage", &total, &used);
-        ESP_LOGI(TAG, "SPIFFS: total=%zu used=%zu", total, used);
-    } else {
-        ESP_LOGW(TAG, "SPIFFS mount failed: %s", esp_err_to_name(ret));
-    }
-    return ret;
-}
-
-/* ── app_main ──────────────────────────────────────────────────────── */
-extern "C" void app_main(void)
-{
-    ESP_LOGI(TAG, "══════════════════════════════════════════════");
-    ESP_LOGI(TAG, "  KXKM BMU — ESP-IDF v5.4 (BOX-3)");
-    ESP_LOGI(TAG, "  Free heap: %lu bytes", (unsigned long)esp_get_free_heap_size());
-    ESP_LOGI(TAG, "══════════════════════════════════════════════");
-
-    /* ── 1. NVS + Config runtime ──────────────────────────────────── */
-    bmu_nvs_init();
-    bmu_config_load();
-    bmu_config_log();
-
-    /* ── 1b. Create RTOS queues ─────────────────────────────────────── */
-    s_q_balancer = xQueueCreate(1, sizeof(bmu_snapshot_t));
-    s_q_display  = xQueueCreate(1, sizeof(bmu_snapshot_t));
-    s_q_cloud    = xQueueCreate(2, sizeof(bmu_snapshot_t));
-    s_q_ble      = xQueueCreate(1, sizeof(bmu_snapshot_t));
-    s_q_cmd      = xQueueCreate(8, sizeof(bmu_cmd_t));
-    if (!s_q_balancer || !s_q_display || !s_q_cloud || !s_q_ble || !s_q_cmd) {
-        ESP_LOGE(TAG, "Failed to create RTOS queues");
+static void init_display_and_splash(void) {
+    // BSP init LCD + LVGL port
+    lv_display_t *disp = bsp_display_start();
+    if (disp == NULL) {
+        ESP_LOGE(TAG, "bsp_display_start FAILED");
         return;
     }
-    ESP_LOGI(TAG, "RTOS queues created (snapshot + cmd)");
+    bsp_display_backlight_on();
 
-    /* ── 2. SPIFFS (web assets) ────────────────────────────────────── */
-    init_spiffs();
-
-    /* ── 3. Display EN PREMIER (BSP init I2C_NUM_0 + I2C_NUM_1 dock) */
-    ESP_LOGI(TAG, "Init display...");
-    static bmu_protection_ctx_t prot = {};
-    static bmu_battery_manager_t mgr = {};
-    static bmu_display_ctx_t disp_ctx = { .prot = &prot, .mgr = &mgr, .nb_ina_ptr = &prot.nb_ina };
-    esp_err_t disp_ret = bmu_display_init(&disp_ctx);
-    if (disp_ret == ESP_OK) {
-        ESP_LOGI(TAG, "Display OK");
-    } else {
-        ESP_LOGW(TAG, "Display init failed: %s — continuing", esp_err_to_name(disp_ret));
+    // Lock LVGL, build splash screen, unlock
+    if (!lvgl_port_lock(0)) {
+        ESP_LOGE(TAG, "lvgl_port_lock FAILED");
+        return;
     }
 
-    /* ── 4. WiFi+BLE coex (ordre critique) ───────────────────────────── */
-    /* Phase 1: WiFi alloc buffers + config STA (PAS de radio)
-     * Phase 2: BLE nimble_port_init (controller BT)
-     * Phase 3: WiFi start radio — coex BLE/WiFi gère le partage */
-    bmu_wifi_init();   /* buffers + config, pas de radio */
+    lv_obj_t *scr = lv_screen_active();
+    lv_obj_set_style_bg_color(scr, lv_color_hex(0x0a0a0a), LV_PART_MAIN);
 
-#ifdef CONFIG_BMU_BLE_ENABLED
-    {
-        esp_err_t ble_ret = bmu_ble_init(&prot, &mgr, 0);
-        if (ble_ret == ESP_OK) {
-            ESP_LOGI(TAG, "BLE active — '%s'", bmu_config_get_device_name());
-        } else {
-            ESP_LOGW(TAG, "BLE init failed: %s", esp_err_to_name(ble_ret));
-        }
+    lv_obj_t *title = lv_label_create(scr);
+    lv_label_set_text(title, "BMU v2");
+    lv_obj_set_style_text_color(title, lv_color_hex(0x00ff88), LV_PART_MAIN);
+    lv_obj_set_style_text_font(title, &lv_font_montserrat_14, LV_PART_MAIN);
+    lv_obj_align(title, LV_ALIGN_CENTER, 0, -20);
+
+    lv_obj_t *subtitle = lv_label_create(scr);
+    lv_label_set_text(subtitle, "Rust Hybrid Core -- phase 12");
+    lv_obj_set_style_text_color(subtitle, lv_color_hex(0xcccccc), LV_PART_MAIN);
+    lv_obj_align(subtitle, LV_ALIGN_CENTER, 0, 20);
+
+    lvgl_port_unlock();
+    ESP_LOGI(TAG, "Splash displayed");
+}
+
+// SoH FPNN v3 normalization constants extracted from models/fpnn_soh.pt
+// (ckpt['feature_means'] and ckpt['feature_stds']).
+// Feature order:
+//   0  V_mean    1  V_std    2  I_mean    3  I_std
+//   4  dV_dt     5  dI_dt    6  ah_cons   7  ah_charge
+//   8  V_min     9  V_max   10  I_max    11  samples   12  R_internal
+//
+// These REPLACE the previously-hardcoded (and incorrect) FEAT_MEANS/STDS in
+// bmu_soh.cpp, which did not match any known checkpoint or training dataset
+// (see docs/superpowers/validation/runs/2026-04-12-phase15-feat-norm-audit.md).
+//
+// If fpnn_soh_v3_int8.tflite is re-trained, re-extract via:
+//   python -c "import torch; c=torch.load('models/fpnn_soh.pt', weights_only=False);
+//              print(c['feature_means']); print(c['feature_stds'])"
+static const float SOH_FEAT_MEANS[13] = {
+    27.3381f,  0.2070f,  0.2388f,  0.3542f,
+    -0.00098f, 0.00118f, 0.00676f, 0.00288f,
+    27.1311f, 27.5451f,  0.9603f, 47.1759f, 0.0585f
+};
+static const float SOH_FEAT_STDS[13] = {
+    1.7098f,   0.7784f,  1.1714f,  1.4683f,
+    0.0525f,   0.0964f,  0.0161f,  0.0892f,
+    1.8728f,   1.8845f,  2.0658f,  1.5550f, 0.0726f
+};
+
+static void init_bmu_core(void) {
+    BmuConfigC cfg = {};
+    cfg.umin_mv             = 24000;
+    cfg.umax_mv             = 30000;
+    cfg.imax_ma             = 1000;
+    cfg.vdiff_imbalance_mv  = 1000;
+    cfg.nb_switch_max       = 5;
+    cfg.reconnect_delay_ms  = 10000;
+    cfg.tick_period_ms      = 200;
+    // Propagate SoH normalization so that bmu_core_get_soh_norm() returns the
+    // real checkpoint values instead of the Rust Config::default() identity.
+    memcpy(cfg.soh_feat_means, SOH_FEAT_MEANS, sizeof(SOH_FEAT_MEANS));
+    memcpy(cfg.soh_feat_stds,  SOH_FEAT_STDS,  sizeof(SOH_FEAT_STDS));
+
+    s_core = bmu_core_init(&cfg);
+    if (s_core == nullptr) {
+        ESP_LOGE(TAG, "bmu_core_init returned NULL -- check cfg validation");
+        return;
     }
-#endif
+    ESP_LOGI(TAG, "bmu_core_init OK, handle=%p", (void *)s_core);
+}
 
-    bmu_wifi_start();  /* lance la radio — BLE déjà init */
-
-    /* ── 5. Storage ──────────────────────────────────────────────────── */
-    bmu_fat_init();     /* internal FAT partition (config files, USB-editable) */
-    bmu_usb_msc_init();   /* TinyUSB MSC (if enabled) */
-    bmu_config_load_battery_labels();  /* /fatfs/batteries.cfg */
-    /* SD externe montee a la demande pour garder un boot propre sans carte. */
-
-    /* ── 6. SNTP ───────────────────────────────────────────────────── */
-    if (bmu_wifi_is_connected()) {
-        bmu_sntp_init();
-    }
-
-    /* ── 7. I2C BMU — NON BLOQUANT ─────────────────────────────────── */
-    /* Le BSP a deja cree les deux bus I2C dans bsp_display_start().
-     * bmu_i2c_init() recupere le handle du bus DOCK (I2C_NUM_1, GPIO40/41).
-     * Si ca echoue (pas de pull-ups, pas de dock), on continue sans I2C. */
-    i2c_master_bus_handle_t i2c_bus = NULL;
-    bool i2c_ok = false;
-    esp_err_t i2c_ret = bmu_i2c_init(&i2c_bus);
-    if (i2c_ret == ESP_OK) {
-        ESP_LOGI(TAG, "I2C BMU bus OK");
-        i2c_ok = true;
-    } else {
-        ESP_LOGW(TAG, "I2C BMU init failed: %s — running sans sensors", esp_err_to_name(i2c_ret));
-    }
-
-    /* ── 8. Scan I2C + init sensors (si bus ok) ──────────────────── */
-    static bmu_ina237_t ina[BMU_MAX_BATTERIES] = {};
-    static uint8_t nb_ina = 0;
-    static SemaphoreHandle_t nb_ina_mutex = xSemaphoreCreateMutex();
-    configASSERT(nb_ina_mutex != NULL);
-    static bmu_tca9535_handle_t tca[BMU_MAX_TCA] = {};
-    static uint8_t nb_tca = 0;
-    static bool topology_ok = false;
-
-    if (i2c_ok) {
-        /* ── 8-pre. Bus recovery preventif (cas device stuck reliquat) ── */
-        ESP_LOGI(TAG, "Bus recovery I2C preventif...");
-        esp_err_t rec_ret = bmu_i2c_bus_recover();
-        if (rec_ret != ESP_OK) {
-            ESP_LOGW(TAG, "Bus recovery failed: %s — continuing", esp_err_to_name(rec_ret));
-        }
-        vTaskDelay(pdMS_TO_TICKS(10));  /* laisser le bus se stabiliser */
-
-        /* Le scan diagnostic sert de "warm-up" du bus I2C — sans lui,
-         * les esclaves derriere l'ISO1540 ne repondent pas.
-         * IMPORTANT: ne pas supprimer ce scan. */
-        /* Scan + init avec retry — les INA237 derriere l'ISO1540
-         * peuvent mettre 1-2s a repondre apres power-on. */
-        for (int attempt = 0; attempt < 3; attempt++) {
-            if (attempt > 0) {
-                ESP_LOGW(TAG, "I2C scan retry %d/3 — attente 500ms", attempt + 1);
-                i2c_master_bus_reset(i2c_bus);
-                vTaskDelay(pdMS_TO_TICKS(500));
-            }
-
-            int dev_count = bmu_i2c_scan(i2c_bus);
-            ESP_LOGI(TAG, "I2C scan: %d devices", dev_count);
-
-            /* Bus reset apres scan pour nettoyer les handles internes */
-            i2c_master_bus_reset(i2c_bus);
-            vTaskDelay(pdMS_TO_TICKS(50));
-
-            /* Si le scan diagnostic a trouve tres peu de devices (< 9 = 8 INA + 1 TCA min),
-             * le bus est probablement en mauvais etat. On saute les scan_init qui
-             * spinent lourdement sur un bus degrade et laisse le hotplug task
-             * reessayer en background plus tard (il est plus tolerant). */
-            if (dev_count < 9) {
-                ESP_LOGW(TAG, "I2C bus degrade (%d/10 devices) — skip scan_init, hotplug prendra le relais", dev_count);
-                break;
-            }
-
-            bmu_ina237_scan_init(i2c_bus, 2000, 10.0f, ina, &nb_ina);
-            ESP_LOGI(TAG, "INA237: %d", nb_ina);
-
-            vTaskDelay(pdMS_TO_TICKS(10));
-
-            bmu_tca9535_scan_init(i2c_bus, tca, BMU_MAX_TCA, &nb_tca);
-            ESP_LOGI(TAG, "TCA9535: %d", nb_tca);
-
-            if (nb_ina > 0 && nb_tca > 0) break; /* Tous trouves */
-        }
-        bmu_ui_debug_set_device_count(nb_ina + nb_tca);
-        bmu_ui_debug_log("I2C scan OK");
-
-        topology_ok = (nb_ina > 0) && (nb_tca > 0) && (nb_tca * 4 == nb_ina);
-        if (!topology_ok && (nb_ina > 0 || nb_tca > 0)) {
-            ESP_LOGW(TAG, "TOPOLOGY: %d TCA * 4 != %d INA", nb_tca, nb_ina);
-        }
-        bmu_ui_debug_set_device_count(nb_ina + nb_tca);
-        bmu_ui_debug_log("I2C scan OK");
+static void init_i2c_glue(void) {
+    esp_err_t err = bmu_i2c_glue_init();
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "bmu_i2c_glue_init failed: %s", esp_err_to_name(err));
+        return;
     }
 
-    /* ── 8a. Capteur climat AHT30 (apres scan BMU pour eviter la concurrence boot) ── */
-    if (i2c_ok) {
-        esp_err_t clim_ret = bmu_climate_init(i2c_bus);
-        if (clim_ret == ESP_OK) {
-            ESP_LOGI(TAG, "AHT30 climat OK — T=%.1f°C  H=%.1f%%",
-                     bmu_climate_get_temperature(), bmu_climate_get_humidity());
-        } else {
-            ESP_LOGW(TAG, "AHT30 init failed: %s — pas de capteur climat",
-                     esp_err_to_name(clim_ret));
-        }
+    uint8_t n_ina = 0, n_tca = 0;
+    err = bmu_i2c_glue_scan(&n_ina, &n_tca);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "bmu_i2c_glue_scan failed: %s", esp_err_to_name(err));
+        return;
+    }
+    ESP_LOGI(TAG, "I2C scan: INA=%u TCA=%u", n_ina, n_tca);
+
+    // Programme SHUNT_CAL sur tous les INA237 detectes (Phase 14 Task 14.2)
+    bmu_i2c_glue_program_shunt_cal();
+}
+
+extern "C" void app_main(void) {
+    ESP_LOGI(TAG, "=== BMU v2 boot ===");
+    ESP_LOGI(TAG, "FW version: %s", CONFIG_APP_PROJECT_VER);
+    ESP_LOGI(TAG, "ESP-IDF: %s", esp_get_idf_version());
+
+    init_nvs();
+    init_display_and_splash();
+    init_bmu_core();
+
+    if (s_core == nullptr) {
+        ESP_LOGE(TAG, "Core init failed, halting");
+        while (true) vTaskDelay(pdMS_TO_TICKS(1000));
     }
 
-    /* ── 8b. I2C Bus 2 — bit-bang (batteries 17-32) ──────────────────── */
-#if CONFIG_BMU_I2C_BB_ENABLED
-    static bmu_ina237_bb_t ina_bb[INA237_MAX_DEVICES] = {};
-    uint8_t nb_ina_bb = 0;
-    static bmu_tca9535_bb_handle_t tca_bb[TCA9535_MAX_DEVICES] = {};
-    uint8_t nb_tca_bb = 0;
+    init_i2c_glue();
 
-#if defined(CONFIG_BMU_VEDIRECT_ENABLED) && CONFIG_BMU_VEDIRECT_ENABLED
-    if (bitbang_bus_conflicts_with_vedirect()) {
-        ESP_LOGW(TAG, "I2C bus 2 skippe: conflit de pins avec VE.Direct "
-                      "(BB SDA=%d SCL=%d, VE RX=%d TX=%d)",
-                 CONFIG_BMU_I2C_BB_SDA_GPIO,
-                 CONFIG_BMU_I2C_BB_SCL_GPIO,
-                 CONFIG_BMU_VEDIRECT_RX_GPIO,
-                 CONFIG_BMU_VEDIRECT_TX_GPIO);
-    } else
-#endif
-    {
-        bmu_i2c_bb_config_t bb_cfg = {
-            .sda_gpio = CONFIG_BMU_I2C_BB_SDA_GPIO,
-            .scl_gpio = CONFIG_BMU_I2C_BB_SCL_GPIO,
-            .freq_hz = CONFIG_BMU_I2C_BB_FREQ_HZ,
-        };
-        bmu_i2c_bb_handle_t bb_bus = NULL;
-        if (bmu_i2c_bb_init(&bb_cfg, &bb_bus) == ESP_OK) {
-            ESP_LOGI(TAG, "I2C bus 2 (bit-bang) OK");
+    // Phase 15 -- aggregator climate (no FreeRTOS task, lazy stats)
+    ESP_LOGI(TAG, "init bmu_climate (heap=%u kB)",
+             (unsigned)(esp_get_free_heap_size() / 1024));
+    bmu_climate_init();
 
-            bmu_ina237_bb_scan_init(bb_bus, 2000, 10.0f, ina_bb, &nb_ina_bb);
-            ESP_LOGI(TAG, "Bus 2 INA237: %d", nb_ina_bb);
-
-            vTaskDelay(pdMS_TO_TICKS(10));
-
-            bmu_tca9535_bb_scan_init(bb_bus, tca_bb, TCA9535_MAX_DEVICES, &nb_tca_bb);
-            ESP_LOGI(TAG, "Bus 2 TCA9535: %d", nb_tca_bb);
-        } else {
-            ESP_LOGW(TAG, "I2C bus 2 init failed — single bus mode");
-        }
+    // Phase 15 -- TFLite Micro SOH
+    ESP_LOGI(TAG, "init bmu_soh (heap=%u kB)",
+             (unsigned)(esp_get_free_heap_size() / 1024));
+    esp_err_t soh_err = bmu_soh_init(s_core);
+    if (soh_err != ESP_OK) {
+        ESP_LOGW(TAG, "bmu_soh_init failed: %s -- task_soh will be no-op",
+                 esp_err_to_name(soh_err));
     }
 
-    /* Update topology for dual bus */
-    {
-        bool bus1_ok = (nb_ina == 0 && nb_tca == 0) || (nb_tca * 4 == nb_ina);
-        bool bus2_ok = (nb_ina_bb == 0 && nb_tca_bb == 0) || (nb_tca_bb * 4 == nb_ina_bb);
-        topology_ok = bus1_ok && bus2_ok;
-        if (!topology_ok) {
-            ESP_LOGW(TAG, "TOPOLOGY: bus1(%d TCA * 4 != %d INA) bus2(%d TCA * 4 != %d INA)",
-                     nb_tca, nb_ina, nb_tca_bb, nb_ina_bb);
-        }
+    // Phase 15 -- SD log writer (FAT partition fatfs, NOSYNC files)
+    ESP_LOGI(TAG, "init bmu_sd_log (heap=%u kB)",
+             (unsigned)(esp_get_free_heap_size() / 1024));
+    esp_err_t sd_err = bmu_sd_log_init();
+    if (sd_err != ESP_OK) {
+        ESP_LOGW(TAG, "bmu_sd_log_init failed: %s -- task_sd_log will be no-op",
+                 esp_err_to_name(sd_err));
     }
 
-    uint8_t total_ina = nb_ina + nb_ina_bb;
-    ESP_LOGI(TAG, "Total batteries: %d (%d + %d)", total_ina, nb_ina, nb_ina_bb);
-#else
-    uint8_t nb_ina_bb = 0;
-    uint8_t total_ina = nb_ina;
-#endif
+    ESP_LOGI(TAG, "Boot complete -- starting task_bmu_core (PRO_CPU, 5 Hz)");
+    task_bmu_core_start(s_core);
 
-    /* ── 9. Protection + Battery Manager ───────────────────────────── */
-    ESP_ERROR_CHECK(bmu_protection_init(&prot, ina, nb_ina, tca, nb_tca));
+    // Phase 15 -- secondary tasks on APP_CPU
+    task_soh_start(s_core);
+    task_sd_log_start(s_core);
 
-    // Wire RTOS queues to protection
-    bmu_protection_queues_t prot_queues = {
-        .q_balancer = s_q_balancer,
-        .q_display  = s_q_display,
-        .q_cloud    = s_q_cloud,
-        .q_ble      = s_q_ble,
-        .q_cmd      = s_q_cmd,
-    };
-    bmu_protection_set_queues(&prot, &prot_queues);
+    // Phase 18 -- BLE must init before Wi-Fi (controller coexistence)
+    task_ble_start(s_core);
 
-    bmu_battery_manager_init(&mgr, ina, nb_ina);
-    bmu_ble_set_nb_ina(nb_ina); /* Update BLE after I2C scan */
-    if (nb_ina > 0) {
-        bmu_battery_manager_start(&mgr);
-    }
+    // Phase 16 -- Wi-Fi STA + MQTT telemetry + SD replay
+    task_wifi_mqtt_start(s_core);
 
-#if CONFIG_BMU_SOH_ENABLED
-    if (bmu_soh_init() == ESP_OK && nb_ina > 0) {
-        ESP_LOGI(TAG, "SOH predictor ready — %d batteries", nb_ina);
-    }
-#endif
+    // Phase 17 -- LVGL 5 tabs display
+    task_ui_start(s_core);
 
-#if CONFIG_BMU_RINT_ENABLED
-    bmu_rint_set_ctx(&prot);
-    bmu_rint_init();
-    if (nb_ina > 0) {
-        bmu_rint_start_periodic();
-    }
-#endif
-
-    /* Display context: nb_ina_ptr pointe vers prot.nb_ina (live via hotplug) */
-    disp_ctx.q_snapshot = s_q_display;
-    bmu_display_request_update();
-
-    /* ── 9c. I2C Hotplug (si bus ok ET devices trouves au boot) ─────── */
-#ifdef CONFIG_BMU_I2C_HOTPLUG_ENABLED
-    if (i2c_ok && (nb_ina > 0 || nb_tca > 0)) {
-        bmu_hotplug_cfg_t hp_cfg = {
-            .bus = i2c_bus,
-            .ina_devices = ina,
-            .tca_devices = tca,
-            .nb_ina = &nb_ina,
-            .nb_tca = &nb_tca,
-            .topology_ok = &topology_ok,
-            .prot = &prot,
-            .mgr = &mgr,
-            .q_cmd = s_q_cmd,
-            .nb_ina_mutex = nb_ina_mutex,
-        };
-        if (bmu_hotplug_init(&hp_cfg) == ESP_OK) {
-            bmu_hotplug_start();
-            ESP_LOGI(TAG, "I2C hotplug active — scan every %ds",
-                     CONFIG_BMU_I2C_HOTPLUG_INTERVAL_S);
-        }
-    }
-#endif
-
-    /* ── 9b. BLE Victron (si enabled) ──────────────────────────────── */
-#ifdef CONFIG_BMU_VICTRON_BLE_ENABLED
-    bmu_ble_victron_init(&prot, &mgr, nb_ina);
-#endif
-
-#ifdef CONFIG_BMU_VIC_SCAN_ENABLED
-    bmu_vic_scan_init();
-    bmu_vic_scan_start();
-    ESP_LOGI(TAG, "Victron BLE scanner started");
-#endif
-
-    /* ── 10. Cloud (si WiFi) ───────────────────────────────────────── */
-    bmu_influx_store_init(); /* Toujours init — persiste quand WiFi tombe */
-    {
-        bmu_balancer_config_t bal_cfg = {
-            .q_snapshot = s_q_balancer,
-            .q_cmd      = s_q_cmd,
-        };
-        bmu_balancer_init(&bal_cfg);
-        bmu_balancer_start_task(3, 3072);
-    }
-    if (bmu_wifi_is_connected()) {
-        bmu_mqtt_init();
-        bmu_influx_init();
-
-        /* Cloud telemetry task — push MQTT + InfluxDB toutes les 10s */
-        static cloud_task_ctx_t cloud_ctx = {};
-        cloud_ctx.prot = &prot;
-        cloud_ctx.mgr = &mgr;
-        cloud_ctx.nb_ina = &nb_ina;
-        cloud_ctx.q_snapshot = s_q_cloud;
-        cloud_ctx.nb_ina_mutex = nb_ina_mutex;
-        xTaskCreate(cloud_telemetry_task, "cloud", 4096, &cloud_ctx, 2, NULL);
-
-        /* VRM — publish to Victron cloud */
-        bmu_vrm_init(&prot, &mgr, nb_ina);
-    }
-
-    /* ── 12. VE.Direct ─────────────────────────────────────────────── */
-    bmu_vedirect_init();
-
-    /* ── 13. OTA validation ────────────────────────────────────────── */
-    bmu_ota_mark_valid();
-
-    ESP_LOGI(TAG, "Init complete — heap: %lu — loop %dms",
-             (unsigned long)esp_get_free_heap_size(), BMU_LOOP_PERIOD_MS);
-
-    /* ── 14. Start protection as autonomous FreeRTOS task ───────────── */
-    /* Period 200ms = 5 Hz. Always started if I2C bus is OK — the task
-     * handles nb_ina=0 and invalid topology internally (iterates 0 to
-     * nb_ina-1, gets updated via CMD_TOPOLOGY_CHANGED from hotplug). */
-    if (i2c_ok) {
-        if (!topology_ok) {
-            ESP_LOGW(TAG, "Topology invalid at boot — fail-safe all OFF, task will pick up via hotplug");
-            bmu_protection_all_off(&prot);
-        }
-        const uint32_t prot_period_ms = 200;
-        bmu_protection_start_task(&prot, prot_period_ms, 8, 8192);
-        ESP_LOGI(TAG, "Protection task launched (period=%lums, prio=8, nb_ina=%d)",
-                 (unsigned long)prot_period_ms, nb_ina);
-
-        /* Small delay to let protection task do its warm-up before display
-         * starts reading battery values. */
-        vTaskDelay(pdMS_TO_TICKS(1100));
-    }
-
-    /* ── 15. Start display updates (AFTER protection is running) ──── */
-    bmu_display_start_updates();
-
-    /* Main task: idle loop (protection runs in its own task now) */
+    // app_main reste en idle et log la heap toutes les 10 s
     while (true) {
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        vTaskDelay(pdMS_TO_TICKS(10000));
+        ESP_LOGI(TAG, "main idle: heap_free=%u kB",
+                 (unsigned)(esp_get_free_heap_size() / 1024));
     }
 }

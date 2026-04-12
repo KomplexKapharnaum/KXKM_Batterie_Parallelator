@@ -1,5 +1,29 @@
 idf_component_register(
-    SRCS "main.cpp"
+    SRCS "main.cpp" "task_bmu_core.cpp" "task_wifi_mqtt.cpp" "task_ui.cpp" "task_ble.cpp"
     INCLUDE_DIRS "."
-    REQUIRES bmu_i2c bmu_i2c_bitbang bmu_i2c_hotplug bmu_ina237 bmu_tca9535 bmu_protection bmu_config bmu_wifi bmu_storage bmu_mqtt bmu_influx bmu_sntp bmu_display bmu_vedirect bmu_climate bmu_ota bmu_ble bmu_vrm bmu_ble_victron bmu_ble_victron_gatt bmu_ble_victron_scan bmu_rint bmu_soh bmu_balancer spiffs
+    REQUIRES
+        driver
+        esp_timer
+        esp_system
+        nvs_flash
+        esp_lvgl_port
+        esp-box-3
+        bmu_core_rs
+        bmu_i2c_glue
+        bmu_climate
+        bmu_soh
+        bmu_sd_log
+        esp_hw_support
+        bmu_wifi
+        bmu_mqtt
+        bmu_ui
+        esp_wifi
+        esp_netif
+        esp_event
+        mqtt
+        bmu_ble
+        bt
 )
+
+# Version projet injectée comme macro
+add_compile_definitions(CONFIG_APP_PROJECT_VER="2.0.0-phase15")
