@@ -220,6 +220,22 @@ void bmu_ui_config_create(lv_obj_t *parent)
 #endif
     lv_obj_add_state(s_ble_sw, LV_STATE_DISABLED);
 
+    /* Bouton : ouvrir une fenêtre de réappairage BLE (audit sécu).
+     * Hors fenêtre, un appareil appairé ne peut pas écraser son bond.
+     * L'opérateur tape ici juste avant de réappairer depuis le téléphone. */
+    lv_obj_t *repair_btn = lv_btn_create(cont);
+    lv_obj_set_width(repair_btn, lv_pct(100));
+    lv_obj_set_style_bg_color(repair_btn, UI_COLOR_SOLAR, 0);
+    lv_obj_t *rb_lbl = lv_label_create(repair_btn);
+    lv_label_set_text(rb_lbl, LV_SYMBOL_BLUETOOTH " Autoriser reappairage 30s");
+    lv_obj_center(rb_lbl);
+    lv_obj_add_event_cb(repair_btn, [](lv_event_t *e) {
+        lv_obj_t *btn = (lv_obj_t *)lv_event_get_target(e);
+        bmu_ble_allow_repair(30000);
+        lv_obj_t *lbl = lv_obj_get_child(btn, 0);
+        if (lbl) lv_label_set_text(lbl, LV_SYMBOL_OK " Fenetre ouverte 30s");
+    }, LV_EVENT_CLICKED, NULL);
+
     /* Ligne luminosité */
     lv_obj_t *br_row = lv_obj_create(cont);
     lv_obj_set_size(br_row, lv_pct(100), 28);

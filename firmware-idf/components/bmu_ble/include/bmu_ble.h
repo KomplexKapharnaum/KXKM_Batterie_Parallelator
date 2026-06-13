@@ -38,6 +38,14 @@ bool bmu_ble_is_connected(void);
 /** @brief Nombre de clients BLE actuellement connectes. */
 int bmu_ble_connected_count(void);
 
+/**
+ * @brief Ouvre une fenêtre d'autorisation de re-pairing (audit sécu).
+ *        Hors fenêtre, un appareil déjà appairé ne peut PAS écraser son bond.
+ *        Appelé depuis l'écran (bouton « Autoriser réappairage »).
+ * @param window_ms durée de la fenêtre en millisecondes (ex. 30000).
+ */
+void bmu_ble_allow_repair(uint32_t window_ms);
+
 #ifdef __cplusplus
 }
 #endif

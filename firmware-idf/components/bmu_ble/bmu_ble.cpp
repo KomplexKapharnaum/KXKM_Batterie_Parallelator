@@ -24,6 +24,7 @@
 
 #include "bmu_ble_victron_gatt.h"
 
+#include "esp_timer.h"
 #include <atomic>
 
 static const char *TAG = "BLE";
@@ -33,6 +34,17 @@ static bmu_protection_ctx_t  *s_prot   = NULL;
 static bmu_battery_manager_t *s_mgr    = NULL;
 static uint8_t                s_nb_ina = 0;
 static std::atomic<int>       s_connected_count{0};
+
+/* Fenêtre d'autorisation de re-pairing (audit sécu) : 0 = fermée.
+ * Ouverte par l'écran via bmu_ble_allow_repair() ; un REPEAT_PAIRING n'est
+ * accepté que pendant cette fenêtre. */
+static int64_t s_repair_allowed_until_ms = 0;
+
+void bmu_ble_allow_repair(uint32_t window_ms)
+{
+    s_repair_allowed_until_ms = (esp_timer_get_time() / 1000) + (int64_t)window_ms;
+    ESP_LOGW(TAG, "Fenêtre de réappairage ouverte %u ms", (unsigned)window_ms);
+}
 
 bmu_protection_ctx_t  *bmu_ble_get_prot(void)   { return s_prot; }
 bmu_battery_manager_t *bmu_ble_get_mgr(void)    { return s_mgr; }
@@ -156,18 +168,27 @@ static int ble_gap_event_handler(struct ble_gap_event *event, void *arg)
         return 0;
 
     case BLE_GAP_EVENT_REPEAT_PAIRING: {
-        /* Supprimer l'ancien bond et accepter le nouveau pairing.
-         * AUDIT (sécu) : l'auto-acceptation écrase le bond légitime — couplé au
-         * pairing Just Works (NO_IO), un attaquant peut s'appairer. Le
-         * durcissement correct (confirmation locale via écran LVGL / passkey)
-         * reste à concevoir. En attendant : log WARNING pour la visibilité. */
+        /* Confirmation à l'écran (audit sécu) : écraser un bond existant exige
+         * une autorisation physique préalable sur le BMU. L'opérateur ouvre une
+         * fenêtre via l'écran (bouton « Autoriser réappairage » →
+         * bmu_ble_allow_repair). Hors fenêtre : on REJETTE (IGNORE) et on garde
+         * le bond légitime → un attaquant ne peut plus l'écraser sans accès
+         * physique. */
+        int64_t now_ms = esp_timer_get_time() / 1000;
+        if (now_ms >= s_repair_allowed_until_ms) {
+            ESP_LOGW(TAG, "Re-pairing REJETÉ conn=%d — non autorisé "
+                     "(ouvrir la fenêtre sur l'écran du BMU)",
+                     event->repeat_pairing.conn_handle);
+            return BLE_GAP_REPEAT_PAIRING_IGNORE;
+        }
+        /* Fenêtre ouverte : autoriser une fois, puis refermer. */
+        s_repair_allowed_until_ms = 0;
         struct ble_gap_conn_desc desc;
         ble_gap_conn_find(event->repeat_pairing.conn_handle, &desc);
         ble_store_util_delete_peer(&desc.peer_id_addr);
-        ESP_LOGW(TAG, "Re-pairing accepté (bond écrasé) conn_handle=%d — "
-                 "événement sécurité à confirmer (UI à venir)",
+        ESP_LOGW(TAG, "Re-pairing AUTORISÉ (bond écrasé) conn=%d",
                  event->repeat_pairing.conn_handle);
-        return 0; /* 0 = accepter le nouveau pairing */
+        return BLE_GAP_REPEAT_PAIRING_RETRY;
     }
 
     case BLE_GAP_EVENT_SUBSCRIBE:
