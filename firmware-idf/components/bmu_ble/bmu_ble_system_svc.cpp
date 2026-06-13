@@ -319,7 +319,10 @@ const struct ble_gatt_svc_def *bmu_ble_system_svc_defs(void)
             .name = "ble_sys_notify",
             .skip_unhandled_events = true,
         };
-        esp_timer_create(&timer_args, &s_notify_timer);
+        if (esp_timer_create(&timer_args, &s_notify_timer) != ESP_OK) {
+            ESP_LOGE(TAG, "esp_timer_create (sys notify) échec");
+            s_notify_timer = NULL;
+        }
         s_inited = true;
     }
     return s_sys_svc;

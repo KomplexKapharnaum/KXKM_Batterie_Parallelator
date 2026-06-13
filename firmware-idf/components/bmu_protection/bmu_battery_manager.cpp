@@ -41,10 +41,13 @@ static void ah_task(void *pv)
             if (xSemaphoreTake(mgr->mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
                 mgr->last_voltage_mv[i] = voltage_mv;
                 mgr->last_current_a[i] = current_a;
+                /* Deadband 50 mA (audit M5) : ne pas intégrer le bruit / le
+                 * courant de fuite d'une batterie OFF (MOSFET ouvert → I≈0) —
+                 * évite une dérive lente des compteurs Ah. */
                 if (elapsed_h > 0) {
-                    if (current_a > 0) {
+                    if (current_a > 0.05f) {
                         mgr->ah_discharge[i] += current_a * elapsed_h;
-                    } else if (current_a < 0) {
+                    } else if (current_a < -0.05f) {
                         mgr->ah_charge[i] += (-current_a) * elapsed_h;
                     }
                 }

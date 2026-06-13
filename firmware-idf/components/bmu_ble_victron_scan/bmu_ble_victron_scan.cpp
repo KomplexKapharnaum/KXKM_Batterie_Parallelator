@@ -202,7 +202,11 @@ esp_err_t bmu_vic_scan_start(void)
         .dispatch_method = ESP_TIMER_TASK, .name = "vic_scan",
         .skip_unhandled_events = true,
     };
-    esp_timer_create(&args, &s_scan_timer);
+    if (esp_timer_create(&args, &s_scan_timer) != ESP_OK) {
+        ESP_LOGE(TAG, "esp_timer_create (victron scan) échec");
+        s_scan_timer = NULL;
+        return ESP_FAIL;
+    }
     esp_timer_start_periodic(s_scan_timer, CONFIG_BMU_VIC_SCAN_PERIOD_S * 1000000ULL);
     scan_timer_cb(NULL); /* First scan immediately */
     return ESP_OK;

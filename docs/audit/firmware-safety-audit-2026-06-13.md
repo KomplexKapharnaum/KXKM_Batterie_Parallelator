@@ -38,15 +38,15 @@ Légende statut : ✅ corrigé · �doing · ⬜ à faire · 🧪 décision pol
 - Pairing : `min_key_size=0`→16 ✅. Just Works + re-pairing auto-accepté — ⬜ requiert un design de confirmation UI (écran LVGL), différé
 - NUL terminator manquant sur défauts Kconfig (device/wifi/mqtt) — `bmu_config.cpp:130` ✅
 - `fgets(512)` tronque lignes longues au replay — `bmu_influx_store.cpp:144` ✅ ligne tronquée drainée+ignorée
-- `esp_timer_create()` non vérifié (×3) — ⬜ Vague 4
-- Ah comptés sur batteries OFF — `bmu_battery_manager.cpp:34` ⬜ Vague 4
-- Clamp `BMU_MAX_BATTERIES` manquant sur GATT rint/soh — ⬜ Vague 4
+- `esp_timer_create()` non vérifié (×5) — ✅ retour vérifié (battery/system/control/victron_gatt/victron_scan)
+- Ah comptés sur batteries OFF — `bmu_battery_manager.cpp:34` ⬜ (mineur, non bloquant)
+- Clamp `BMU_MAX_BATTERIES` manquant sur GATT rint/soh — ✅ clamp ajouté
 
 ## 🧹 Dette technique / incohérences
 
-- Code mort non-mutexé : `find_fleet_max_mv()`, `bmu_influx_write_battery()` → supprimer/déléguer. ⬜ Vague 4
-- Doc ⇄ code : priorités tâches ; commentaire bus-recover bitbang obsolète. ⬜ Vague 4
-- Patterns incohérents : cache avant/après I2C (tca switch vs set_led) ; NUL terminator VRM oui / device non ; clamp partiel. ⬜ Vague 4
+- Code mort non-mutexé : `find_fleet_max_mv()`, `bmu_influx_write_battery()` ✅ supprimés (+ décls header)
+- Doc ⇄ code : priorités tâches ✅ CLAUDE.md aligné (protection=8…) ; commentaire bus-recover bitbang obsolète ⬜ (cosmétique)
+- Patterns incohérents : cache TCA ✅ (H8) ; NUL terminator ✅ (M2) ; clamp GATT ✅. Reste : `set_led` vs `switch` ✅ aligné par H8.
 
 ## ❌ Faux positifs écartés (vérifiés contre le code)
 

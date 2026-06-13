@@ -213,32 +213,6 @@ esp_err_t bmu_influx_write(const char *measurement, const char *tags, const char
 }
 
 // ---------------------------------------------------------------------------
-// Write Battery — raccourci pour la télémétrie batterie
-// ---------------------------------------------------------------------------
-esp_err_t bmu_influx_write_battery(int battery_id, float voltage_mv, float current_a,
-                                    float ah_discharge, float ah_charge, const char *state)
-{
-    if (state == nullptr) {
-        return ESP_ERR_INVALID_ARG;
-    }
-
-    char tags[64];
-    snprintf(tags, sizeof(tags), "id=%d", battery_id);
-
-    /* Schéma canonique aligné sur le pont MQTT/Telegraf + l'API :
-       mV / mA / mAh (les paramètres restent en A/Ah → ×1000). */
-    char fields[256];
-    snprintf(fields, sizeof(fields),
-             "voltage_mv=%.1f,current_ma=%.1f,ah_discharge_mah=%.1f,ah_charge_mah=%.1f,state=\"%s\"",
-             voltage_mv, current_a * 1000.0f,
-             ah_discharge * 1000.0f, ah_charge * 1000.0f, state);
-
-    // Utiliser 0 comme timestamp — InfluxDB assignera le timestamp serveur
-    // L'appelant peut utiliser bmu_sntp_get_timestamp_ns() pour un timestamp précis
-    return bmu_influx_write("battery", tags, fields, 0);
-}
-
-// ---------------------------------------------------------------------------
 // Write Battery Full — télémétrie batterie étendue avec métriques santé
 // ---------------------------------------------------------------------------
 esp_err_t bmu_influx_write_battery_full(const bmu_influx_battery_full_t *d)

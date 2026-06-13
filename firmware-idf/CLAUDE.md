@@ -41,7 +41,7 @@ Si WiFi/InfluxDB down, télémétrie persistée :
 
 - I2C : tout passe par `bmu_i2c_lock()` / `bmu_i2c_unlock()`
 - `bmu_protection` skip les batteries où `bmu_balancer_is_off()` (évite incrémentation `nb_switch`)
-- Tâches : protection (prio 5), balancer (prio 4), display (esp_timer), cloud (prio 2)
+- Tâches (priorités réelles du code) : protection (prio 8), balancer (prio 3), hotplug (prio 3), cloud (prio 2), ah_task (prio 1), display (esp_timer)
 
 ## Anti-Patterns
 

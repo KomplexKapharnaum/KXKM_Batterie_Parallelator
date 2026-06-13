@@ -94,22 +94,6 @@ static bool is_imbalance_ok(float voltage_mv, float fleet_max_mv)
     return true;
 }
 
-/* ── Helper: find max voltage across CONNECTED batteries only ─────── */
-static float find_fleet_max_mv(bmu_protection_ctx_t *ctx)
-{
-    float max_mv = 0;
-    for (int i = 0; i < ctx->nb_ina; i++) {
-        /* Ignorer les batteries OFF/ERROR/LOCKED — leur tension cachee
-         * est stale et provoquerait une cascade d'imbalance */
-        bmu_battery_state_t st = ctx->battery_state[i];
-        if (st != BMU_STATE_CONNECTED && st != BMU_STATE_RECONNECTING) continue;
-        if (ctx->battery_voltages[i] > max_mv) {
-            max_mv = ctx->battery_voltages[i];
-        }
-    }
-    return max_mv;
-}
-
 /* ── Compute fleet_max under mutex (call once per cycle) ──────────── */
 float bmu_protection_compute_fleet_max(bmu_protection_ctx_t *ctx)
 {
@@ -125,12 +109,6 @@ float bmu_protection_compute_fleet_max(bmu_protection_ctx_t *ctx)
         xSemaphoreGive(ctx->state_mutex);
     }
     return max_mv;
-}
-
-/* ── Wrapper — backward compat ───────────────────────────────────── */
-esp_err_t bmu_protection_check_battery(bmu_protection_ctx_t *ctx, int idx)
-{
-    return bmu_protection_check_battery_ex(ctx, idx, find_fleet_max_mv(ctx));
 }
 
 /* ── Main state machine — called once per battery per loop ─────────── */
