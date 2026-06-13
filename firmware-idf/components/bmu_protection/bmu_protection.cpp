@@ -165,15 +165,25 @@ esp_err_t bmu_protection_check_battery_ex(bmu_protection_ctx_t *ctx, int idx, fl
 
         // If critical: force battery OFF
         if (bmu_i2c_health_is_critical(&ctx->ina_health[idx])) {
+            /* Audit H2 : ne pas tenir state_mutex pendant switch_battery
+             * (I2C + vTaskDelay). On décide sous mutex, on commute hors mutex,
+             * puis on met l'état à jour sous mutex. */
+            bool do_off = false;
             if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
                 if (ctx->battery_state[idx] == BMU_STATE_CONNECTED) {
-                    ESP_LOGW(TAG, "BAT[%d] health critical (score=%d), forcing OFF",
-                             idx + 1, ctx->ina_health[idx].score);
-                    switch_battery(ctx, idx, false);
-                    ctx->battery_state[idx] = BMU_STATE_DISCONNECTED;
+                    do_off = true;
                 }
                 ctx->battery_voltages[idx] = 0;
                 xSemaphoreGive(ctx->state_mutex);
+            }
+            if (do_off) {
+                ESP_LOGW(TAG, "BAT[%d] health critical (score=%d), forcing OFF",
+                         idx + 1, ctx->ina_health[idx].score);
+                switch_battery(ctx, idx, false);
+                if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+                    ctx->battery_state[idx] = BMU_STATE_DISCONNECTED;
+                    xSemaphoreGive(ctx->state_mutex);
+                }
             }
         } else {
             ESP_LOGW(TAG, "BAT[%d] I2C read error (health=%d) — skip",
@@ -640,21 +650,23 @@ void bmu_protection_process_commands(bmu_protection_ctx_t *ctx) {
             bool on = cmd.payload.balance_req.on;
             ESP_LOGD(TAG, "CMD balance bat=%d on=%d", idx, on);
             if (idx >= ctx->nb_ina) break;
+            /* Audit H2/H6 : décider sous mutex, commuter hors mutex.
+             * H6 : ne jamais rallumer (ON) une batterie verrouillée ou hors
+             * plage — le balancer ne doit pas réintroduire un défaut écarté. */
+            bool do_switch = false;
             if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
-                if (ctx->battery_state[idx] == BMU_STATE_CONNECTED ||
-                    (on && ctx->battery_state[idx] == BMU_STATE_DISCONNECTED)) {
-                    /* Audit H6 : ne jamais rallumer (ON) une batterie verrouillée
-                     * ou hors plage de tension — le balancer ne doit pas
-                     * réintroduire un défaut que la protection vient d'écarter. */
-                    bool block_on = on &&
-                        (ctx->nb_switch[idx] > BMU_NB_SWITCH_MAX ||
-                         ctx->battery_voltages[idx] < BMU_MIN_VOLTAGE_MV ||
-                         ctx->battery_voltages[idx] > BMU_MAX_VOLTAGE_MV);
-                    if (!block_on) {
-                        switch_battery(ctx, idx, on);
-                    }
-                }
+                bmu_battery_state_t st = ctx->battery_state[idx];
+                bool eligible = (st == BMU_STATE_CONNECTED) ||
+                                (on && st == BMU_STATE_DISCONNECTED);
+                bool block_on = on &&
+                    (ctx->nb_switch[idx] > BMU_NB_SWITCH_MAX ||
+                     ctx->battery_voltages[idx] < BMU_MIN_VOLTAGE_MV ||
+                     ctx->battery_voltages[idx] > BMU_MAX_VOLTAGE_MV);
+                do_switch = eligible && !block_on;
                 xSemaphoreGive(ctx->state_mutex);
+            }
+            if (do_switch) {
+                switch_battery(ctx, idx, on);
             }
             break;
         }
