@@ -26,15 +26,15 @@ Légende statut : ✅ corrigé · �doing · ⬜ à faire · 🧪 décision pol
 | H6 | Balancer rallume une batterie en défaut sans revalidation | bmu_protection.cpp:601 | ✅ guard ON (lock+plage) |
 | H7 | Sur-courant : fenêtre 10–20 A réversible (facteur 2.0 large) | Kconfig + :229 | 🧪 politique |
 | H8 | TCA9535 : cache OUTPUT mis à jour AVANT confirmation I2C | bmu_tca9535.cpp:240 | ✅ cache après succès I2C |
-| H9 | Cloud non-TLS : token Influx en clair (HTTP), MQTT clair, VRM TLS sans vérif cert | bmu_influx/mqtt/vrm | ⬜ Vague 3 (sécu) |
-| H10 | Clé Victron BLE par défaut commitée | bmu_ble_victron/Kconfig:9 | ⬜ Vague 3 (sécu) |
-| H11 | Retours ignorés : publish MQTT/VRM, fputc/fclose store offline (corruption replay) | bmu_vrm/mqtt, bmu_influx_store.cpp:127 | ⬜ Vague 3 |
+| H9 | Cloud non-TLS : token Influx en clair (HTTP), MQTT clair, VRM TLS sans vérif cert | bmu_influx/mqtt/vrm | ✅ VRM vérifie le cert (bundle CA). Influx/MQTT restent clairs **par design** (LAN/Tailscale, cf. CLAUDE.md) — durcissement TLS = option future si exposition publique |
+| H10 | Clé Victron BLE par défaut commitée | bmu_ble_victron/Kconfig:9 | ✅ défaut vidé |
+| H11 | Retours ignorés : publish MQTT/VRM, fputc/fclose store offline (corruption replay) | bmu_vrm/mqtt, bmu_influx_store.cpp:127 | ✅ fputc/fclose + VRM publish |
 | H12 | Priorités tâches doc(5/4) ⇄ code(protection=8/balancer=3) | main.cpp:606,646 | ⬜ Vague 4 (dette) |
 | H13 | Double source de vérité `nb_ina` + fallback non protégé | main.cpp:128 | ⬜ Vague 2 |
 
 ## 🟡 MEDIUM / 🟢 LOW (extraits)
 
-- Injection line-protocol/MQTT via device name modifiable BLE (`device=%s` non échappé) — `main.cpp:264` ⬜ Vague 3
+- Injection line-protocol/MQTT via device name modifiable BLE (`device=%s` non échappé) — `main.cpp:264` ✅ device name restreint à `[A-Za-z0-9_-]` à la source
 - Pairing Just Works + `min_key_size=0` + re-pairing auto-accepté — `bmu_ble.cpp:158,247` 🧪 politique
 - NUL terminator manquant sur défauts Kconfig (device/wifi/mqtt) — `bmu_config.cpp:130` ⬜ Vague 4
 - `fgets(512)` tronque lignes longues au replay — `bmu_influx_store.cpp:144` ⬜ Vague 3
