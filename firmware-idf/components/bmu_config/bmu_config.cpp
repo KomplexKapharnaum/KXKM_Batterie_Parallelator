@@ -199,6 +199,18 @@ void bmu_config_log(void)
 esp_err_t bmu_config_set_device_name(const char *name)
 {
     if (name == nullptr || name[0] == '\0') return ESP_ERR_INVALID_ARG;
+    /* Le device name est inséré dans les topics MQTT (bmu/<name>/...) et les
+     * tags InfluxDB line-protocol. N'autoriser que [A-Za-z0-9_-] pour éviter
+     * l'injection (espace/virgule/= cassent le line-protocol ; / # + cassent
+     * la hiérarchie/wildcards MQTT). Audit MEDIUM injection. */
+    for (const char *p = name; *p; ++p) {
+        bool ok = (*p >= 'A' && *p <= 'Z') || (*p >= 'a' && *p <= 'z') ||
+                  (*p >= '0' && *p <= '9') || *p == '_' || *p == '-';
+        if (!ok) {
+            ESP_LOGW(TAG, "Device name rejeté : caractère invalide '%c'", *p);
+            return ESP_ERR_INVALID_ARG;
+        }
+    }
     esp_err_t ret = save_str(NVS_KEY_NAME, name);
     if (ret == ESP_OK) {
         strncpy(s_device_name, name, sizeof(s_device_name) - 1);

@@ -6,8 +6,12 @@ menu "BMU BLE Victron (Instant Readout)"
 
     config BMU_VICTRON_BLE_KEY
         string "AES-128 encryption key (32 hex chars)"
-        default "00112233445566778899aabbccddeeff"
+        default ""
         depends on BMU_VICTRON_BLE_ENABLED
+        help
+            Clé AES-128 (32 hex) de l'advertising Victron. Laissée vide par
+            défaut (audit H10 : pas de secret commité). À renseigner par
+            installation (sdkconfig local / NVS).
 
     config BMU_VICTRON_ADV_INTERVAL_MS
         int "Advertising slot rotation interval (ms)"
