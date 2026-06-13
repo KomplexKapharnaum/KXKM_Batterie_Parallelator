@@ -22,6 +22,7 @@ typedef struct {
     float ah_discharge;
     float ah_charge;
     const char *state;
+    int   nb_switch;        /* nombre de bascules switch (protection) */
     /* Optional health metrics — set to NAN if unavailable */
     float r_ohmic_mohm;     /* NAN si non mesure */
     float r_total_mohm;     /* NAN si non mesure */

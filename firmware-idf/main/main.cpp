@@ -144,6 +144,11 @@ static void cloud_telemetry_task(void *pv)
 
             float i_a = bmu_battery_manager_get_last_current_a(ctx->mgr, i);
 
+            int nb_sw = 0;
+            if (bmu_protection_get_switch_count(ctx->prot, i, &nb_sw) != ESP_OK) {
+                nb_sw = 0;
+            }
+
             /* Build full payload with health metrics */
             bmu_influx_battery_full_t full = {
                 .battery_id    = i,
@@ -152,6 +157,7 @@ static void cloud_telemetry_task(void *pv)
                 .ah_discharge  = ah_d,
                 .ah_charge     = ah_c,
                 .state         = state_str,
+                .nb_switch     = nb_sw,
                 .r_ohmic_mohm  = NAN,
                 .r_total_mohm  = NAN,
                 .soh_percent   = NAN,
@@ -183,8 +189,6 @@ static void cloud_telemetry_task(void *pv)
 #endif
 
             /* MQTT — 0-indexed, V en volts, champs optionnels */
-            int nb_sw = 0;
-            bmu_protection_get_switch_count(ctx->prot, i, &nb_sw);
             char payload[384];
             int plen = snprintf(payload, sizeof(payload),
                 "{\"bat\":%d,\"v\":%.3f,\"i\":%.3f,"
@@ -588,7 +592,10 @@ extern "C" void app_main(void)
 
     /* ── 10. Cloud (si WiFi) ───────────────────────────────────────── */
 #if CONFIG_BMU_INFLUX_DIRECT_ENABLED
-    bmu_influx_store_init(); /* Toujours init — persiste quand WiFi tombe */
+    /* Persistance offline de la voie directe (rejeu à la reconnexion WiFi).
+       Uniquement en mode InfluxDB direct ; en MQTT-only il n'y a pas de
+       buffer offline (cf. compromis QoS documenté). */
+    bmu_influx_store_init();
 #endif
     {
         bmu_balancer_config_t bal_cfg = {
