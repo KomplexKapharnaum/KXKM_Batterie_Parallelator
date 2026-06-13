@@ -9,7 +9,7 @@ Légende statut : ✅ corrigé · �doing · ⬜ à faire · 🧪 décision pol
 | # | Finding | Fichier:ligne | Statut |
 |---|---------|---------------|--------|
 | C1 | Sur-tension ne déclenche jamais ERROR/LOCKED → reconnexion en boucle d'une batterie défaillante | bmu_protection.cpp:231 | ✅ sur-tension → ERROR (`v_mv > MAX`) |
-| C2 | Fail-safe topologie cosmétique : la tâche rallume malgré `all_off()` ; batteries sans canal TCA non coupables | bmu_protection.cpp:42, main.cpp:640 | ⬜ Vague 2 (gate `topology_ok`) |
+| C2 | Fail-safe topologie cosmétique : la tâche rallume malgré `all_off()` ; batteries sans canal TCA non coupables | bmu_protection.cpp:42, main.cpp:640 | ✅ gate `Nb_TCA×4≠Nb_INA` dans check_battery_ex |
 | C3 | Write BLE R_int (0x0038) sans WRITE_ENC → action physique non authentifiée | bmu_ble_battery_svc.cpp:423 | ✅ `+ WRITE_ENC` |
 | C4 | INA237 : sorties non initialisées sur échec lecture → donnée capteur fantôme | bmu_ina237.cpp:378 | ✅ init NAN en tête |
 | C5 | INA237 bitbang : cast `(int16_t)` sur VBUS non signé → tension négative aberrante | bmu_ina237.cpp:528 | ✅ cast retiré |
@@ -18,14 +18,14 @@ Légende statut : ✅ corrigé · �doing · ⬜ à faire · 🧪 décision pol
 
 | # | Finding | Fichier:ligne | Statut |
 |---|---------|---------------|--------|
-| H1 | `publish_snapshot()` lit l'état sécurité SANS state_mutex (race avec hotplug) | bmu_protection.cpp:540 | ⬜ Vague 2 |
-| H2 | `switch_battery()` (I2C + vTaskDelay) appelée en tenant state_mutex | bmu_protection.cpp:156,606 | ⬜ Vague 2 |
-| H3 | Hotplug compacte tableaux/handles I2C partagés sans synchro → use-after-free | bmu_i2c_hotplug.cpp:131 | ⬜ Vague 2 |
-| H4 | Topologie mutée par 2 tâches ; `topology_ok`/`nb_tca` écrits sans mutex | bmu_i2c_hotplug.cpp:189,286,359 | ⬜ Vague 2 |
-| H5 | `web_switch` contourne le lock à 5 (pas de check nb_switch avant ON) | bmu_protection.cpp:435 | ⬜ Vague 2 |
-| H6 | Balancer rallume une batterie en défaut sans revalidation | bmu_protection.cpp:601 | ⬜ Vague 2 |
+| H1 | `publish_snapshot()` lit l'état sécurité SANS state_mutex (race avec hotplug) | bmu_protection.cpp:540 | ✅ copie sous state_mutex |
+| H2 | `switch_battery()` (I2C + vTaskDelay) appelée en tenant state_mutex | bmu_protection.cpp:156,606 | ✅ commute hors mutex (health + balance) |
+| H3 | Hotplug compacte tableaux/handles I2C partagés sans synchro → use-after-free | bmu_i2c_hotplug.cpp:131 | ⬜ **refactor dédié (validation HW requise)** |
+| H4 | Topologie mutée par 2 tâches ; `topology_ok`/`nb_tca` écrits sans mutex | bmu_i2c_hotplug.cpp:189,286,359 | ⬜ **refactor dédié (validation HW requise)** |
+| H5 | `web_switch` contourne le lock à 5 (pas de check nb_switch avant ON) | bmu_protection.cpp:435 | ✅ refus si nb_switch>MAX |
+| H6 | Balancer rallume une batterie en défaut sans revalidation | bmu_protection.cpp:601 | ✅ guard ON (lock+plage) |
 | H7 | Sur-courant : fenêtre 10–20 A réversible (facteur 2.0 large) | Kconfig + :229 | 🧪 politique |
-| H8 | TCA9535 : cache OUTPUT mis à jour AVANT confirmation I2C | bmu_tca9535.cpp:87 | ⬜ Vague 2 |
+| H8 | TCA9535 : cache OUTPUT mis à jour AVANT confirmation I2C | bmu_tca9535.cpp:240 | ✅ cache après succès I2C |
 | H9 | Cloud non-TLS : token Influx en clair (HTTP), MQTT clair, VRM TLS sans vérif cert | bmu_influx/mqtt/vrm | ⬜ Vague 3 (sécu) |
 | H10 | Clé Victron BLE par défaut commitée | bmu_ble_victron/Kconfig:9 | ⬜ Vague 3 (sécu) |
 | H11 | Retours ignorés : publish MQTT/VRM, fputc/fclose store offline (corruption replay) | bmu_vrm/mqtt, bmu_influx_store.cpp:127 | ⬜ Vague 3 |
