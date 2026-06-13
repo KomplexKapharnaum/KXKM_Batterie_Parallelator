@@ -4,3 +4,28 @@ CONFIG_LV_MEM_SIZE_KILOBYTES=64
 
 # WDT elargi pour display LVGL + bus I2C sous charge
 CONFIG_ESP_TASK_WDT_TIMEOUT_S=15
+
+# BLE NimBLE (requis par bmu_ble / bmu_ble_victron)
+CONFIG_BT_ENABLED=y
+CONFIG_BT_NIMBLE_ENABLED=y
+
+# Services GATT BMU (3 services : Battery/System/Control)
+# main.cpp:520 appelle bmu_ble_set_nb_ina() sans garde → composant requis
+CONFIG_BMU_BLE_ENABLED=y
+
+# Version firmware exposée via Kconfig (lue par bmu_ble_system_svc.cpp:99)
+CONFIG_APP_PROJECT_VER_FROM_CONFIG=y
+CONFIG_APP_PROJECT_VER="2.0.0"
+
+# Flash 16 Mo + table de partitions custom (OTA 2 Mo, spiffs, fatfs)
+# sans ça l'app (~1,7 Mo) déborde la partition factory par défaut (1 Mo)
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_ESPTOOLPY_FLASHSIZE="16MB"
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+
+# Victron Remote Monitoring + BLE Instant Readout
+# (le code bmu_config référence CONFIG_BMU_VRM_PORTAL_ID et
+#  CONFIG_BMU_VICTRON_BLE_KEY inconditionnellement)
+CONFIG_BMU_VRM_ENABLED=y
+CONFIG_BMU_VICTRON_BLE_ENABLED=y
