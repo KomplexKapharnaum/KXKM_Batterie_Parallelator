@@ -1,4 +1,13 @@
 menu "BMU InfluxDB"
+    config BMU_INFLUX_DIRECT_ENABLED
+        bool "Enable direct InfluxDB writes (line-protocol over HTTP)"
+        default n
+        help
+            Si désactivé (défaut), la télémétrie passe uniquement par MQTT
+            (pont Telegraf → InfluxDB). Activez pour conserver l'écriture
+            directe firmware → InfluxDB (redondante avec le chemin MQTT,
+            mais autonome + persistance offline via bmu_influx_store).
+
     config BMU_INFLUX_URL
         string "InfluxDB URL"
         default "http://kxkm-ai:8086"
