@@ -41,8 +41,9 @@ void bmu_i2c_record_success(void);
 void bmu_i2c_record_failure(void);
 
 /**
- * @brief Manual I2C bus recovery — 9 SCL clock pulses + STOP condition (bit-bang).
- * Unblocks a slave holding SDA low (stuck ACK). Falls back to i2c_master_bus_reset().
+ * @brief I2C bus recovery via i2c_master_bus_reset() (driver ESP-IDF).
+ * L'ancien fallback bit-bang a été retiré (il détachait les pins du
+ * périphérique I2C et rendait le bus inutilisable après recovery).
  */
 esp_err_t bmu_i2c_bus_recover(void);
 
