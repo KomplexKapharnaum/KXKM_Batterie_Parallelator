@@ -228,7 +228,12 @@ esp_err_t bmu_protection_check_battery_ex(bmu_protection_ctx_t *ctx, int idx, fl
     /* Overcurrent ERROR: |I| > factor * max_current */
     const float overcurrent_a = (BMU_OVERCURRENT_FACTOR / 1000.0f) * (BMU_MAX_CURRENT_MA / 1000.0f);
 
-    if (v_mv < 0 || fabs(i_a) > overcurrent_a) {
+    /* Défaut DUR → ERROR (OFF immédiat, pas de boucle de reconnexion) :
+     *  - sur-tension (v_mv > MAX) : une source en sur-tension déversée sur le
+     *    bus parallèle est dangereuse ; l'ancien test `v_mv < 0` était mort et
+     *    laissait la sur-tension tomber en DISCONNECTED réversible (audit C1).
+     *  - sur-courant franc (|I| > facteur × max). */
+    if (v_mv > BMU_MAX_VOLTAGE_MV || fabs(i_a) > overcurrent_a) {
         state = BMU_STATE_ERROR;
     }
     /* No voltage detected */
