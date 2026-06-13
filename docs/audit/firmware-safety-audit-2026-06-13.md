@@ -24,7 +24,7 @@ Légende statut : ✅ corrigé · �doing · ⬜ à faire · 🧪 décision pol
 | H4 | Topologie mutée par 2 tâches ; `topology_ok`/`nb_tca` écrits sans mutex | bmu_i2c_hotplug.cpp:189,286,359 | ⬜ **refactor dédié (validation HW requise)** |
 | H5 | `web_switch` contourne le lock à 5 (pas de check nb_switch avant ON) | bmu_protection.cpp:435 | ✅ refus si nb_switch>MAX |
 | H6 | Balancer rallume une batterie en défaut sans revalidation | bmu_protection.cpp:601 | ✅ guard ON (lock+plage) |
-| H7 | Sur-courant : fenêtre 10–20 A réversible (facteur 2.0 large) | Kconfig + :229 | 🧪 politique |
+| H7 | Sur-courant : fenêtre 10–20 A réversible (facteur 2.0 large) | Kconfig + :229 | ✅ facteur 2.0→1.4 (défaut sûr, à valider) |
 | H8 | TCA9535 : cache OUTPUT mis à jour AVANT confirmation I2C | bmu_tca9535.cpp:240 | ✅ cache après succès I2C |
 | H9 | Cloud non-TLS : token Influx en clair (HTTP), MQTT clair, VRM TLS sans vérif cert | bmu_influx/mqtt/vrm | ✅ VRM vérifie le cert (bundle CA). Influx/MQTT restent clairs **par design** (LAN/Tailscale, cf. CLAUDE.md) — durcissement TLS = option future si exposition publique |
 | H10 | Clé Victron BLE par défaut commitée | bmu_ble_victron/Kconfig:9 | ✅ défaut vidé |
@@ -35,9 +35,9 @@ Légende statut : ✅ corrigé · �doing · ⬜ à faire · 🧪 décision pol
 ## 🟡 MEDIUM / 🟢 LOW (extraits)
 
 - Injection line-protocol/MQTT via device name modifiable BLE (`device=%s` non échappé) — `main.cpp:264` ✅ device name restreint à `[A-Za-z0-9_-]` à la source
-- Pairing Just Works + `min_key_size=0` + re-pairing auto-accepté — `bmu_ble.cpp:158,247` 🧪 politique
-- NUL terminator manquant sur défauts Kconfig (device/wifi/mqtt) — `bmu_config.cpp:130` ⬜ Vague 4
-- `fgets(512)` tronque lignes longues au replay — `bmu_influx_store.cpp:144` ⬜ Vague 3
+- Pairing : `min_key_size=0`→16 ✅. Just Works + re-pairing auto-accepté — ⬜ requiert un design de confirmation UI (écran LVGL), différé
+- NUL terminator manquant sur défauts Kconfig (device/wifi/mqtt) — `bmu_config.cpp:130` ✅
+- `fgets(512)` tronque lignes longues au replay — `bmu_influx_store.cpp:144` ✅ ligne tronquée drainée+ignorée
 - `esp_timer_create()` non vérifié (×3) — ⬜ Vague 4
 - Ah comptés sur batteries OFF — `bmu_battery_manager.cpp:34` ⬜ Vague 4
 - Clamp `BMU_MAX_BATTERIES` manquant sur GATT rint/soh — ⬜ Vague 4
