@@ -225,10 +225,13 @@ esp_err_t bmu_influx_write_battery(int battery_id, float voltage_mv, float curre
     char tags[64];
     snprintf(tags, sizeof(tags), "id=%d", battery_id);
 
+    /* Schéma canonique aligné sur le pont MQTT/Telegraf + l'API :
+       mV / mA / mAh (les paramètres restent en A/Ah → ×1000). */
     char fields[256];
     snprintf(fields, sizeof(fields),
-             "voltage_mv=%.1f,current_a=%.3f,ah_discharge=%.4f,ah_charge=%.4f,state=\"%s\"",
-             voltage_mv, current_a, ah_discharge, ah_charge, state);
+             "voltage_mv=%.1f,current_ma=%.1f,ah_discharge_mah=%.1f,ah_charge_mah=%.1f,state=\"%s\"",
+             voltage_mv, current_a * 1000.0f,
+             ah_discharge * 1000.0f, ah_charge * 1000.0f, state);
 
     // Utiliser 0 comme timestamp — InfluxDB assignera le timestamp serveur
     // L'appelant peut utiliser bmu_sntp_get_timestamp_ns() pour un timestamp précis
@@ -245,10 +248,14 @@ esp_err_t bmu_influx_write_battery_full(const bmu_influx_battery_full_t *d)
     char tags[64];
     snprintf(tags, sizeof(tags), "id=%d", d->battery_id);
 
+    /* Schéma canonique (mV / mA / mAh) — identique au pont MQTT/Telegraf. */
     char fields[512];
     int len = snprintf(fields, sizeof(fields),
-        "voltage_mv=%.1f,current_a=%.3f,ah_discharge=%.4f,ah_charge=%.4f,state=\"%s\"",
-        d->voltage_mv, d->current_a, d->ah_discharge, d->ah_charge, d->state);
+        "voltage_mv=%.1f,current_ma=%.1f,ah_discharge_mah=%.1f,ah_charge_mah=%.1f,"
+        "nb_switch=%di,state=\"%s\"",
+        d->voltage_mv, d->current_a * 1000.0f,
+        d->ah_discharge * 1000.0f, d->ah_charge * 1000.0f,
+        d->nb_switch, d->state);
 
     if (!std::isnan(d->r_ohmic_mohm)) {
         len += snprintf(fields + len, sizeof(fields) - len,

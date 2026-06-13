@@ -15,6 +15,8 @@ class BatteryState(BaseModel):
     ah_discharge_mah: int = 0
     ah_charge_mah: int = 0
     nb_switch: int = 0
+    soh_pct: float | None = None      # State of Health (%)
+    r_ohmic_mohm: float | None = None  # résistance interne ohmique (mΩ)
     timestamp: str  # ISO 8601
 
 

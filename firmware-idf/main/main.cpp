@@ -110,6 +110,7 @@ static void cloud_telemetry_task(void *pv)
 
         if (!bmu_wifi_is_connected()) continue;
 
+#if CONFIG_BMU_INFLUX_DIRECT_ENABLED
         /* Rejouer les données offline si présentes */
         if (bmu_influx_store_has_pending()) {
             int replayed = bmu_influx_store_replay();
@@ -117,6 +118,7 @@ static void cloud_telemetry_task(void *pv)
                 ESP_LOGI("CLOUD", "Replay offline: %d lignes renvoyées", replayed);
             }
         }
+#endif
 
         uint8_t snap_ina = 0;
         if (ctx->nb_ina_mutex && xSemaphoreTake(ctx->nb_ina_mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
@@ -142,6 +144,11 @@ static void cloud_telemetry_task(void *pv)
 
             float i_a = bmu_battery_manager_get_last_current_a(ctx->mgr, i);
 
+            int nb_sw = 0;
+            if (bmu_protection_get_switch_count(ctx->prot, i, &nb_sw) != ESP_OK) {
+                nb_sw = 0;
+            }
+
             /* Build full payload with health metrics */
             bmu_influx_battery_full_t full = {
                 .battery_id    = i,
@@ -150,6 +157,7 @@ static void cloud_telemetry_task(void *pv)
                 .ah_discharge  = ah_d,
                 .ah_charge     = ah_c,
                 .state         = state_str,
+                .nb_switch     = nb_sw,
                 .r_ohmic_mohm  = NAN,
                 .r_total_mohm  = NAN,
                 .soh_percent   = NAN,
@@ -176,14 +184,16 @@ static void cloud_telemetry_task(void *pv)
                 if (duty < 100) full.balancer_duty = duty;
             }
 
+#if CONFIG_BMU_INFLUX_DIRECT_ENABLED
             bmu_influx_write_battery_full(&full);
+#endif
 
             /* MQTT — 0-indexed, V en volts, champs optionnels */
             char payload[384];
             int plen = snprintf(payload, sizeof(payload),
                 "{\"bat\":%d,\"v\":%.3f,\"i\":%.3f,"
-                "\"ah_d\":%.3f,\"ah_c\":%.3f,\"state\":\"%s\"",
-                i, v_mv / 1000.0f, i_a, ah_d, ah_c, state_str);
+                "\"ah_d\":%.3f,\"ah_c\":%.3f,\"nb_switch\":%d,\"state\":\"%s\"",
+                i, v_mv / 1000.0f, i_a, ah_d, ah_c, nb_sw, state_str);
 
             if (!isnan(full.r_ohmic_mohm)) {
                 plen += snprintf(payload + plen, sizeof(payload) - plen,
@@ -210,7 +220,9 @@ static void cloud_telemetry_task(void *pv)
         if (bmu_climate_is_available()) {
             float t_c = bmu_climate_get_temperature();
             float h_pct = bmu_climate_get_humidity();
+#if CONFIG_BMU_INFLUX_DIRECT_ENABLED
             bmu_influx_write_climate(t_c, h_pct);
+#endif
 
             char clim_payload[96];
             snprintf(clim_payload, sizeof(clim_payload),
@@ -221,7 +233,9 @@ static void cloud_telemetry_task(void *pv)
             bmu_mqtt_publish(clim_topic, clim_payload, 0, 0, false);
         }
 
+#if CONFIG_BMU_INFLUX_DIRECT_ENABLED
         bmu_influx_flush();
+#endif
 
         /* ── Solar telemetry ── */
         if (bmu_vedirect_is_connected()) {
@@ -244,6 +258,7 @@ static void cloud_telemetry_task(void *pv)
                     "bmu/%s/solar", bmu_config_get_device_name());
                 bmu_mqtt_publish(solar_topic, solar_payload, 0, 0, false);
 
+#if CONFIG_BMU_INFLUX_DIRECT_ENABLED
                 /* InfluxDB */
                 char solar_tags[48];
                 snprintf(solar_tags, sizeof(solar_tags),
@@ -258,6 +273,7 @@ static void cloud_telemetry_task(void *pv)
                     (unsigned)sol->charge_state,
                     (unsigned long)sol->yield_today_wh);
                 bmu_influx_write("solar", solar_tags, solar_fields, 0);
+#endif
             }
         }
     }
@@ -575,7 +591,12 @@ extern "C" void app_main(void)
 #endif
 
     /* ── 10. Cloud (si WiFi) ───────────────────────────────────────── */
-    bmu_influx_store_init(); /* Toujours init — persiste quand WiFi tombe */
+#if CONFIG_BMU_INFLUX_DIRECT_ENABLED
+    /* Persistance offline de la voie directe (rejeu à la reconnexion WiFi).
+       Uniquement en mode InfluxDB direct ; en MQTT-only il n'y a pas de
+       buffer offline (cf. compromis QoS documenté). */
+    bmu_influx_store_init();
+#endif
     {
         bmu_balancer_config_t bal_cfg = {
             .q_snapshot = s_q_balancer,
@@ -586,7 +607,9 @@ extern "C" void app_main(void)
     }
     if (bmu_wifi_is_connected()) {
         bmu_mqtt_init();
+#if CONFIG_BMU_INFLUX_DIRECT_ENABLED
         bmu_influx_init();
+#endif
 
         /* Cloud telemetry task — push MQTT + InfluxDB toutes les 10s */
         static cloud_task_ctx_t cloud_ctx = {};

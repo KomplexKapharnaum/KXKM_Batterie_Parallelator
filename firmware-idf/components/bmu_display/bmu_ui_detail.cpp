@@ -12,6 +12,7 @@
 #include "bmu_climate.h"
 #include "esp_log.h"
 #include <cstdio>
+#include <cstring>
 
 static const char *TAG = "UI_DETAIL";
 
