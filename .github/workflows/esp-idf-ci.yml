@@ -5,7 +5,7 @@ on:
     branches: [main, victron]
     paths: ['firmware-idf/**', '.github/workflows/esp-idf-ci.yml']
   pull_request:
-    paths: ['firmware-idf/**']
+    paths: ['firmware-idf/**', '.github/workflows/esp-idf-ci.yml']
   workflow_dispatch:
 
 concurrency:
@@ -34,7 +34,12 @@ jobs:
         with:
           submodules: recursive
       - name: Build firmware
+        shell: bash
         run: |
+          # Le conteneur espressif/idf fournit idf.py mais l'entrypoint qui
+          # source l'env est court-circuité par les run-steps GitHub Actions :
+          # il faut sourcer export.sh nous-mêmes (sinon "idf.py: not found").
+          . "${IDF_PATH}/export.sh"
           cd firmware-idf
           idf.py set-target esp32s3
           idf.py build
