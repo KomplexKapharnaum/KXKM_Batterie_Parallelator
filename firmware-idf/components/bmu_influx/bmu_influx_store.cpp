@@ -149,6 +149,15 @@ static int replay_file(const char *path)
 
     while (fgets(line, sizeof(line), f) != nullptr) {
         size_t len = strlen(line);
+        /* Audit H6 : ligne plus longue que le buffer (pas de \n et buffer
+         * plein) → tronquée. On consomme le reste de la ligne et on l'ignore
+         * plutôt que de rejouer une moitié corrompue. */
+        if (len == sizeof(line) - 1 && line[len - 1] != '\n') {
+            int c;
+            while ((c = fgetc(f)) != '\n' && c != EOF) { /* drain */ }
+            errors++;
+            continue;
+        }
         /* Retirer le \n final */
         if (len > 0 && line[len - 1] == '\n') {
             line[--len] = '\0';

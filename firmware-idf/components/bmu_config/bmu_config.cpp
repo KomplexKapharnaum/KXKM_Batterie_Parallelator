@@ -126,11 +126,17 @@ static esp_err_t save_u16(const char *key, uint16_t value)
 
 esp_err_t bmu_config_load(void)
 {
-    /* Remplir le cache avec les defauts Kconfig */
+    /* Remplir le cache avec les defauts Kconfig.
+     * NUL terminator explicite (audit M2) : strncpy ne termine pas si la
+     * source remplit le buffer → over-read ultérieur sur %s/strlen. */
     strncpy(s_device_name, CONFIG_BMU_DEVICE_NAME, sizeof(s_device_name) - 1);
+    s_device_name[sizeof(s_device_name) - 1] = '\0';
     strncpy(s_wifi_ssid,   CONFIG_BMU_WIFI_SSID,   sizeof(s_wifi_ssid) - 1);
+    s_wifi_ssid[sizeof(s_wifi_ssid) - 1] = '\0';
     strncpy(s_wifi_pass,   CONFIG_BMU_WIFI_PASSWORD, sizeof(s_wifi_pass) - 1);
+    s_wifi_pass[sizeof(s_wifi_pass) - 1] = '\0';
     strncpy(s_mqtt_uri,    CONFIG_BMU_MQTT_BROKER_URI, sizeof(s_mqtt_uri) - 1);
+    s_mqtt_uri[sizeof(s_mqtt_uri) - 1] = '\0';
     s_v_min  = (uint16_t)CONFIG_BMU_MIN_VOLTAGE_MV;
     s_v_max  = (uint16_t)CONFIG_BMU_MAX_VOLTAGE_MV;
     s_i_max  = (uint16_t)CONFIG_BMU_MAX_CURRENT_MA;
