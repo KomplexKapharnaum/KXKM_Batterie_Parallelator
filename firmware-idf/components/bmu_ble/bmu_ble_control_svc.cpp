@@ -522,8 +522,12 @@ void bmu_ble_wifi_notify_start(void)
         .name = "ble_wifi_ntf",
         .skip_unhandled_events = true,
     };
-    esp_timer_create(&args, &s_wifi_notify_timer);
-    esp_timer_start_periodic(s_wifi_notify_timer, 10000000ULL); /* 10s */
+    if (esp_timer_create(&args, &s_wifi_notify_timer) == ESP_OK) {
+        esp_timer_start_periodic(s_wifi_notify_timer, 10000000ULL); /* 10s */
+    } else {
+        ESP_LOGE(TAG, "esp_timer_create (wifi notify) échec");
+        s_wifi_notify_timer = NULL;
+    }
 }
 
 void bmu_ble_wifi_notify_stop(void)

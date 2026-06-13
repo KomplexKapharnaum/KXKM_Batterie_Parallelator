@@ -147,6 +147,7 @@ static int soh_result_access_cb(uint16_t conn_handle, uint16_t attr_handle,
     }
 
     uint8_t nb_ina = bmu_ble_get_nb_ina();
+    if (nb_ina > BMU_MAX_BATTERIES) nb_ina = BMU_MAX_BATTERIES; /* clamp défensif */
 
     for (int i = 0; i < nb_ina; i++) {
         ble_soh_char_t payload;
@@ -365,6 +366,7 @@ static int rint_result_access_cb(uint16_t conn_handle, uint16_t attr_handle,
     }
 
     uint8_t nb_ina = bmu_ble_get_nb_ina();
+    if (nb_ina > BMU_MAX_BATTERIES) nb_ina = BMU_MAX_BATTERIES; /* clamp défensif */
 
     for (int i = 0; i < nb_ina; i++) {
         bmu_rint_result_t res = bmu_rint_get_cached((uint8_t)i);
@@ -467,7 +469,10 @@ const struct ble_gatt_svc_def *bmu_ble_battery_svc_defs(void)
             .name = "ble_bat_notify",
             .skip_unhandled_events = true,
         };
-        esp_timer_create(&timer_args, &s_notify_timer);
+        if (esp_timer_create(&timer_args, &s_notify_timer) != ESP_OK) {
+            ESP_LOGE(TAG, "esp_timer_create (bat notify) échec");
+            s_notify_timer = NULL;
+        }
 
         s_inited = true;
     }

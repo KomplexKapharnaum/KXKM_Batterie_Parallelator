@@ -10,10 +10,6 @@ esp_err_t bmu_influx_init(void);
 // Write a single line protocol entry. Buffered internally, flushed when buffer full or on explicit flush.
 esp_err_t bmu_influx_write(const char *measurement, const char *tags, const char *fields, int64_t timestamp_ns);
 
-// Convenience: write battery telemetry
-esp_err_t bmu_influx_write_battery(int battery_id, float voltage_mv, float current_a,
-                                    float ah_discharge, float ah_charge, const char *state);
-
 // Extended battery telemetry with optional health metrics
 typedef struct {
     int   battery_id;       /* 0-indexed */

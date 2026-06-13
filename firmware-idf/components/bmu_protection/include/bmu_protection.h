@@ -53,8 +53,6 @@ esp_err_t bmu_protection_init(bmu_protection_ctx_t *ctx,
                                bmu_ina237_t *ina, uint8_t nb_ina,
                                bmu_tca9535_handle_t *tca, uint8_t nb_tca);
 
-esp_err_t bmu_protection_check_battery(bmu_protection_ctx_t *ctx, int battery_idx);
-
 /**
  * @brief Compute fleet max voltage (CONNECTED batteries only), under mutex.
  * Call once per protection cycle, pass result to check_battery_ex.

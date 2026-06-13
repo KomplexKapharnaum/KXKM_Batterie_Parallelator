@@ -257,7 +257,11 @@ void bmu_ble_victron_gatt_notify_start(void)
         .dispatch_method = ESP_TIMER_TASK, .name = "vic_gatt",
         .skip_unhandled_events = true,
     };
-    esp_timer_create(&args, &s_notify_timer);
+    if (esp_timer_create(&args, &s_notify_timer) != ESP_OK) {
+        ESP_LOGE(TAG, "esp_timer_create (victron gatt) échec");
+        s_notify_timer = NULL;
+        return;
+    }
     esp_timer_start_periodic(s_notify_timer, 1000000ULL); /* 1s */
     ESP_LOGI(TAG, "Victron GATT notifications started");
 }

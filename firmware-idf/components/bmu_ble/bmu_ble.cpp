@@ -156,11 +156,16 @@ static int ble_gap_event_handler(struct ble_gap_event *event, void *arg)
         return 0;
 
     case BLE_GAP_EVENT_REPEAT_PAIRING: {
-        /* Supprimer l'ancien bond et accepter le nouveau pairing */
+        /* Supprimer l'ancien bond et accepter le nouveau pairing.
+         * AUDIT (sécu) : l'auto-acceptation écrase le bond légitime — couplé au
+         * pairing Just Works (NO_IO), un attaquant peut s'appairer. Le
+         * durcissement correct (confirmation locale via écran LVGL / passkey)
+         * reste à concevoir. En attendant : log WARNING pour la visibilité. */
         struct ble_gap_conn_desc desc;
         ble_gap_conn_find(event->repeat_pairing.conn_handle, &desc);
         ble_store_util_delete_peer(&desc.peer_id_addr);
-        ESP_LOGI(TAG, "Re-pairing accepte pour conn_handle=%d",
+        ESP_LOGW(TAG, "Re-pairing accepté (bond écrasé) conn_handle=%d — "
+                 "événement sécurité à confirmer (UI à venir)",
                  event->repeat_pairing.conn_handle);
         return 0; /* 0 = accepter le nouveau pairing */
     }
