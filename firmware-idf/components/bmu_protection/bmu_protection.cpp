@@ -145,6 +145,18 @@ esp_err_t bmu_protection_check_battery_ex(bmu_protection_ctx_t *ctx, int idx, fl
         if (cur == BMU_STATE_LOCKED) return ESP_OK;
     }
 
+    /* Fail-safe topologie (audit C2) : si Nb_TCA×4 ≠ Nb_INA, la cartographie
+     * switch↔batterie n'est pas fiable → ne connecter aucune batterie et
+     * forcer OFF. La tâche ne doit jamais rallumer sur topologie invalide. */
+    if (ctx->nb_tca * 4 != ctx->nb_ina) {
+        switch_battery(ctx, idx, false);
+        if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+            ctx->battery_state[idx] = BMU_STATE_DISCONNECTED;
+            xSemaphoreGive(ctx->state_mutex);
+        }
+        return ESP_OK;
+    }
+
     /* Read voltage (mV) and current (A) from INA237 */
     float v_mv = 0, i_a = 0;
     esp_err_t ret = bmu_ina237_read_voltage_current(&ctx->ina_devices[idx], &v_mv, &i_a);
@@ -461,6 +473,18 @@ esp_err_t bmu_protection_web_switch(bmu_protection_ctx_t *ctx, int idx, bool on)
                      idx + 1, v_mv);
             return ESP_ERR_INVALID_STATE;
         }
+        /* Audit H5 : refuser le ON si le verrou « N reconnexions » est atteint,
+         * sinon le web contourne le LOCKED appliqué par la state machine. */
+        int nb_sw = 0;
+        if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+            nb_sw = ctx->nb_switch[idx];
+            xSemaphoreGive(ctx->state_mutex);
+        }
+        if (nb_sw > BMU_NB_SWITCH_MAX) {
+            ESP_LOGW(TAG, "BAT[%d] web switch ON rejected — lock atteint (sw=%d)",
+                     idx + 1, nb_sw);
+            return ESP_ERR_NOT_ALLOWED;
+        }
     }
 
     int tca_idx = idx / 4;
@@ -546,12 +570,19 @@ void bmu_protection_publish_snapshot(bmu_protection_ctx_t *ctx) {
     bmu_snapshot_t snap = {};
     snap.timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000);
     snap.cycle_count = ctx->cycle_count++;
-    snap.nb_batteries = ctx->nb_ina;
-    snap.topology_ok = (ctx->nb_tca * 4 == ctx->nb_ina);
 
     float max_v = 0, sum_v = 0;
     int count_connected = 0;
 
+    /* Copie de tout l'état partagé sous state_mutex (audit H1) : sans cela,
+     * la lecture concurrente avec check_battery_ex / le hotplug (qui compacte
+     * les tableaux) produit un snapshot incohérent diffusé au balancer,
+     * display, cloud et BLE. xQueueOverwrite est fait hors mutex ensuite. */
+    if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(20)) != pdTRUE) {
+        return; /* mutex indisponible — on saute la publication de ce cycle */
+    }
+    snap.nb_batteries = ctx->nb_ina;
+    snap.topology_ok = (ctx->nb_tca * 4 == ctx->nb_ina);
     for (int i = 0; i < ctx->nb_ina; i++) {
         snap.battery[i].voltage_mv  = ctx->battery_voltages[i];
         snap.battery[i].state       = ctx->battery_state[i];
@@ -568,6 +599,7 @@ void bmu_protection_publish_snapshot(bmu_protection_ctx_t *ctx) {
             count_connected++;
         }
     }
+    xSemaphoreGive(ctx->state_mutex);
 
     snap.fleet_max_mv = max_v;
     snap.fleet_mean_mv = count_connected > 0 ? sum_v / count_connected : 0;
@@ -611,7 +643,16 @@ void bmu_protection_process_commands(bmu_protection_ctx_t *ctx) {
             if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
                 if (ctx->battery_state[idx] == BMU_STATE_CONNECTED ||
                     (on && ctx->battery_state[idx] == BMU_STATE_DISCONNECTED)) {
-                    switch_battery(ctx, idx, on);
+                    /* Audit H6 : ne jamais rallumer (ON) une batterie verrouillée
+                     * ou hors plage de tension — le balancer ne doit pas
+                     * réintroduire un défaut que la protection vient d'écarter. */
+                    bool block_on = on &&
+                        (ctx->nb_switch[idx] > BMU_NB_SWITCH_MAX ||
+                         ctx->battery_voltages[idx] < BMU_MIN_VOLTAGE_MV ||
+                         ctx->battery_voltages[idx] > BMU_MAX_VOLTAGE_MV);
+                    if (!block_on) {
+                        switch_battery(ctx, idx, on);
+                    }
                 }
                 xSemaphoreGive(ctx->state_mutex);
             }
