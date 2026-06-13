@@ -35,9 +35,11 @@ def close_influx() -> None:
 def get_current_batteries() -> list[BatteryState]:
     """Get latest state for each battery from InfluxDB.
 
-    Expects data written by firmware MQTT pipeline with fields:
-    voltage_mv, current_ma, state, ah_discharge_mah, ah_charge_mah, nb_switch
-    and tag: battery (index 0-15).
+    Schéma canonique (mesure `battery`), alimenté soit par l'écriture
+    directe du firmware, soit par le pont Telegraf (telegraf.conf) :
+      champs : voltage_mv, current_ma, state, ah_discharge_mah,
+               ah_charge_mah, soh_pct, r_ohmic_mohm
+      tag    : id (index 0-15)
     """
     if not _query:
         return []
@@ -56,9 +58,11 @@ def get_current_batteries() -> list[BatteryState]:
     for table in tables:
         for record in table.records:
             try:
+                soh = record.values.get("soh_pct")
+                r_int = record.values.get("r_ohmic_mohm")
                 batteries.append(
                     BatteryState(
-                        index=int(record.values.get("battery", 0)),
+                        index=int(record.values.get("id", 0)),
                         voltage_mv=int(record.values.get("voltage_mv", 0)),
                         current_ma=int(record.values.get("current_ma", 0)),
                         state=str(record.values.get("state", "UNKNOWN")),
@@ -69,6 +73,10 @@ def get_current_batteries() -> list[BatteryState]:
                             record.values.get("ah_charge_mah", 0)
                         ),
                         nb_switch=int(record.values.get("nb_switch", 0)),
+                        soh_pct=float(soh) if soh is not None else None,
+                        r_ohmic_mohm=(
+                            float(r_int) if r_int is not None else None
+                        ),
                         timestamp=record.get_time().isoformat(),
                     )
                 )
@@ -96,7 +104,7 @@ def get_history(
     battery_filter = ""
     if battery is not None:
         battery_filter = (
-            f'  |> filter(fn: (r) => r.battery == "{battery}")\n'
+            f'  |> filter(fn: (r) => r.id == "{battery}")\n'
         )
 
     flux = f"""
@@ -117,7 +125,7 @@ def get_history(
                 points.append(
                     HistoryPoint(
                         time=record.get_time().isoformat(),
-                        battery=int(record.values.get("battery", 0)),
+                        battery=int(record.values.get("id", 0)),
                         voltage_mv=int(record.values.get("voltage_mv", 0)),
                         current_ma=int(record.values.get("current_ma", 0)),
                         state=str(record.values.get("state", "UNKNOWN")),
