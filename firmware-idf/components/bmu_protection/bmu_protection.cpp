@@ -145,6 +145,18 @@ esp_err_t bmu_protection_check_battery_ex(bmu_protection_ctx_t *ctx, int idx, fl
         if (cur == BMU_STATE_LOCKED) return ESP_OK;
     }
 
+    /* Fail-safe topologie (audit C2) : si Nb_TCA×4 ≠ Nb_INA, la cartographie
+     * switch↔batterie n'est pas fiable → ne connecter aucune batterie et
+     * forcer OFF. La tâche ne doit jamais rallumer sur topologie invalide. */
+    if (ctx->nb_tca * 4 != ctx->nb_ina) {
+        switch_battery(ctx, idx, false);
+        if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+            ctx->battery_state[idx] = BMU_STATE_DISCONNECTED;
+            xSemaphoreGive(ctx->state_mutex);
+        }
+        return ESP_OK;
+    }
+
     /* Read voltage (mV) and current (A) from INA237 */
     float v_mv = 0, i_a = 0;
     esp_err_t ret = bmu_ina237_read_voltage_current(&ctx->ina_devices[idx], &v_mv, &i_a);
@@ -153,15 +165,25 @@ esp_err_t bmu_protection_check_battery_ex(bmu_protection_ctx_t *ctx, int idx, fl
 
         // If critical: force battery OFF
         if (bmu_i2c_health_is_critical(&ctx->ina_health[idx])) {
+            /* Audit H2 : ne pas tenir state_mutex pendant switch_battery
+             * (I2C + vTaskDelay). On décide sous mutex, on commute hors mutex,
+             * puis on met l'état à jour sous mutex. */
+            bool do_off = false;
             if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
                 if (ctx->battery_state[idx] == BMU_STATE_CONNECTED) {
-                    ESP_LOGW(TAG, "BAT[%d] health critical (score=%d), forcing OFF",
-                             idx + 1, ctx->ina_health[idx].score);
-                    switch_battery(ctx, idx, false);
-                    ctx->battery_state[idx] = BMU_STATE_DISCONNECTED;
+                    do_off = true;
                 }
                 ctx->battery_voltages[idx] = 0;
                 xSemaphoreGive(ctx->state_mutex);
+            }
+            if (do_off) {
+                ESP_LOGW(TAG, "BAT[%d] health critical (score=%d), forcing OFF",
+                         idx + 1, ctx->ina_health[idx].score);
+                switch_battery(ctx, idx, false);
+                if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+                    ctx->battery_state[idx] = BMU_STATE_DISCONNECTED;
+                    xSemaphoreGive(ctx->state_mutex);
+                }
             }
         } else {
             ESP_LOGW(TAG, "BAT[%d] I2C read error (health=%d) — skip",
@@ -228,7 +250,12 @@ esp_err_t bmu_protection_check_battery_ex(bmu_protection_ctx_t *ctx, int idx, fl
     /* Overcurrent ERROR: |I| > factor * max_current */
     const float overcurrent_a = (BMU_OVERCURRENT_FACTOR / 1000.0f) * (BMU_MAX_CURRENT_MA / 1000.0f);
 
-    if (v_mv < 0 || fabs(i_a) > overcurrent_a) {
+    /* Défaut DUR → ERROR (OFF immédiat, pas de boucle de reconnexion) :
+     *  - sur-tension (v_mv > MAX) : une source en sur-tension déversée sur le
+     *    bus parallèle est dangereuse ; l'ancien test `v_mv < 0` était mort et
+     *    laissait la sur-tension tomber en DISCONNECTED réversible (audit C1).
+     *  - sur-courant franc (|I| > facteur × max). */
+    if (v_mv > BMU_MAX_VOLTAGE_MV || fabs(i_a) > overcurrent_a) {
         state = BMU_STATE_ERROR;
     }
     /* No voltage detected */
@@ -456,6 +483,18 @@ esp_err_t bmu_protection_web_switch(bmu_protection_ctx_t *ctx, int idx, bool on)
                      idx + 1, v_mv);
             return ESP_ERR_INVALID_STATE;
         }
+        /* Audit H5 : refuser le ON si le verrou « N reconnexions » est atteint,
+         * sinon le web contourne le LOCKED appliqué par la state machine. */
+        int nb_sw = 0;
+        if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+            nb_sw = ctx->nb_switch[idx];
+            xSemaphoreGive(ctx->state_mutex);
+        }
+        if (nb_sw > BMU_NB_SWITCH_MAX) {
+            ESP_LOGW(TAG, "BAT[%d] web switch ON rejected — lock atteint (sw=%d)",
+                     idx + 1, nb_sw);
+            return ESP_ERR_NOT_ALLOWED;
+        }
     }
 
     int tca_idx = idx / 4;
@@ -541,12 +580,19 @@ void bmu_protection_publish_snapshot(bmu_protection_ctx_t *ctx) {
     bmu_snapshot_t snap = {};
     snap.timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000);
     snap.cycle_count = ctx->cycle_count++;
-    snap.nb_batteries = ctx->nb_ina;
-    snap.topology_ok = (ctx->nb_tca * 4 == ctx->nb_ina);
 
     float max_v = 0, sum_v = 0;
     int count_connected = 0;
 
+    /* Copie de tout l'état partagé sous state_mutex (audit H1) : sans cela,
+     * la lecture concurrente avec check_battery_ex / le hotplug (qui compacte
+     * les tableaux) produit un snapshot incohérent diffusé au balancer,
+     * display, cloud et BLE. xQueueOverwrite est fait hors mutex ensuite. */
+    if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(20)) != pdTRUE) {
+        return; /* mutex indisponible — on saute la publication de ce cycle */
+    }
+    snap.nb_batteries = ctx->nb_ina;
+    snap.topology_ok = (ctx->nb_tca * 4 == ctx->nb_ina);
     for (int i = 0; i < ctx->nb_ina; i++) {
         snap.battery[i].voltage_mv  = ctx->battery_voltages[i];
         snap.battery[i].state       = ctx->battery_state[i];
@@ -563,6 +609,7 @@ void bmu_protection_publish_snapshot(bmu_protection_ctx_t *ctx) {
             count_connected++;
         }
     }
+    xSemaphoreGive(ctx->state_mutex);
 
     snap.fleet_max_mv = max_v;
     snap.fleet_mean_mv = count_connected > 0 ? sum_v / count_connected : 0;
@@ -603,12 +650,23 @@ void bmu_protection_process_commands(bmu_protection_ctx_t *ctx) {
             bool on = cmd.payload.balance_req.on;
             ESP_LOGD(TAG, "CMD balance bat=%d on=%d", idx, on);
             if (idx >= ctx->nb_ina) break;
+            /* Audit H2/H6 : décider sous mutex, commuter hors mutex.
+             * H6 : ne jamais rallumer (ON) une batterie verrouillée ou hors
+             * plage — le balancer ne doit pas réintroduire un défaut écarté. */
+            bool do_switch = false;
             if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
-                if (ctx->battery_state[idx] == BMU_STATE_CONNECTED ||
-                    (on && ctx->battery_state[idx] == BMU_STATE_DISCONNECTED)) {
-                    switch_battery(ctx, idx, on);
-                }
+                bmu_battery_state_t st = ctx->battery_state[idx];
+                bool eligible = (st == BMU_STATE_CONNECTED) ||
+                                (on && st == BMU_STATE_DISCONNECTED);
+                bool block_on = on &&
+                    (ctx->nb_switch[idx] > BMU_NB_SWITCH_MAX ||
+                     ctx->battery_voltages[idx] < BMU_MIN_VOLTAGE_MV ||
+                     ctx->battery_voltages[idx] > BMU_MAX_VOLTAGE_MV);
+                do_switch = eligible && !block_on;
                 xSemaphoreGive(ctx->state_mutex);
+            }
+            if (do_switch) {
+                switch_battery(ctx, idx, on);
             }
             break;
         }

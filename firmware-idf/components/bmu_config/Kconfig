@@ -26,9 +26,12 @@ menu "BMU Protection Config"
 
     config BMU_OVERCURRENT_FACTOR
         int "Facteur surcourant critique (x1000)"
-        default 2000
+        default 1400
         help
-            ERROR si |I| > (factor/1000) * max_current. 2.0 = 2000.
+            ERROR si |I| > (factor/1000) * max_current. 1.4 = 1400.
+            Audit H7 : abaissé de 2.0 à 1.4 pour une coupure ferme plus tôt
+            (la fenêtre 1.0×–facteur× n'est que déconnexion réversible).
+            Valeur par défaut sûre — à valider selon MOSFET/chimie.
 
     config BMU_LOOP_PERIOD_MS
         int "Periode boucle protection (ms)"

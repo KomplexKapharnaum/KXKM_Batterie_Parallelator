@@ -9,6 +9,7 @@
 #include "bmu_battery_manager.h"
 
 #include "mqtt_client.h"
+#include "esp_crt_bundle.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
@@ -33,7 +34,11 @@ static void vrm_publish(const char *path, const char *value_json)
     char topic[128];
     snprintf(topic, sizeof(topic), "N/%s/%s",
              CONFIG_BMU_VRM_PORTAL_ID, path);
-    esp_mqtt_client_publish(s_client, topic, value_json, 0, 0, 0);
+    /* Audit H11 : ne pas ignorer l'échec de publication (file pleine / broker
+     * déconnecté) — sinon trous de télémétrie VRM silencieux. */
+    if (esp_mqtt_client_publish(s_client, topic, value_json, 0, 0, 0) < 0) {
+        ESP_LOGW(TAG, "VRM publish échoué : %s", topic);
+    }
 }
 
 static void vrm_pub_float(const char *path, float val)
@@ -182,6 +187,11 @@ esp_err_t bmu_vrm_init(bmu_protection_ctx_t *prot,
 
     esp_mqtt_client_config_t cfg = {};
     cfg.broker.address.uri             = broker;
+#if CONFIG_BMU_VRM_USE_TLS
+    /* Audit (sécu H4) : VRM est sur Internet public — vérifier le certificat
+     * serveur via le bundle CA, sinon la connexion mqtts:// est MITM-able. */
+    cfg.broker.verification.crt_bundle_attach = esp_crt_bundle_attach;
+#endif
     cfg.credentials.client_id          = CONFIG_BMU_VRM_PORTAL_ID;
     cfg.session.keepalive              = CONFIG_BMU_VRM_PUBLISH_INTERVAL_S;
     cfg.network.reconnect_timeout_ms   = 10000;

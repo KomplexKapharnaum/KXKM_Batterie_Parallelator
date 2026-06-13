@@ -420,7 +420,10 @@ const struct ble_gatt_svc_def *bmu_ble_battery_svc_defs(void)
         s_bat_chr_defs[rint_base].uuid       = &s_rint_trigger_uuid.u;
         s_bat_chr_defs[rint_base].access_cb  = rint_trigger_access_cb;
         s_bat_chr_defs[rint_base].arg        = NULL;
-        s_bat_chr_defs[rint_base].flags      = BLE_GATT_CHR_F_WRITE;
+        /* WRITE_ENC obligatoire : ce write déclenche une action physique
+         * (mesure R_int = commutation batterie). Pairing+bonding requis,
+         * comme toutes les caractéristiques de contrôle (audit C3). */
+        s_bat_chr_defs[rint_base].flags      = BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_WRITE_ENC;
         s_bat_chr_defs[rint_base].val_handle = NULL;
 
         s_bat_chr_defs[rint_base + 1].uuid       = &s_rint_result_uuid.u;

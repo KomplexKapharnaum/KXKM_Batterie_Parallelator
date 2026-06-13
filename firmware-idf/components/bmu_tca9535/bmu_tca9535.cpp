@@ -251,20 +251,22 @@ esp_err_t bmu_tca9535_switch_battery(bmu_tca9535_handle_t *handle,
         return ESP_OK;
     }
 
-    if (on) {
-        handle->out_p0 |= (1 << bit);
-    } else {
-        handle->out_p0 &= ~(1 << bit);
-    }
+    /* Calculer la valeur désirée, écrire, et ne valider le cache qu'après
+     * succès I2C (audit H8) — sinon un write échoué laisse out_p0 incohérent
+     * avec le matériel et fausse les commandes MOSFET suivantes. */
+    uint8_t desired_p0 = on ? (uint8_t)(handle->out_p0 | (1 << bit))
+                            : (uint8_t)(handle->out_p0 & ~(1 << bit));
 
     esp_err_t ret = tca9535_write_reg8(handle->dev,
                                        TCA9535_REG_OUTPUT_PORT0,
-                                       handle->out_p0);
+                                       desired_p0);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Erreur switch batterie ch%u @ 0x%02X : %s",
                  channel, handle->addr, esp_err_to_name(ret));
+        return ret;
     }
-    return ret;
+    handle->out_p0 = desired_p0;
+    return ESP_OK;
 }
 
 esp_err_t bmu_tca9535_set_led(bmu_tca9535_handle_t *handle,

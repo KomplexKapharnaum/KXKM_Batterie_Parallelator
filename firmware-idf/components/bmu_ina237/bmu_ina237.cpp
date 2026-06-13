@@ -366,6 +366,11 @@ esp_err_t bmu_ina237_read_voltage_current(const bmu_ina237_t *ctx,
     if (ctx == NULL || !ctx->ready || voltage_mv == NULL || current_a == NULL)
         return ESP_ERR_INVALID_ARG;
 
+    /* Sortie NAN par défaut : aucun chemin d'échec ne doit laisser une
+     * donnée capteur fantôme en sortie (audit C4). */
+    *voltage_mv = NAN;
+    *current_a  = NAN;
+
     /* Acquire I2C bus mutex for atomic V+I read (audit H-01) */
     if (bmu_i2c_lock() != ESP_OK) {
         *voltage_mv = NAN;
@@ -525,7 +530,9 @@ esp_err_t bmu_ina237_bb_read_bus_voltage(const bmu_ina237_bb_t *ctx, float *volt
     if (!ctx->ready) return ESP_ERR_INVALID_STATE;
     uint16_t raw;
     esp_err_t ret = bmu_i2c_bb_read_reg16(ctx->bb, ctx->addr, INA237_REG_VBUS, &raw);
-    if (ret == ESP_OK) *voltage_mv = (float)(int16_t)raw * (float)INA237_VBUS_LSB_UV / 1000.0f;
+    /* VBUS est NON signé : pas de cast (int16_t) qui produirait une tension
+     * négative aberrante pour raw >= 0x8000 (audit C5). */
+    if (ret == ESP_OK) *voltage_mv = (float)raw * (float)INA237_VBUS_LSB_UV / 1000.0f;
     return ret;
 }
 

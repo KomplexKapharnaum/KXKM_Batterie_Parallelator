@@ -125,13 +125,15 @@ esp_err_t bmu_influx_store_append(const char *line, size_t len)
     }
 
     size_t written = fwrite(line, 1, len, f);
-    /* S'assurer que la ligne se termine par \n */
-    if (len > 0 && line[len - 1] != '\n') {
-        fputc('\n', f);
+    bool ok = (written == len);
+    /* S'assurer que la ligne se termine par \n (audit H11 : vérifier fputc
+     * ET fclose — sur disque plein une ligne sans \n corrompt le replay). */
+    if (ok && len > 0 && line[len - 1] != '\n') {
+        if (fputc('\n', f) == EOF) ok = false;
     }
-    fclose(f);
+    if (fclose(f) != 0) ok = false;
 
-    return (written == len) ? ESP_OK : ESP_FAIL;
+    return ok ? ESP_OK : ESP_FAIL;
 }
 
 /* ── Replay ──────────────────────────────────────────────────────────── */
@@ -147,6 +149,15 @@ static int replay_file(const char *path)
 
     while (fgets(line, sizeof(line), f) != nullptr) {
         size_t len = strlen(line);
+        /* Audit H6 : ligne plus longue que le buffer (pas de \n et buffer
+         * plein) → tronquée. On consomme le reste de la ligne et on l'ignore
+         * plutôt que de rejouer une moitié corrompue. */
+        if (len == sizeof(line) - 1 && line[len - 1] != '\n') {
+            int c;
+            while ((c = fgetc(f)) != '\n' && c != EOF) { /* drain */ }
+            errors++;
+            continue;
+        }
         /* Retirer le \n final */
         if (len > 0 && line[len - 1] == '\n') {
             line[--len] = '\0';
