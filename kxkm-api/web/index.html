@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KXKM BMU — Supervision</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#0d1117; --card:#161b22; --card2:#1c2330; --border:#30363d;
+    --text:#e6edf3; --dim:#8b949e; --ok:#3fb950; --warn:#d29922; --err:#f85149;
+    --accent:#58a6ff; --solar:#f0a020;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text)}
+  header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:10}
+  header h1{font-size:18px;margin:0;font-weight:600}
+  header h1 small{color:var(--dim);font-weight:400}
+  .status{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--dim)}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--err);transition:background .3s}
+  .dot.live{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+  main{padding:18px;max-width:1280px;margin:0 auto}
+  .grid{display:grid;gap:14px}
+  .summary{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:18px}
+  .stat{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px}
+  .stat .label{font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.04em}
+  .stat .val{font-size:26px;font-weight:600;margin-top:4px}
+  .stat .val small{font-size:14px;color:var(--dim);font-weight:400}
+  h2{font-size:14px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;margin:24px 0 10px}
+  .batts{grid-template-columns:repeat(auto-fill,minmax(190px,1fr))}
+  .batt{background:var(--card);border:1px solid var(--border);border-left:4px solid var(--dim);border-radius:10px;padding:12px}
+  .batt.connected{border-left-color:var(--ok)}
+  .batt.reconnecting{border-left-color:var(--accent)}
+  .batt.disconnected{border-left-color:var(--dim)}
+  .batt.error{border-left-color:var(--err)}
+  .batt.locked{border-left-color:var(--err);opacity:.7}
+  .batt .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .batt .id{font-weight:600}
+  .badge{font-size:10px;padding:2px 7px;border-radius:20px;text-transform:uppercase;letter-spacing:.03em}
+  .badge.connected{background:rgba(63,185,80,.15);color:var(--ok)}
+  .badge.reconnecting{background:rgba(88,166,255,.15);color:var(--accent)}
+  .badge.disconnected{background:rgba(139,148,158,.15);color:var(--dim)}
+  .badge.error,.badge.locked{background:rgba(248,81,73,.15);color:var(--err)}
+  .batt .row{display:flex;justify-content:space-between;font-size:13px;padding:2px 0;color:var(--dim)}
+  .batt .row b{color:var(--text);font-weight:600}
+  .soh{height:6px;background:var(--card2);border-radius:3px;margin-top:8px;overflow:hidden}
+  .soh i{display:block;height:100%;background:var(--ok)}
+  .cards{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+  .panel{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px}
+  .panel h3{margin:0 0 12px;font-size:14px;display:flex;align-items:center;gap:8px}
+  .kv{display:flex;justify-content:space-between;padding:5px 0;font-size:14px;border-bottom:1px solid var(--border)}
+  .kv:last-child{border:0}
+  .kv span{color:var(--dim)}
+  .kv b{font-weight:600}
+  canvas{max-height:240px}
+  .muted{color:var(--dim);font-size:13px;padding:8px 0}
+  footer{text-align:center;color:var(--dim);font-size:12px;padding:24px}
+  @media(max-width:600px){header h1{font-size:15px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>⚡ KXKM BMU <small id="bmuname">— Supervision</small></h1>
+  <div class="status"><span class="dot" id="dot"></span><span id="updated">connexion…</span></div>
+</header>
+<main>
+  <div class="grid summary" id="summary"></div>
+
+  <h2>Batteries</h2>
+  <div class="grid batts" id="batts"><div class="muted">chargement…</div></div>
+
+  <h2>Environnement &amp; solaire</h2>
+  <div class="grid cards">
+    <div class="panel"><h3>🌡️ Climat (AHT30)</h3><div id="climate"><div class="muted">—</div></div></div>
+    <div class="panel"><h3>☀️ Solaire (VE.Direct)</h3><div id="solar"><div class="muted">—</div></div></div>
+  </div>
+
+  <h2>Historique (24 h)</h2>
+  <div class="grid cards">
+    <div class="panel"><h3>Tensions batteries</h3><canvas id="chartV"></canvas></div>
+    <div class="panel"><h3>Puissance solaire</h3><canvas id="chartS"></canvas></div>
+  </div>
+</main>
+<footer>KXKM Batterie Parallelator — L'Electron Rare · données InfluxDB via l'API BMU</footer>
+
+<script>
+const API = "/api/bmu";
+const fmt = (n, d=1) => (n==null||isNaN(n)) ? "—" : Number(n).toFixed(d);
+const stateClass = s => ({connected:"connected",reconnecting:"reconnecting",disconnected:"disconnected",error:"error",locked:"locked"}[(s||"").toLowerCase()]||"disconnected");
+
+async function getJSON(path){
+  const r = await fetch(API+path, {headers:{"Accept":"application/json"}});
+  if(!r.ok) throw new Error(path+" → "+r.status);
+  return r.json();
+}
+
+function setLive(ok){
+  document.getElementById("dot").classList.toggle("live", ok);
+  document.getElementById("updated").textContent = ok
+    ? "à jour · "+new Date().toLocaleTimeString("fr-FR")
+    : "hors-ligne";
+}
+
+function renderSummary(b){
+  const bats = b.batteries||[];
+  const conn = bats.filter(x=>x.state.toLowerCase()==="connected");
+  const sumV = conn.reduce((a,x)=>a+x.voltage_mv,0);
+  const avgV = conn.length? sumV/conn.length/1000 : 0;
+  const sumI = bats.reduce((a,x)=>a+x.current_ma,0)/1000;
+  const sohs = bats.filter(x=>x.soh_pct!=null).map(x=>x.soh_pct);
+  const avgSoh = sohs.length? sohs.reduce((a,x)=>a+x,0)/sohs.length : null;
+  const cards = [
+    ["Batteries", `${conn.length}<small>/${bats.length}</small>`],
+    ["Tension moy.", `${fmt(avgV,2)}<small> V</small>`],
+    ["Courant total", `${fmt(sumI,2)}<small> A</small>`],
+    ["SOH moyen", avgSoh==null?"—":`${fmt(avgSoh,0)}<small> %</small>`],
+    ["Topologie", b.topology_valid!==false?'<span style="color:var(--ok)">OK</span>':'<span style="color:var(--err)">MISMATCH</span>'],
+  ];
+  document.getElementById("summary").innerHTML = cards.map(([l,v])=>
+    `<div class="stat"><div class="label">${l}</div><div class="val">${v}</div></div>`).join("");
+}
+
+function renderBatts(b){
+  const bats = b.batteries||[];
+  if(!bats.length){document.getElementById("batts").innerHTML='<div class="muted">aucune batterie détectée</div>';return;}
+  document.getElementById("batts").innerHTML = bats.map(x=>{
+    const cls = stateClass(x.state);
+    const soh = x.soh_pct;
+    const sohColor = soh==null?"var(--dim)":soh>=70?"var(--ok)":soh>=40?"var(--warn)":"var(--err)";
+    return `<div class="batt ${cls}">
+      <div class="top"><span class="id">Batt ${x.index+1}</span><span class="badge ${cls}">${x.state}</span></div>
+      <div class="row"><span>Tension</span><b>${fmt(x.voltage_mv/1000,2)} V</b></div>
+      <div class="row"><span>Courant</span><b>${fmt(x.current_ma/1000,2)} A</b></div>
+      <div class="row"><span>R interne</span><b>${x.r_ohmic_mohm==null?"—":fmt(x.r_ohmic_mohm,1)+" mΩ"}</b></div>
+      <div class="row"><span>Bascules</span><b>${x.nb_switch}</b></div>
+      <div class="row"><span>SOH</span><b>${soh==null?"—":fmt(soh,0)+" %"}</b></div>
+      <div class="soh"><i style="width:${soh==null?0:Math.max(0,Math.min(100,soh))}%;background:${sohColor}"></i></div>
+    </div>`;
+  }).join("");
+}
+
+function renderClimate(c){
+  const el=document.getElementById("climate");
+  if(!c){el.innerHTML='<div class="muted">pas de données</div>';return;}
+  el.innerHTML = `
+    <div class="kv"><span>Température</span><b>${fmt(c.temperature_c,1)} °C</b></div>
+    <div class="kv"><span>Humidité</span><b>${fmt(c.humidity_pct,0)} %</b></div>
+    <div class="kv"><span>Mesure</span><b>${new Date(c.timestamp).toLocaleTimeString("fr-FR")}</b></div>`;
+}
+
+function renderSolar(s){
+  const el=document.getElementById("solar");
+  if(!s){el.innerHTML='<div class="muted">pas de données</div>';return;}
+  el.innerHTML = `
+    <div class="kv"><span>Puissance PV</span><b style="color:var(--solar)">${fmt(s.pv_power_w,0)} W</b></div>
+    <div class="kv"><span>Tension PV</span><b>${fmt(s.pv_voltage_v,1)} V</b></div>
+    <div class="kv"><span>Tension batt.</span><b>${fmt(s.battery_voltage_v,2)} V</b></div>
+    <div class="kv"><span>Courant batt.</span><b>${fmt(s.battery_current_a,2)} A</b></div>
+    <div class="kv"><span>État charge</span><b>${s.charge_state||"—"}</b></div>
+    <div class="kv"><span>Rendement jour</span><b>${fmt(s.yield_today_wh,0)} Wh</b></div>
+    ${s.error_code?`<div class="kv"><span>Erreur</span><b style="color:var(--err)">#${s.error_code}</b></div>`:""}`;
+}
+
+let chartV, chartS;
+const chartOpts = (unit) => ({
+  responsive:true, animation:false, interaction:{mode:"index",intersect:false},
+  scales:{x:{ticks:{color:"#8b949e",maxTicksLimit:6},grid:{color:"#21262d"}},
+          y:{ticks:{color:"#8b949e"},grid:{color:"#21262d"},title:{display:true,text:unit,color:"#8b949e"}}},
+  plugins:{legend:{labels:{color:"#8b949e",boxWidth:12}}}
+});
+
+function renderChartV(points){
+  const byBat={};
+  points.forEach(p=>{(byBat[p.battery]=byBat[p.battery]||[]).push({x:p.time,y:p.voltage_mv/1000})});
+  const labels=[...new Set(points.map(p=>new Date(p.time).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})))];
+  const palette=["#58a6ff","#3fb950","#d29922","#f0a020","#a371f7","#f85149","#39c5cf","#db61a2"];
+  const ds=Object.keys(byBat).map((id,i)=>({label:"B"+(parseInt(id)+1),
+    data:byBat[id].map(d=>d.y),borderColor:palette[i%palette.length],borderWidth:1.5,pointRadius:0,tension:.2}));
+  const ctx=document.getElementById("chartV");
+  if(chartV)chartV.destroy();
+  chartV=new Chart(ctx,{type:"line",data:{labels,datasets:ds},options:chartOpts("V")});
+}
+
+function renderChartS(points){
+  const labels=points.map(p=>new Date(p.time).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}));
+  const ctx=document.getElementById("chartS");
+  if(chartS)chartS.destroy();
+  chartS=new Chart(ctx,{type:"line",data:{labels,datasets:[
+    {label:"PV (W)",data:points.map(p=>p.ppv),borderColor:"#f0a020",backgroundColor:"rgba(240,160,32,.12)",fill:true,borderWidth:1.5,pointRadius:0,tension:.2}
+  ]},options:chartOpts("W")});
+}
+
+async function refresh(){
+  try{
+    const [bats,clim,sol] = await Promise.all([
+      getJSON("/batteries"),
+      getJSON("/climate").catch(()=>null),
+      getJSON("/solar").catch(()=>null),
+    ]);
+    renderSummary(bats); renderBatts(bats);
+    renderClimate(clim); renderSolar(sol);
+    setLive(true);
+  }catch(e){ console.error(e); setLive(false); }
+}
+
+async function refreshHistory(){
+  try{
+    const h = await getJSON("/history?from=-24h");
+    if(h.points) renderChartV(h.points);
+  }catch(e){console.error(e)}
+  try{
+    const s = await getJSON("/solar/history?from=-24h");
+    if(s.points&&s.points.length) renderChartS(s.points);
+  }catch(e){console.error(e)}
+}
+
+refresh(); refreshHistory();
+setInterval(refresh, 5000);
+setInterval(refreshHistory, 60000);
+</script>
+</body>
+</html>

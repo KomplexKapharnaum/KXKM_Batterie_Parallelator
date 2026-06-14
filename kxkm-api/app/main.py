@@ -14,11 +14,21 @@ from fastapi.middleware.cors import CORSMiddleware
 from .auth import require_api_key
 from .config import settings
 from .database import close_db, init_db, insert_audit_events, query_audit_events
-from .influx import close_influx, get_current_batteries, get_history, init_influx
+from .influx import (
+    close_influx,
+    get_current_batteries,
+    get_history,
+    get_latest_climate,
+    get_latest_solar,
+    get_series,
+    init_influx,
+)
 from .models import (
     AuditResponse,
     BatteriesResponse,
+    ClimateState,
     HistoryResponse,
+    SolarState,
     SyncRequest,
     SyncResponse,
 )
@@ -97,6 +107,40 @@ async def history(
         from_time=from_time,
         to_time=to_time,
     )
+
+
+@app.get("/api/bmu/climate", response_model=ClimateState | None)
+async def climate(_: str = Depends(require_api_key)):
+    """Latest ambient temperature / humidity (AHT30)."""
+    return get_latest_climate()
+
+
+@app.get("/api/bmu/climate/history")
+async def climate_history(
+    _: str = Depends(require_api_key),
+    from_time: str = Query(alias="from", default="-24h"),
+    to_time: str = Query(alias="to", default="now()"),
+):
+    """Time-series temperature/humidity for charts."""
+    return {"points": get_series(
+        "climate", ["temperature_c", "humidity_pct"], from_time, to_time)}
+
+
+@app.get("/api/bmu/solar", response_model=SolarState | None)
+async def solar(_: str = Depends(require_api_key)):
+    """Latest solar (VE.Direct) telemetry."""
+    return get_latest_solar()
+
+
+@app.get("/api/bmu/solar/history")
+async def solar_history(
+    _: str = Depends(require_api_key),
+    from_time: str = Query(alias="from", default="-24h"),
+    to_time: str = Query(alias="to", default="now()"),
+):
+    """Time-series solar telemetry for charts."""
+    return {"points": get_series(
+        "solar", ["vpv", "ppv", "vbat", "ibat", "yield"], from_time, to_time)}
 
 
 @app.get("/api/bmu/audit", response_model=AuditResponse)
