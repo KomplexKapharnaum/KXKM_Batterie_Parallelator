@@ -35,6 +35,9 @@ services:
       - DOCKER_INFLUXDB_INIT_ORG=kxkm
       - DOCKER_INFLUXDB_INIT_BUCKET=bmu
       - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=kxkm-influx-token-2026
+      # Rétention 365 jours sur le bucket bmu (déploiement neuf).
+      # Bucket existant : influx bucket update --name bmu --retention 365d
+      - DOCKER_INFLUXDB_INIT_RETENTION=365d
 
   # ── Telegraf (MQTT → InfluxDB bridge) ─────────────────────────────
   # Souscrit à bmu/battery/# et ecrit dans InfluxDB
