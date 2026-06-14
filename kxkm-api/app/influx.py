@@ -6,7 +6,7 @@ from influxdb_client import InfluxDBClient
 from influxdb_client.client.query_api import QueryApi
 
 from .config import settings
-from .models import BatteryState, HistoryPoint
+from .models import BatteryState, ClimateState, HistoryPoint, SolarState
 
 _client: InfluxDBClient | None = None
 _query: QueryApi | None = None
@@ -32,14 +32,44 @@ def close_influx() -> None:
         _query = None
 
 
-def get_current_batteries() -> list[BatteryState]:
+def _dev_filter(device: str | None, tag: str = "bmu") -> str:
+    """Filtre Flux par device (tag `bmu` pour battery/climate, `device` pour
+    solar). Sanitise les guillemets (les noms sont [A-Za-z0-9_-] côté firmware)."""
+    if not device:
+        return ""
+    d = device.replace('"', "").replace("\\", "")
+    return f'      |> filter(fn: (r) => r.{tag} == "{d}")\n'
+
+
+def get_devices() -> list[str]:
+    """Liste des BMU connus (valeurs distinctes du tag `bmu`)."""
+    if not _query:
+        return []
+    flux = f"""
+    import "influxdata/influxdb/schema"
+    schema.tagValues(bucket: "{settings.influx_bucket}", tag: "bmu",
+                     predicate: (r) => r._measurement == "battery", start: -30d)
+    """
+    out: list[str] = []
+    try:
+        for table in _query.query(flux):
+            for record in table.records:
+                v = record.get_value()
+                if v:
+                    out.append(str(v))
+    except Exception:
+        return []
+    return sorted(out)
+
+
+def get_current_batteries(device: str | None = None) -> list[BatteryState]:
     """Get latest state for each battery from InfluxDB.
 
     Schéma canonique (mesure `battery`), alimenté soit par l'écriture
     directe du firmware, soit par le pont Telegraf (telegraf.conf) :
       champs : voltage_mv, current_ma, state, ah_discharge_mah,
                ah_charge_mah, soh_pct, r_ohmic_mohm
-      tag    : id (index 0-15)
+      tag    : id (index 0-15), bmu (nom du device)
     """
     if not _query:
         return []
@@ -48,7 +78,7 @@ def get_current_batteries() -> list[BatteryState]:
     from(bucket: "{settings.influx_bucket}")
       |> range(start: -5m)
       |> filter(fn: (r) => r._measurement == "battery")
-      |> last()
+{_dev_filter(device)}      |> last()
       |> pivot(rowKey:["_time"], columnKey:["_field"], valueColumn:"_value")
     """
 
@@ -96,6 +126,7 @@ def get_history(
     from_time: str,
     to_time: str,
     battery: int | None = None,
+    device: str | None = None,
 ) -> list[HistoryPoint]:
     """Get time-series history from InfluxDB."""
     if not _query:
@@ -104,14 +135,14 @@ def get_history(
     battery_filter = ""
     if battery is not None:
         battery_filter = (
-            f'  |> filter(fn: (r) => r.id == "{battery}")\n'
+            f'      |> filter(fn: (r) => r.id == "{battery}")\n'
         )
 
     flux = f"""
     from(bucket: "{settings.influx_bucket}")
       |> range(start: {from_time}, stop: {to_time})
       |> filter(fn: (r) => r._measurement == "battery")
-{battery_filter}      |> pivot(rowKey:["_time"], columnKey:["_field"], valueColumn:"_value")
+{_dev_filter(device)}{battery_filter}      |> pivot(rowKey:["_time"], columnKey:["_field"], valueColumn:"_value")
       |> sort(columns: ["_time"])
       |> limit(n: 5000)
     """
@@ -135,3 +166,84 @@ def get_history(
                 continue
 
     return points
+
+
+def get_latest_climate(device: str | None = None) -> ClimateState | None:
+    """Latest temperature/humidity from InfluxDB (measurement `climate`)."""
+    if not _query:
+        return None
+    flux = f"""
+    from(bucket: "{settings.influx_bucket}")
+      |> range(start: -1h)
+      |> filter(fn: (r) => r._measurement == "climate")
+{_dev_filter(device)}      |> last()
+      |> pivot(rowKey:["_time"], columnKey:["_field"], valueColumn:"_value")
+    """
+    for table in _query.query(flux):
+        for record in table.records:
+            return ClimateState(
+                temperature_c=float(record.values.get("temperature_c", 0.0)),
+                humidity_pct=float(record.values.get("humidity_pct", 0.0)),
+                timestamp=record.get_time().isoformat(),
+            )
+    return None
+
+
+def get_latest_solar(device: str | None = None) -> SolarState | None:
+    """Latest solar (VE.Direct) telemetry from InfluxDB (measurement `solar`)."""
+    if not _query:
+        return None
+    flux = f"""
+    from(bucket: "{settings.influx_bucket}")
+      |> range(start: -1h)
+      |> filter(fn: (r) => r._measurement == "solar")
+{_dev_filter(device, "device")}      |> last()
+      |> pivot(rowKey:["_time"], columnKey:["_field"], valueColumn:"_value")
+    """
+    for table in _query.query(flux):
+        for record in table.records:
+            v = record.values
+            return SolarState(
+                pv_voltage_v=float(v.get("vpv", 0.0)),
+                pv_power_w=float(v.get("ppv", 0.0)),
+                battery_voltage_v=float(v.get("vbat", 0.0)),
+                battery_current_a=float(v.get("ibat", 0.0)),
+                charge_state=str(v.get("cs", "")),
+                yield_today_wh=float(v.get("yield", 0.0)),
+                error_code=int(v.get("err", 0)),
+                timestamp=record.get_time().isoformat(),
+            )
+    return None
+
+
+def get_series(
+    measurement: str,
+    fields: list[str],
+    from_time: str,
+    to_time: str,
+    device: str | None = None,
+    device_tag: str = "bmu",
+) -> list[dict]:
+    """Generic time-series (time + requested fields) for charts."""
+    if not _query:
+        return []
+    fset = "[" + ", ".join(f'"{f}"' for f in fields) + "]"
+    flux = f"""
+    from(bucket: "{settings.influx_bucket}")
+      |> range(start: {from_time}, stop: {to_time})
+      |> filter(fn: (r) => r._measurement == "{measurement}")
+{_dev_filter(device, device_tag)}      |> filter(fn: (r) => contains(value: r._field, set: {fset}))
+      |> pivot(rowKey:["_time"], columnKey:["_field"], valueColumn:"_value")
+      |> sort(columns: ["_time"])
+      |> limit(n: 5000)
+    """
+    out: list[dict] = []
+    for table in _query.query(flux):
+        for record in table.records:
+            row: dict = {"time": record.get_time().isoformat()}
+            for f in fields:
+                val = record.values.get(f)
+                if val is not None:
+                    row[f] = val
+            out.append(row)
+    return out

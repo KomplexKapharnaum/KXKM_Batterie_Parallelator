@@ -27,6 +27,27 @@ class BatteriesResponse(BaseModel):
     nb_tca: int = 0
 
 
+# --- Climate (AHT30) ---
+
+class ClimateState(BaseModel):
+    temperature_c: float
+    humidity_pct: float
+    timestamp: str
+
+
+# --- Solar (VE.Direct) ---
+
+class SolarState(BaseModel):
+    pv_voltage_v: float
+    pv_power_w: float
+    battery_voltage_v: float
+    battery_current_a: float
+    charge_state: str
+    yield_today_wh: float
+    error_code: int = 0
+    timestamp: str
+
+
 # --- History (time-series from InfluxDB) ---
 
 class HistoryPoint(BaseModel):
