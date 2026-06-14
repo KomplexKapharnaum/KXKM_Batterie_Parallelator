@@ -41,6 +41,35 @@ curl -s https://bmu.saillant.cc/api/bmu/batteries | head    # via le proxy (clé
 # la page : https://bmu.saillant.cc
 ```
 
+## Déploiement réel (saillant.cc — Docker/Traefik/Cloudflare Tunnel)
+
+L'infra saillant.cc n'utilise pas un nginx hôte mais **Traefik + conteneurs
+nginx:alpine par site** sur `electron-server` (tailnet), derrière un **Cloudflare
+Tunnel** (remotely-managed). Setup effectif :
+
+```bash
+# Sur electron-server (electron@100.78.191.52, dans le tailnet) :
+#   ~/saillant-sites/bmu-static/index.html           ← la page
+#   ~/saillant-sites/bmu-overrides/default.conf       ← nginx (page + proxy /api)
+# Conteneur :
+docker run -d --name bmu-saillant --restart unless-stopped --network traefik \
+  -v ~/saillant-sites/bmu-overrides/default.conf:/etc/nginx/conf.d/default.conf:ro \
+  -v ~/saillant-sites/bmu-static:/usr/share/nginx/html:ro \
+  -l traefik.enable=true -l traefik.docker.network=traefik \
+  -l 'traefik.http.routers.bmu-saillant.entrypoints=websecure' \
+  -l 'traefik.http.routers.bmu-saillant.rule=Host(`bmu.saillant.cc`)' \
+  -l 'traefik.http.routers.bmu-saillant.tls.certresolver=letsencrypt' \
+  -l 'traefik.http.services.bmu-saillant.loadbalancer.server.port=80' \
+  nginx:alpine
+```
+Le `default.conf` proxy `/api/` vers `http://100.74.48.9:8400` (IP Tailscale de la
+VM kxkm-bmu) avec `Authorization: Bearer <clé>` injecté.
+
+**Dernière étape (Cloudflare Zero Trust dashboard)** : ajouter un *Public
+Hostname* au tunnel → `bmu.saillant.cc` avec la **même config de service que
+`zacus.saillant.cc`** (le tunnel route par hostname ; sans cette entrée Cloudflare
+renvoie 404 alors que l'origine répond 200).
+
 ## Endpoints exposés (GET, lecture seule via proxy)
 - `/api/bmu/batteries` — état courant des batteries + parc
 - `/api/bmu/climate` · `/api/bmu/climate/history?from=-24h`
