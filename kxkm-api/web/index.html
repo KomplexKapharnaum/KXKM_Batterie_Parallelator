@@ -16,7 +16,9 @@
   header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:10}
   header h1{font-size:18px;margin:0;font-weight:600}
   header h1 small{color:var(--dim);font-weight:400}
-  .status{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--dim)}
+  .status{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--dim)}
+  #device{background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:13px;cursor:pointer}
+  #device:focus{outline:none;border-color:var(--accent)}
   .dot{width:9px;height:9px;border-radius:50%;background:var(--err);transition:background .3s}
   .dot.live{background:var(--ok);box-shadow:0 0 8px var(--ok)}
   main{padding:18px;max-width:1280px;margin:0 auto}
@@ -60,8 +62,11 @@
 </head>
 <body>
 <header>
-  <h1>⚡ KXKM BMU <small id="bmuname">— Supervision</small></h1>
-  <div class="status"><span class="dot" id="dot"></span><span id="updated">connexion…</span></div>
+  <h1>⚡ KXKM BMU <small>Supervision</small></h1>
+  <div class="status">
+    <select id="device" title="Choisir un BMU"><option value="">Tous les BMU</option></select>
+    <span class="dot" id="dot"></span><span id="updated">connexion…</span>
+  </div>
 </header>
 <main>
   <div class="grid summary" id="summary"></div>
@@ -85,6 +90,8 @@
 
 <script>
 const API = "/api/bmu";
+let device = "";  // "" = tous les BMU
+const dq = (path) => device ? path + (path.includes("?")?"&":"?") + "device=" + encodeURIComponent(device) : path;
 const fmt = (n, d=1) => (n==null||isNaN(n)) ? "—" : Number(n).toFixed(d);
 const stateClass = s => ({connected:"connected",reconnecting:"reconnecting",disconnected:"disconnected",error:"error",locked:"locked"}[(s||"").toLowerCase()]||"disconnected");
 
@@ -193,9 +200,9 @@ function renderChartS(points){
 async function refresh(){
   try{
     const [bats,clim,sol] = await Promise.all([
-      getJSON("/batteries"),
-      getJSON("/climate").catch(()=>null),
-      getJSON("/solar").catch(()=>null),
+      getJSON(dq("/batteries")),
+      getJSON(dq("/climate")).catch(()=>null),
+      getJSON(dq("/solar")).catch(()=>null),
     ]);
     renderSummary(bats); renderBatts(bats);
     renderClimate(clim); renderSolar(sol);
@@ -205,18 +212,37 @@ async function refresh(){
 
 async function refreshHistory(){
   try{
-    const h = await getJSON("/history?from=-24h");
+    const h = await getJSON(dq("/history?from=-24h"));
     if(h.points) renderChartV(h.points);
   }catch(e){console.error(e)}
   try{
-    const s = await getJSON("/solar/history?from=-24h");
+    const s = await getJSON(dq("/solar/history?from=-24h"));
     if(s.points&&s.points.length) renderChartS(s.points);
   }catch(e){console.error(e)}
 }
 
+async function loadDevices(){
+  try{
+    const d = await getJSON("/devices");
+    const sel = document.getElementById("device");
+    const list = (d.devices||[]);
+    // garde "Tous les BMU" + une option par device
+    sel.innerHTML = '<option value="">Tous les BMU</option>' +
+      list.map(n=>`<option value="${n}">${n}</option>`).join("");
+    sel.value = device;
+  }catch(e){console.error(e)}
+}
+
+document.getElementById("device").addEventListener("change", e=>{
+  device = e.target.value;
+  refresh(); refreshHistory();
+});
+
+loadDevices();
 refresh(); refreshHistory();
 setInterval(refresh, 5000);
 setInterval(refreshHistory, 60000);
+setInterval(loadDevices, 60000);  // rafraîchir la liste des BMU
 </script>
 </body>
 </html>

@@ -17,6 +17,7 @@ from .database import close_db, init_db, insert_audit_events, query_audit_events
 from .influx import (
     close_influx,
     get_current_batteries,
+    get_devices,
     get_history,
     get_latest_climate,
     get_latest_solar,
@@ -83,12 +84,19 @@ async def sync(
     )
 
 
+@app.get("/api/bmu/devices")
+async def devices(_: str = Depends(require_api_key)):
+    """Liste des BMU connus (valeurs du tag `bmu`)."""
+    return {"devices": get_devices()}
+
+
 @app.get("/api/bmu/batteries", response_model=BatteriesResponse)
 async def batteries(
     _: str = Depends(require_api_key),
+    device: str | None = Query(default=None),
 ):
     """Get current battery state (latest points from InfluxDB)."""
-    bats = get_current_batteries()
+    bats = get_current_batteries(device)
     return BatteriesResponse(batteries=bats)
 
 
@@ -98,9 +106,10 @@ async def history(
     from_time: str = Query(alias="from", description="ISO 8601 or relative (-1h, -24h)"),
     to_time: str = Query(alias="to", default="now()", description="ISO 8601 or now()"),
     battery: int | None = Query(default=None, ge=0, le=15),
+    device: str | None = Query(default=None),
 ):
     """Get time-series battery history from InfluxDB."""
-    points = get_history(from_time, to_time, battery)
+    points = get_history(from_time, to_time, battery, device)
     return HistoryResponse(
         points=points,
         battery=battery,
@@ -110,9 +119,12 @@ async def history(
 
 
 @app.get("/api/bmu/climate", response_model=ClimateState | None)
-async def climate(_: str = Depends(require_api_key)):
+async def climate(
+    _: str = Depends(require_api_key),
+    device: str | None = Query(default=None),
+):
     """Latest ambient temperature / humidity (AHT30)."""
-    return get_latest_climate()
+    return get_latest_climate(device)
 
 
 @app.get("/api/bmu/climate/history")
@@ -120,16 +132,21 @@ async def climate_history(
     _: str = Depends(require_api_key),
     from_time: str = Query(alias="from", default="-24h"),
     to_time: str = Query(alias="to", default="now()"),
+    device: str | None = Query(default=None),
 ):
     """Time-series temperature/humidity for charts."""
     return {"points": get_series(
-        "climate", ["temperature_c", "humidity_pct"], from_time, to_time)}
+        "climate", ["temperature_c", "humidity_pct"], from_time, to_time,
+        device=device)}
 
 
 @app.get("/api/bmu/solar", response_model=SolarState | None)
-async def solar(_: str = Depends(require_api_key)):
+async def solar(
+    _: str = Depends(require_api_key),
+    device: str | None = Query(default=None),
+):
     """Latest solar (VE.Direct) telemetry."""
-    return get_latest_solar()
+    return get_latest_solar(device)
 
 
 @app.get("/api/bmu/solar/history")
@@ -137,10 +154,12 @@ async def solar_history(
     _: str = Depends(require_api_key),
     from_time: str = Query(alias="from", default="-24h"),
     to_time: str = Query(alias="to", default="now()"),
+    device: str | None = Query(default=None),
 ):
     """Time-series solar telemetry for charts."""
     return {"points": get_series(
-        "solar", ["vpv", "ppv", "vbat", "ibat", "yield"], from_time, to_time)}
+        "solar", ["vpv", "ppv", "vbat", "ibat", "yield"], from_time, to_time,
+        device=device, device_tag="device")}
 
 
 @app.get("/api/bmu/audit", response_model=AuditResponse)
