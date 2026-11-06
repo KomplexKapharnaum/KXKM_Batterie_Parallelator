@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="BMU.jpeg" alt="BMU PCB" width="480" />
+  <img src="docs/photos/bmu-bench-test.jpg" alt="BMU v1 on the test bench with six battery packs" width="640" />
+</p>
+<p align="center">
+  <img src="BMU.jpeg" alt="BMU v2 PCB (3D render)" width="480" />
 </p>
 
 <h1 align="center">KXKM Batterie Parallelator</h1>
